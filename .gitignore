@@ -1,0 +1,21 @@
+# Root node deps
+node_modules
+
+# Frontend
+billing-frontend/node_modules
+billing-frontend/dist
+
+# Backend
+billing-system/node_modules
+
+# Environment files
+.env
+billing-frontend/.env
+billing-system/.env
+
+# Logs
+npm-debug.log*
+yarn-debug.log*
+
+# OS files
+.DS_Store
