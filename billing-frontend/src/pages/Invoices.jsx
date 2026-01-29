@@ -128,7 +128,7 @@ const Invoices = () => {
 
     const handleViewPdf = (id) => {
         // Open PDF in a new tab using direct backend URL
-        window.open(`http://localhost:5000/api/invoices/${id}/pdf`, '_blank', 'noopener,noreferrer');
+        window.open(`${import.meta.env.VITE_API_URL}/invoices/${id}/pdf`, '_blank', 'noopener,noreferrer');
     };
 
     const filteredInvoices = invoices.map(inv => ({
