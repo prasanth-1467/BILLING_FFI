@@ -78,7 +78,6 @@ const Profile = () => {
                     <div>
                         <label className="block text-sm font-medium text-gray-700 mb-1">Username</label>
                         <div className="relative">
-                            <User className="absolute left-3 top-2.5 text-gray-400" size={20} />
                             <input
                                 type="text"
                                 name="username"
@@ -97,7 +96,6 @@ const Profile = () => {
                             <div>
                                 <label className="block text-sm font-medium text-gray-700 mb-1">Current Password (Required)</label>
                                 <div className="relative">
-                                    <Lock className="absolute left-3 top-2.5 text-gray-400" size={20} />
                                     <input
                                         type="password"
                                         name="currentPassword"
@@ -113,7 +111,6 @@ const Profile = () => {
                             <div>
                                 <label className="block text-sm font-medium text-gray-700 mb-1">New Password (Optional)</label>
                                 <div className="relative">
-                                    <Lock className="absolute left-3 top-2.5 text-gray-400" size={20} />
                                     <input
                                         type="password"
                                         name="newPassword"
@@ -128,7 +125,6 @@ const Profile = () => {
                             <div>
                                 <label className="block text-sm font-medium text-gray-700 mb-1">Confirm New Password</label>
                                 <div className="relative">
-                                    <Lock className="absolute left-3 top-2.5 text-gray-400" size={20} />
                                     <input
                                         type="password"
                                         name="confirmPassword"

@@ -55,7 +55,6 @@ const Login = () => {
                         <div className="space-y-2">
                             <label className="text-sm font-medium text-gray-300 ml-1">Username</label>
                             <div className="relative group">
-                                <User className="absolute left-4 top-3.5 w-5 h-5 text-gray-500 group-focus-within:text-blue-400 transition-colors" />
                                 <input
                                     type="text"
                                     name="username"
@@ -71,7 +70,6 @@ const Login = () => {
                         <div className="space-y-2">
                             <label className="text-sm font-medium text-gray-300 ml-1">Password</label>
                             <div className="relative group">
-                                <Lock className="absolute left-4 top-3.5 w-5 h-5 text-gray-500 group-focus-within:text-blue-400 transition-colors" />
                                 <input
                                     type="password"
                                     name="password"
