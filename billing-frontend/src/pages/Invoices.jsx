@@ -155,7 +155,6 @@ const Invoices = () => {
         <div className="space-y-6">
             <div className="flex justify-between items-center bg-white p-4 rounded-lg shadow-sm">
                 <div className="relative w-96">
-                    <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" size={20} />
                     <input
                         type="text"
                         placeholder="Search invoice number or customer..."
