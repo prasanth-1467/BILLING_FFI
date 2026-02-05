@@ -4,7 +4,8 @@ const company = require("../config/companyDetails");
 const fs = require('fs');
 const path = require('path');
 
-function generatePDF(res, data, type = "TAX INVOICE", includeSignature = false) {
+function generatePDF(res, data, type = "TAX INVOICE") {
+    const includeSignature = data?.includeSignature === true;
     const doc = new PDFDocument({ size: "A4", margin: 40 });
 
     // Pipe to response

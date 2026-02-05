@@ -53,7 +53,10 @@ router.get("/:id/pdf", async (req, res) => {
     res.setHeader('Content-Type', 'application/pdf');
     res.setHeader('Content-Disposition', `attachment; filename=PO-${po.poNumber}.pdf`);
 
-    generatePoPDF(res, po, includeSignature);
+    const poData = po.toObject();
+    poData.includeSignature = includeSignature;
+
+    generatePoPDF(res, poData);
 
   } catch (error) {
     console.error("PO PDF Error:", error);

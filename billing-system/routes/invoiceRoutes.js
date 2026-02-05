@@ -155,6 +155,8 @@ router.get('/:id/pdf', async (req, res) => {
       return res.status(404).json({ error: 'Invoice not found' });
     }
 
+    const includeSignature = req.query.includeSignature === 'true';
+
     // Construct Data Object for PDF
     const pdfData = {
       number: invoice.invoiceNumber,
@@ -182,16 +184,16 @@ router.get('/:id/pdf', async (req, res) => {
       taxableAmount: invoice.taxableAmount,
       gst: invoice.gstBreakup,
       roundOff: invoice.roundOff,
-      total: invoice.total
+      total: invoice.total,
+      includeSignature // Add to data object
     };
 
     const { generatePDF } = require("../utils/pdfGenerator");
-    const includeSignature = req.query.includeSignature === 'true';
 
     res.setHeader('Content-Type', 'application/pdf');
     res.setHeader('Content-Disposition', `attachment; filename=Invoice-${invoice.invoiceNumber}.pdf`);
 
-    generatePDF(res, pdfData, "TAX INVOICE", includeSignature);
+    generatePDF(res, pdfData, "TAX INVOICE");
 
   } catch (error) {
     console.error("PDF Error:", error);

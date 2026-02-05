@@ -102,6 +102,8 @@ router.get("/:id/pdf", async (req, res) => {
 
     if (!quote) return res.status(404).json({ error: "Quotation not found" });
 
+    const includeSignature = req.query.includeSignature === 'true';
+
     // Prepare Data for Generator
     const pdfData = {
       number: quote.quoteNumber,
@@ -133,17 +135,16 @@ router.get("/:id/pdf", async (req, res) => {
       taxableAmount: quote.taxableAmount,
       gst: quote.gstBreakup,
       roundOff: quote.roundOff,
-      total: quote.total
+      total: quote.total,
+      includeSignature // Add to data object
     };
 
     const { generatePDF } = require("../utils/pdfGenerator");
 
-    const includeSignature = req.query.includeSignature === 'true';
-
     res.setHeader('Content-Type', 'application/pdf');
     res.setHeader('Content-Disposition', `attachment; filename=Quotation-${quote.quoteNumber}.pdf`);
 
-    generatePDF(res, pdfData, "PROFORMA INVOICE", includeSignature);
+    generatePDF(res, pdfData, "PROFORMA INVOICE");
 
   } catch (error) {
     console.error("PDF Error:", error);

@@ -4,7 +4,8 @@ const company = require("../config/companyDetails");
 const fs = require('fs');
 const path = require('path');
 
-function generatePoPDF(res, po, includeSignature = false) {
+function generatePoPDF(res, po) {
+    const includeSignature = po?.includeSignature === true;
     const doc = new PDFDocument({ size: "A4", margin: 40, bufferPages: true });
 
     // Stream to response
