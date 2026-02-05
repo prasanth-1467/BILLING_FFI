@@ -138,13 +138,16 @@ router.get("/:id/pdf", async (req, res) => {
 
     const { generatePDF } = require("../utils/pdfGenerator");
 
-    res.setHeader("Content-Type", "application/pdf");
-    res.setHeader("Content-Disposition", `attachment; filename=proforma-${quote.quoteNumber}.pdf`);
+    const includeSignature = req.query.includeSignature === 'true';
 
-    generatePDF(res, pdfData, "PROFORMA INVOICE");
+    res.setHeader('Content-Type', 'application/pdf');
+    res.setHeader('Content-Disposition', `attachment; filename=Quotation-${quote.quoteNumber}.pdf`);
 
-  } catch (err) {
-    res.status(400).json({ error: err.message });
+    generatePDF(res, pdfData, "PROFORMA INVOICE", includeSignature);
+
+  } catch (error) {
+    console.error("PDF Error:", error);
+    res.status(500).json({ error: 'Failed to generate PDF' });
   }
 });
 

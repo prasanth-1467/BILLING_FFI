@@ -8,6 +8,7 @@ const Invoices = () => {
     const [loading, setLoading] = useState(true);
     const [searchTerm, setSearchTerm] = useState('');
     const [downloadingId, setDownloadingId] = useState(null);
+    const [includeSignature, setIncludeSignature] = useState(false);
     const [editingId, setEditingId] = useState(null);
     const [editNumber, setEditNumber] = useState("");
     const [saving, setSaving] = useState(false);
@@ -43,6 +44,7 @@ const Invoices = () => {
         try {
             setDownloadingId(id);
             const response = await api.get(`/invoices/${id}/pdf`, {
+                params: { includeSignature },
                 responseType: 'blob',
             });
 
@@ -128,7 +130,7 @@ const Invoices = () => {
 
     const handleViewPdf = (id) => {
         // Open PDF in a new tab using direct backend URL
-        window.open(`${import.meta.env.VITE_API_URL}/invoices/${id}/pdf`, '_blank', 'noopener,noreferrer');
+        window.open(`${import.meta.env.VITE_API_URL}/invoices/${id}/pdf?includeSignature=${includeSignature}`, '_blank', 'noopener,noreferrer');
     };
 
     const filteredInvoices = invoices.map(inv => ({
@@ -162,6 +164,19 @@ const Invoices = () => {
                         value={searchTerm}
                         onChange={(e) => setSearchTerm(e.target.value)}
                     />
+                </div>
+
+
+                <div className="flex items-center gap-2">
+                    <label className="flex items-center gap-2 text-sm font-medium text-gray-700 bg-gray-50 px-3 py-2 rounded cursor-pointer border hover:bg-gray-100">
+                        <input
+                            type="checkbox"
+                            className="w-4 h-4 text-blue-600 rounded focus:ring-blue-500 border-gray-300"
+                            checked={includeSignature}
+                            onChange={e => setIncludeSignature(e.target.checked)}
+                        />
+                        Include Signature
+                    </label>
                 </div>
             </div>
 
@@ -271,7 +286,7 @@ const Invoices = () => {
                     </table>
                 </div>
             </div>
-        </div>
+        </div >
     );
 };
 

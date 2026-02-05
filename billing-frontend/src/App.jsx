@@ -9,6 +9,8 @@ import Quotations from './pages/Quotations';
 import Invoices from './pages/Invoices';
 import Profile from './pages/Profile';
 import Login from './pages/Login';
+import PurchaseOrder from './pages/PurchaseOrder';
+import PurchaseOrders from './pages/PurchaseOrders';
 import { isAuthenticated } from './services/authService';
 
 const ProtectedRoute = () => {
@@ -28,6 +30,8 @@ function App() {
             <Route path="customers" element={<Customers />} />
             <Route path="quotation" element={<Quotation />} />
             <Route path="quotations" element={<Quotations />} />
+            <Route path="purchase-orders" element={<PurchaseOrders />} />
+            <Route path="purchase-orders/new" element={<PurchaseOrder />} />
             <Route path="invoices" element={<Invoices />} />
             <Route path="profile" element={<Profile />} />
             {/* Redirect unknown routes to Dashboard */}

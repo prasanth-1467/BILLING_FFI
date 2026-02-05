@@ -10,7 +10,8 @@ import {
     Menu,
     Bell,
     UserCircle,
-    LogOut
+    LogOut,
+    ShoppingBag
 } from 'lucide-react';
 import '../index.css';
 
@@ -38,6 +39,8 @@ const MainLayout = () => {
             case '/products': return 'Products';
             case '/customers': return 'Customers';
             case '/quotation': return 'New Quotation';
+            case '/purchase-orders': return 'Purchase Orders';
+            case '/purchase-orders/new': return 'New Purchase Order';
             case '/invoices': return 'Invoices';
             default: return 'Dashboard';
         }
@@ -67,7 +70,10 @@ const MainLayout = () => {
                     <SidebarItem to="/" icon={LayoutDashboard} label="Dashboard" />
                     <SidebarItem to="/products" icon={Package} label="Products" />
                     <SidebarItem to="/customers" icon={Users} label="Customers" />
-                    <SidebarItem to="/quotation" icon={FileText} label="Quotation" />
+                    <SidebarItem to="/quotations" icon={FileText} label="Quotations" />
+                    <SidebarItem to="/quotation" icon={FileText} label="Create Quotation" />
+                    <SidebarItem to="/purchase-orders" icon={ShoppingBag} label="Purchase Orders" />
+                    <SidebarItem to="/purchase-orders/new" icon={ShoppingBag} label="Create PO" />
                     <SidebarItem to="/invoices" icon={Receipt} label="Invoices" />
                     <SidebarItem to="/profile" icon={UserCircle} label="Profile" />
                 </nav>

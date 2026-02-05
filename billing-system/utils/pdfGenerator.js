@@ -1,7 +1,10 @@
 const PDFDocument = require("pdfkit");
 const company = require("../config/companyDetails");
 
-function generatePDF(res, data, type = "TAX INVOICE") {
+const fs = require('fs');
+const path = require('path');
+
+function generatePDF(res, data, type = "TAX INVOICE", includeSignature = false) {
     const doc = new PDFDocument({ size: "A4", margin: 40 });
 
     // Pipe to response
@@ -274,7 +277,23 @@ function generatePDF(res, data, type = "TAX INVOICE") {
 
     // Signatory (Right Aligned - same Y as Terms)
     doc.fontSize(10).text(`For ${company.name}`, 350, termsY, { align: "right" });
-    doc.moveDown(3);
+
+    if (includeSignature) {
+        const signaturePath = path.join(__dirname, '../assets/signature.png');
+        if (fs.existsSync(signaturePath)) {
+            try {
+                // Place signature image
+                doc.image(signaturePath, 450, termsY + 15, { width: 80 });
+            } catch (err) {
+                console.error("Error loading signature image:", err);
+            }
+        }
+        // Increase spacing if signature is present to avoid overlap
+        doc.moveDown(6);
+    } else {
+        doc.moveDown(3);
+    }
+
     doc.text("Authorized Signatory", 350, doc.y, { align: "right" });
 
     doc.end();

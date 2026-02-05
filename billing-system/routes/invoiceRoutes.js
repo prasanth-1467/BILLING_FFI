@@ -144,15 +144,18 @@ const fs = require("fs");
 const path = require("path");
 const Customer = require("../models/Customer");
 
-router.get("/:id/pdf", async (req, res) => {
+// PDF Generation Route
+router.get('/:id/pdf', async (req, res) => {
   try {
     const invoice = await Invoice.findById(req.params.id)
-      .populate("customerId")
-      .populate("items.productId");
+      .populate('customerId')
+      .populate('items.productId'); // If you have product refs
 
-    if (!invoice) return res.status(404).json({ error: "Invoice not found" });
+    if (!invoice) {
+      return res.status(404).json({ error: 'Invoice not found' });
+    }
 
-    // Prepare Data for Generator
+    // Construct Data Object for PDF
     const pdfData = {
       number: invoice.invoiceNumber,
       date: invoice.date,
@@ -161,24 +164,21 @@ router.get("/:id/pdf", async (req, res) => {
         name: invoice.customerId.name,
         address: invoice.customerId.address,
         gst: invoice.customerId.gstNumber,
-        shipTo: invoice.shipTo // Pass shipTo data
+        state: invoice.customerId.state, // Pass State
+        shipTo: invoice.shipTo // Pass shipTo
       },
-      items: invoice.items.map(item => {
-        const product = item.productId || {};
-        return {
-          name: product.name || "Unknown Product",
-          hsn: product.hsn || "-",
-          unit: product.unit || "-",
-          qty: item.qty,
-          rate: item.rate,
-          gstRate: item.gstRate,
-          amount: item.amount
-        };
-      }),
+      items: invoice.items.map(item => ({
+        name: item.name || item.productId.name,
+        qty: item.qty,
+        rate: item.rate,
+        amount: item.amount,
+        hsn: item.hsn || item.productId?.hsn || "", // Pass HSN
+        gstRate: item.gstRate, // Pass GST Rate
+        unit: item.unit
+      })),
       subtotal: invoice.subtotal,
-      discount: (invoice.subtotal * (invoice.discountPercent || 0)) / 100,
       discountPercent: invoice.discountPercent,
-      taxableAmount: invoice.taxableAmount,
+      discount: invoice.discountAmount,
       taxableAmount: invoice.taxableAmount,
       gst: invoice.gstBreakup,
       roundOff: invoice.roundOff,
@@ -186,15 +186,16 @@ router.get("/:id/pdf", async (req, res) => {
     };
 
     const { generatePDF } = require("../utils/pdfGenerator");
+    const includeSignature = req.query.includeSignature === 'true';
 
-    // Set headers
-    res.setHeader("Content-Type", "application/pdf");
-    res.setHeader("Content-Disposition", `attachment; filename=invoice-${invoice.invoiceNumber}.pdf`);
+    res.setHeader('Content-Type', 'application/pdf');
+    res.setHeader('Content-Disposition', `attachment; filename=Invoice-${invoice.invoiceNumber}.pdf`);
 
-    generatePDF(res, pdfData, "TAX INVOICE");
+    generatePDF(res, pdfData, "TAX INVOICE", includeSignature);
 
-  } catch (err) {
-    res.status(400).json({ error: err.message });
+  } catch (error) {
+    console.error("PDF Error:", error);
+    res.status(500).json({ error: 'Failed to generate PDF' });
   }
 });
 

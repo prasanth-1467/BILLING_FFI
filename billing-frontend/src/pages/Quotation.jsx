@@ -15,15 +15,15 @@ const Quotation = () => {
     const [products, setProducts] = useState([]);
 
     // Form State (persistent between page navigations)
-    const [selectedCustomerId, setSelectedCustomerId] = usePersistentState('quotation.selectedCustomerId', '');
-    const [selectedProductCode, setSelectedProductCode] = usePersistentState('quotation.selectedProductCode', '');
-    const [items, setItems] = usePersistentState('quotation.items', []);
-    const [discountPercent, setDiscountPercent] = usePersistentState('quotation.discountPercent', 0);
-    const [lastSavedQuoteId, setLastSavedQuoteId] = usePersistentState('quotation.lastSavedQuoteId', '');
+    const [selectedCustomerId, setSelectedCustomerId] = usePersistentState('quotation_v3.selectedCustomerId', '');
+    const [selectedProductCode, setSelectedProductCode] = usePersistentState('quotation_v3.selectedProductCode', '');
+    const [items, setItems] = usePersistentState('quotation_v3.items', []);
+    const [discountPercent, setDiscountPercent] = usePersistentState('quotation_v3.discountPercent', 0);
+    const [lastSavedQuoteId, setLastSavedQuoteId] = usePersistentState('quotation_v3.lastSavedQuoteId', '');
 
     // Ship To State
-    const [isShipSameAsBill, setIsShipSameAsBill] = usePersistentState('quotation.isShipSameAsBill', true);
-    const [shipTo, setShipTo] = usePersistentState('quotation.shipTo', {
+    const [isShipSameAsBill, setIsShipSameAsBill] = usePersistentState('quotation_v3.isShipSameAsBill', true);
+    const [shipTo, setShipTo] = usePersistentState('quotation_v3.shipTo', {
         name: '',
         address: '',
         state: '',
@@ -177,6 +177,14 @@ const Quotation = () => {
             const res = await api.post('/quotations', payload);
             const quoteId = res?.data?._id || res?.data?.id;
             if (quoteId) setLastSavedQuoteId(quoteId);
+
+            // Clear form on success
+            setItems([]);
+            setSelectedCustomerId('');
+            setDiscountPercent(0);
+            setIsShipSameAsBill(true);
+            setShipTo({ name: '', address: '', state: '', city: '', phone: '' });
+
             alert('Quotation Saved Successfully!');
         } catch (error) {
             console.error('Save failed', error);
@@ -208,6 +216,17 @@ const Quotation = () => {
         }
     };
 
+    const handleReset = () => {
+        if (window.confirm("Are you sure you want to clear the entire form?")) {
+            setItems([]);
+            setSelectedCustomerId('');
+            setDiscountPercent(0);
+            setIsShipSameAsBill(true);
+            setShipTo({ name: '', address: '', state: '', city: '', phone: '' });
+            setLastSavedQuoteId('');
+        }
+    };
+
     return (
         <div className="space-y-6 pb-20">
             {/* Top Actions */}
@@ -217,6 +236,12 @@ const Quotation = () => {
                     onClick={() => navigate('/quotations')}
                 >
                     <FileText size={18} /> View Saved Quotations
+                </button>
+                <button
+                    className="btn btn-outline text-red-600 hover:bg-red-50 border-red-200 ml-2"
+                    onClick={handleReset}
+                >
+                    Reset Form
                 </button>
             </div>
 

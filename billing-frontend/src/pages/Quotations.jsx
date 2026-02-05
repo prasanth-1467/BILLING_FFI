@@ -9,6 +9,7 @@ const Quotations = () => {
   const [quotes, setQuotes] = useState([]);
   const [loading, setLoading] = useState(true);
   const [convertingId, setConvertingId] = useState(null);
+  const [includeSignature, setIncludeSignature] = useState(false);
   const [expandedId, setExpandedId] = useState(null);
   const [editingId, setEditingId] = useState(null);
   const [editNumber, setEditNumber] = useState("");
@@ -51,6 +52,7 @@ const Quotations = () => {
   const handleDownload = async (id, quoteNumber) => {
     try {
       const response = await api.get(`/quotations/${id}/pdf`, {
+        params: { includeSignature },
         responseType: 'blob',
       });
       const url = window.URL.createObjectURL(new Blob([response.data]));
@@ -131,9 +133,20 @@ const Quotations = () => {
         <div className="flex items-center gap-2 text-gray-700 font-semibold">
           <FileText size={18} /> Saved Quotations
         </div>
-        <button className="btn btn-outline flex items-center gap-2" onClick={fetchQuotes}>
-          <RefreshCcw size={16} /> Refresh
-        </button>
+        <div className="flex items-center gap-4">
+          <label className="flex items-center gap-2 text-sm font-medium text-gray-700 bg-gray-50 px-3 py-2 rounded cursor-pointer border hover:bg-gray-100">
+            <input
+              type="checkbox"
+              className="w-4 h-4 text-blue-600 rounded focus:ring-blue-500 border-gray-300"
+              checked={includeSignature}
+              onChange={e => setIncludeSignature(e.target.checked)}
+            />
+            Include Signature
+          </label>
+          <button className="btn btn-outline flex items-center gap-2" onClick={fetchQuotes}>
+            <RefreshCcw size={16} /> Refresh
+          </button>
+        </div>
       </div>
 
       <div className="bg-white rounded-lg shadow-sm overflow-hidden">
