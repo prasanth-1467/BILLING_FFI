@@ -1,11 +1,6 @@
 const express = require("express");
 const mongoose = require("mongoose");
-const dns = require("dns");
-
-// Force Node.js to use Google DNS for SRV resolution (fixes ECONNREFUSED on some networks)
-if (dns.setServers) {
-  dns.setServers(["8.8.8.8", "1.1.1.1"]);
-}
+// DNS server override removed as it may interfere with system settings
 
 require("dotenv").config();
 const cors = require("cors");

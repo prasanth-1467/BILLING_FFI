@@ -173,13 +173,13 @@ router.get('/:id/pdf', async (req, res) => {
         shipTo: invoice.shipTo // Pass shipTo
       },
       items: invoice.items.map(item => ({
-        name: item.name || item.productId.name,
+        name: item.name || item.productId?.name || "Unknown Product",
         qty: item.qty,
         rate: item.rate,
         amount: item.amount,
-        hsn: item.hsn || item.productId?.hsn || "", // Pass HSN
-        gstRate: item.gstRate, // Pass GST Rate
-        unit: item.unit
+        hsn: item.hsn || item.productId?.hsn || "",
+        gstRate: item.gstRate,
+        unit: item.unit || item.productId?.unit || ""
       })),
       subtotal: invoice.subtotal,
       discountPercent: invoice.discountPercent,

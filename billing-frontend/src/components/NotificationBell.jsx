@@ -46,6 +46,16 @@ const NotificationBell = () => {
         }
     };
 
+    const markAllAsRead = async () => {
+        try {
+            await api.patch('/notifications/read-all');
+            setNotifications(notifications.map(n => ({ ...n, read: true })));
+            setUnreadCount(0);
+        } catch (error) {
+            console.error('Error marking all notifications as read:', error);
+        }
+    };
+
     const deleteNotification = async (id) => {
         try {
             await api.delete(`/notifications/${id}`);
@@ -83,9 +93,17 @@ const NotificationBell = () => {
             {isOpen && (
                 <div className="absolute right-0 mt-2 w-80 bg-white rounded-xl shadow-2xl border border-gray-100 z-50 overflow-hidden transform transition-all duration-200 ease-out origin-top-right">
                     <div className="p-4 border-b border-gray-50 flex justify-between items-center bg-gray-50/50">
-                        <h3 className="font-bold text-gray-800 flex items-center gap-2">
-                            Agent Insights
-                        </h3>
+                        <div className="flex flex-col">
+                            <h3 className="font-bold text-gray-800">Agent Insights</h3>
+                            {unreadCount > 0 && (
+                                <button
+                                    onClick={markAllAsRead}
+                                    className="text-[10px] text-blue-600 hover:text-blue-800 font-bold text-left hover:underline"
+                                >
+                                    Mark all as read
+                                </button>
+                            )}
+                        </div>
                         <span className="text-xs bg-gray-200 text-gray-600 px-2 py-0.5 rounded-full font-medium">
                             {notifications.length} Total
                         </span>
