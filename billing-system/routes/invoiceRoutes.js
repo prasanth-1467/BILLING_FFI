@@ -116,6 +116,9 @@ router.post("/from-quotation/:quoteId", async (req, res) => {
       paymentType,
       paidAmount,
       balance,
+      dueDate: date,
+      paymentTerms: "Due on Receipt",
+      status: balance <= 0 ? "Paid" : (paidAmount > 0 ? "Partially Paid" : "Unpaid"),
       shipTo: quote.shipTo // Copy shipTo from quotation
     });
 
@@ -201,5 +204,37 @@ router.get('/:id/pdf', async (req, res) => {
   }
 });
 
+
+// PATCH /api/invoices/:id/payment - Record Payment
+router.patch("/:id/payment", async (req, res) => {
+  try {
+    const { amount } = req.body;
+    const invoice = await Invoice.findById(req.params.id);
+    if (!invoice) return res.status(404).json({ error: "Invoice not found" });
+
+    const newPaidAmount = (invoice.paidAmount || 0) + Number(amount);
+    const newBalance = invoice.total - newPaidAmount;
+    
+    let newStatus = "Unpaid";
+    if (newBalance <= 0) {
+      newStatus = "Paid";
+    } else if (newPaidAmount > 0) {
+      newStatus = "Partially Paid";
+    } else {
+      if (invoice.dueDate && new Date(invoice.dueDate) < new Date()) {
+         newStatus = "Overdue";
+      }
+    }
+
+    invoice.paidAmount = newPaidAmount;
+    invoice.balance = newBalance;
+    invoice.status = newStatus;
+    
+    await invoice.save();
+    res.json(invoice);
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
 
 module.exports = router;

@@ -4,12 +4,13 @@ const productSchema = new mongoose.Schema({
   productCode: { type: String, unique: true },
   name: String,
   hsn: String,
+  category: { type: String, default: "General" },
   unit: String,
   gstRate: Number,
   purchasePrice: Number,
   sellingPrice: Number,
   stockQty: Number,
-  reorderLevel: Number,
+  reorderLevel: { type: Number, default: 5 },
   status: { type: String, default: "In Stock" }
 });
 
