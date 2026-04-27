@@ -4,7 +4,6 @@ import { login } from '../services/authService';
 import { Lock, User, ArrowRight, Loader2 } from 'lucide-react';
 
 const Login = () => {
-    const [formData, setFormData] = useState({ accessKey: '', secret: '' }); // mapping username->accessKey visually if needed, but sticking to standard for now
     // Actually, sticking to username/password as per backend
     const [credentials, setCredentials] = useState({ username: '', password: '' });
     const [error, setError] = useState('');

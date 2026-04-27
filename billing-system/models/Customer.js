@@ -5,7 +5,8 @@ const customerSchema = new mongoose.Schema({
   phone: String,
   gstNumber: String,
   state: String,
-  address: String
+  address: String,
+  tags: [{ type: String }]
 });
 
 module.exports = mongoose.model("Customer", customerSchema);

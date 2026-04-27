@@ -20,9 +20,11 @@ const invoiceSchema = new mongoose.Schema({
   roundOff: { type: Number, default: 0 },
   total: Number,
   paymentType: String,
-  paidAmount: Number,
+  paymentTerms: { type: String, default: "Due on Receipt" },
+  dueDate: { type: Date },
+  paidAmount: { type: Number, default: 0 },
   balance: Number,
-  status: { type: String, default: "Pending" },
+  status: { type: String, default: "Unpaid" },
   shipTo: {
     name: String,
     address: String,

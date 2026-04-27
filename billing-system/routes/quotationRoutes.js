@@ -198,4 +198,58 @@ router.patch("/:id", async (req, res) => {
   }
 });
 
+// PATCH /api/quotations/:id/status - Update Status manually
+router.patch("/:id/status", async (req, res) => {
+  try {
+    const { status } = req.body;
+    const { id } = req.params;
+    const quote = await Quotation.findOne({ $or: [{ _id: id }, { id: id }] });
+    if (!quote) return res.status(404).json({ error: "Quotation not found" });
+
+    quote.status = status;
+    await quote.save();
+    res.json(quote);
+  } catch (err) {
+    res.status(400).json({ error: err.message });
+  }
+});
+
+// POST /api/quotations/:id/duplicate - Duplicate Quotation
+router.post("/:id/duplicate", async (req, res) => {
+  try {
+    const { id } = req.params;
+    const original = await Quotation.findOne({ $or: [{ _id: id }, { id: id }] });
+    if (!original) return res.status(404).json({ error: "Quotation not found" });
+
+    // Generate new Quote Number
+    const Counter = require("../models/Counter");
+    const counter = await Counter.findOneAndUpdate(
+      { id: "quoteNumber" },
+      { $inc: { seq: 1 } },
+      { new: true, upsert: true }
+    );
+    const date = new Date();
+    const year = date.getFullYear();
+    const month = date.getMonth(); 
+    const startYear = month >= 3 ? year : year - 1;
+    const fyString = `${String(startYear).slice(-2)}-${String(startYear + 1).slice(-2)}`;
+    const newQuoteNumber = `FFI/${fyString}/${String(counter.seq).padStart(3, '0')}`;
+
+    const newQuote = new Quotation({
+      ...original.toObject(),
+      _id: undefined,
+      quoteNumber: newQuoteNumber,
+      date: new Date(),
+      status: "Draft",
+      createdAt: undefined,
+      updatedAt: undefined
+    });
+
+    await newQuote.save();
+    res.json(newQuote);
+  } catch (err) {
+    res.status(400).json({ error: err.message });
+  }
+});
+
 module.exports = router;
