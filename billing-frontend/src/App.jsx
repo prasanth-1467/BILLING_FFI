@@ -9,6 +9,7 @@ import Quotations from './pages/Quotations';
 import Invoices from './pages/Invoices';
 import Profile from './pages/Profile';
 import Login from './pages/Login';
+import AgentInsights from './pages/AgentInsights';
 import PurchaseOrder from './pages/PurchaseOrder';
 import PurchaseOrders from './pages/PurchaseOrders';
 import { isAuthenticated } from './services/authService';
@@ -33,6 +34,7 @@ function App() {
             <Route path="purchase-orders" element={<PurchaseOrders />} />
             <Route path="purchase-orders/new" element={<PurchaseOrder />} />
             <Route path="invoices" element={<Invoices />} />
+            <Route path="insights" element={<AgentInsights />} />
             <Route path="profile" element={<Profile />} />
             {/* Redirect unknown routes to Dashboard */}
             <Route path="*" element={<Navigate to="/" replace />} />

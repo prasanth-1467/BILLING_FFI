@@ -1,12 +1,10 @@
 import React, { useState } from 'react';
 import { User, Lock, Save, Loader2, AlertCircle } from 'lucide-react';
-import { useNavigate } from 'react-router-dom';
 import { getCurrentUser, logout } from '../services/authService';
 import api from '../api/api';
 
 const Profile = () => {
     const user = getCurrentUser();
-    const navigate = useNavigate();
     const [formData, setFormData] = useState({
         username: user?.username || '',
         currentPassword: '',

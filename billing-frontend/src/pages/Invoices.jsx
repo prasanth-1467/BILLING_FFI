@@ -1,7 +1,7 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useRef } from 'react';
 import api from '../services/api';
-import { Search, Loader, Download, FileText, CheckCircle, Clock, Eye, Trash2, Edit, Save, X } from 'lucide-react';
-import { format } from 'date-fns';
+import { Search, Loader, Download, FileText, CheckCircle, Clock, Eye, Trash2, Edit, Save, X, MoreVertical, IndianRupee, MessageCircle, AlertTriangle } from 'lucide-react';
+import { format, isPast, startOfDay } from 'date-fns';
 
 const Invoices = () => {
     const [invoices, setInvoices] = useState([]);
@@ -9,12 +9,32 @@ const Invoices = () => {
     const [searchTerm, setSearchTerm] = useState('');
     const [downloadingId, setDownloadingId] = useState(null);
     const [includeSignature, setIncludeSignature] = useState(false);
+
     const [editingId, setEditingId] = useState(null);
     const [editNumber, setEditNumber] = useState("");
     const [saving, setSaving] = useState(false);
 
+    const [activeDropdown, setActiveDropdown] = useState(null);
+    const dropdownRef = useRef(null);
+
+    // Payment Modal State
+    const [showPaymentModal, setShowPaymentModal] = useState(false);
+    const [paymentInvoice, setPaymentInvoice] = useState(null);
+    const [paymentAmount, setPaymentAmount] = useState('');
+    const [processingPayment, setProcessingPayment] = useState(false);
+
     useEffect(() => {
         fetchInvoices();
+    }, []);
+
+    useEffect(() => {
+        const handleClickOutside = (event) => {
+            if (dropdownRef.current && !dropdownRef.current.contains(event.target)) {
+                setActiveDropdown(null);
+            }
+        };
+        document.addEventListener("mousedown", handleClickOutside);
+        return () => document.removeEventListener("mousedown", handleClickOutside);
     }, []);
 
     const fetchInvoices = async () => {
@@ -28,18 +48,6 @@ const Invoices = () => {
         }
     };
 
-    const handleStatusUpdate = async (id, newStatus) => {
-        try {
-            await api.patch(`/invoices/${id}/status`, { status: newStatus });
-            setInvoices(invoices.map(inv =>
-                inv._id === id || inv.id === id ? { ...inv, status: newStatus } : inv
-            ));
-        } catch (error) {
-            console.error("Failed to update status", error);
-            alert(error.response?.data?.error || "Failed to update status");
-        }
-    };
-
     const handleDownload = async (id, invoiceNumber) => {
         try {
             setDownloadingId(id);
@@ -48,19 +56,17 @@ const Invoices = () => {
                 responseType: 'blob',
             });
 
-            // Check if returned data is JSON (Error) instead of PDF
             if (response.headers['content-type']?.includes('application/json') || response.data.type === 'application/json') {
                 const text = await response.data.text();
                 try {
                     const json = JSON.parse(text);
                     alert(json.error || "Failed to generate PDF");
-                } catch (e) {
+                } catch {
                     alert("Failed to generate PDF: Server returned error");
                 }
                 return;
             }
 
-            // Create blob link to download
             const url = window.URL.createObjectURL(new Blob([response.data], { type: 'application/pdf' }));
             const link = document.createElement('a');
             link.href = url;
@@ -70,18 +76,7 @@ const Invoices = () => {
             link.remove();
         } catch (error) {
             console.error('Failed to download PDF', error);
-            // Try to read blob error if available
-            if (error.response?.data instanceof Blob) {
-                const text = await error.response.data.text();
-                try {
-                    const json = JSON.parse(text);
-                    alert(json.error || "Failed to download PDF");
-                } catch (e) {
-                    alert("Failed to download PDF");
-                }
-            } else {
-                alert('Failed to download PDF');
-            }
+            alert('Failed to download PDF');
         } finally {
             setDownloadingId(null);
         }
@@ -97,6 +92,33 @@ const Invoices = () => {
                 alert('Failed to delete invoice');
             }
         }
+    };
+
+    const handleRecordPayment = async (e) => {
+        e.preventDefault();
+        setProcessingPayment(true);
+        try {
+            const res = await api.patch(`/invoices/${paymentInvoice.id}/payment`, { amount: Number(paymentAmount) });
+            setInvoices(invoices.map(inv => (inv._id === paymentInvoice.id || inv.id === paymentInvoice.id) ? res.data : inv));
+            setShowPaymentModal(false);
+            setPaymentInvoice(null);
+            setPaymentAmount('');
+        } catch (error) {
+            alert(error.response?.data?.error || "Failed to record payment");
+        } finally {
+            setProcessingPayment(false);
+        }
+    };
+
+    const handleShareWhatsApp = (invoice) => {
+        const phone = invoice.customerId?.phone;
+        if (!phone) {
+            alert('Customer does not have a phone number saved.');
+            return;
+        }
+        const text = `Hello ${invoice.customerName},\n\nYour Invoice *${invoice.invoiceNumber}* for *₹${Number(invoice.totalAmount).toLocaleString('en-IN')}* has been generated.\nPending Balance: *₹${Number(invoice.balance).toLocaleString('en-IN')}*.\nDue Date: ${invoice.dueDate ? format(new Date(invoice.dueDate), 'dd MMM yyyy') : 'Immediate'}.\n\nPlease find the PDF copy attached or request via reply.\n\nThank you for your business!`;
+        const wsUrl = `https://wa.me/91${phone}?text=${encodeURIComponent(text)}`;
+        window.open(wsUrl, '_blank');
     };
 
     const startEditing = (invoice) => {
@@ -115,13 +137,10 @@ const Invoices = () => {
         try {
             await api.patch(`/invoices/${editingId}`, { invoiceNumber: editNumber });
             setInvoices(invoices.map(inv =>
-                (inv._id === editingId || inv.id === editingId)
-                    ? { ...inv, invoiceNumber: editNumber }
-                    : inv
+                (inv._id === editingId || inv.id === editingId) ? { ...inv, invoiceNumber: editNumber } : inv
             ));
             cancelEditing();
         } catch (error) {
-            console.error("Failed to update invoice number", error);
             alert(error.response?.data?.error || "Failed to update invoice number");
         } finally {
             setSaving(false);
@@ -129,156 +148,234 @@ const Invoices = () => {
     };
 
     const handleViewPdf = (id) => {
-        // Open PDF in a new tab using direct backend URL
         window.open(`${import.meta.env.VITE_API_URL}/invoices/${id}/pdf?includeSignature=${includeSignature}`, '_blank', 'noopener,noreferrer');
     };
 
-    const filteredInvoices = invoices.map(inv => ({
+    // Calculate dynamic state for each invoice based on due date
+    const computeStatus = (inv) => {
+        if (inv.balance <= 0) return "Paid";
+        if (inv.dueDate && isPast(startOfDay(new Date(inv.dueDate))) && inv.balance > 0) return "Overdue";
+        if (inv.paidAmount > 0) return "Partially Paid";
+        return "Unpaid";
+    };
+
+    const normalized = invoices.map(inv => ({
         ...inv,
-        // Normalize ids/fields from backend (_id/customerId refs)
         id: inv._id || inv.id,
         customerName: inv.customerId?.name || inv.customerName,
         totalAmount: inv.total ?? inv.totalAmount,
-        date: inv.date
-    })).filter(inv =>
+        paidAmount: inv.paidAmount || 0,
+        balance: inv.balance ?? (inv.total - (inv.paidAmount || 0)),
+        date: inv.date,
+        computedStatus: computeStatus(inv)
+    }));
+
+    const filteredInvoices = normalized.filter(inv =>
         (inv.invoiceNumber || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
         (inv.customerName || '').toLowerCase().includes(searchTerm.toLowerCase())
     );
 
+    // Metrics
+    const totalRevenue = normalized.reduce((sum, inv) => sum + (inv.totalAmount || 0), 0);
+    const pendingBalance = normalized.reduce((sum, inv) => sum + (inv.balance || 0), 0);
+    const overdueBalance = normalized.filter(inv => inv.computedStatus === 'Overdue').reduce((sum, inv) => sum + (inv.balance || 0), 0);
+
+    const getStatusBadge = (status) => {
+        switch (status) {
+            case 'Paid': return <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-bold border border-green-200 bg-green-50 text-green-700">Paid</span>;
+            case 'Partially Paid': return <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-bold border border-blue-200 bg-blue-50 text-blue-700">Partially Paid</span>;
+            case 'Overdue': return <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-bold border border-red-200 bg-red-50 text-red-700">Overdue</span>;
+            default: return <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-bold border border-orange-200 bg-orange-50 text-orange-700">Unpaid</span>;
+        }
+    };
+
     if (loading) {
         return (
             <div className="flex items-center justify-center h-full text-gray-500">
-                <Loader className="animate-spin mr-2" /> Loading Invoices...
+                <Loader className="animate-spin mr-2" /> Loading Invoices Workflow...
             </div>
         );
     }
 
     return (
-        <div className="space-y-6">
-            <div className="flex justify-between items-center bg-white p-4 rounded-lg shadow-sm">
-                <div className="relative w-96">
+        <div className="space-y-6 animate-fadeIn">
+            {/* Dashboard Summary Cards */}
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div className="bg-white p-5 rounded-xl shadow-sm border border-gray-100 flex items-center gap-4 hover:shadow-md transition-shadow">
+                    <div className="w-12 h-12 rounded-full bg-blue-50 flex items-center justify-center text-blue-600">
+                        <IndianRupee size={24} />
+                    </div>
+                    <div>
+                        <p className="text-sm font-medium text-gray-500 uppercase tracking-wider">Total Billed Revenue</p>
+                        <h3 className="text-2xl font-bold text-gray-900">₹ {totalRevenue.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</h3>
+                    </div>
+                </div>
+
+                <div className="bg-white p-5 rounded-xl shadow-sm border border-gray-100 flex items-center gap-4 hover:shadow-md transition-shadow">
+                    <div className="w-12 h-12 rounded-full bg-orange-50 flex items-center justify-center text-orange-600">
+                        <Clock size={24} />
+                    </div>
+                    <div>
+                        <p className="text-sm font-medium text-gray-500 uppercase tracking-wider">Pending Balance</p>
+                        <h3 className="text-2xl font-bold text-gray-900">₹ {pendingBalance.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</h3>
+                    </div>
+                </div>
+
+                <div className="bg-white p-5 rounded-xl shadow-sm border border-red-100 flex items-center gap-4 hover:shadow-md transition-shadow">
+                    <div className="w-12 h-12 rounded-full bg-red-50 flex items-center justify-center text-red-600">
+                        <AlertTriangle size={24} />
+                    </div>
+                    <div>
+                        <p className="text-sm font-medium text-gray-500 uppercase tracking-wider">Overdue Balance</p>
+                        <h3 className="text-2xl font-bold text-red-600">₹ {overdueBalance.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</h3>
+                    </div>
+                </div>
+            </div>
+
+            <div className="flex justify-between items-center bg-white p-4 rounded-xl shadow-sm border border-gray-100 mt-2">
+                <div className="relative w-full md:w-96">
                     <input
                         type="text"
                         placeholder="Search invoice number or customer..."
-                        className="pl-10 w-full h-10"
+                        className="pl-10 w-full h-10 border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 bg-gray-50/50 outline-none"
                         value={searchTerm}
                         onChange={(e) => setSearchTerm(e.target.value)}
                     />
                 </div>
 
-
                 <div className="flex items-center gap-2">
-                    <label className="flex items-center gap-2 text-sm font-medium text-gray-700 bg-gray-50 px-3 py-2 rounded cursor-pointer border hover:bg-gray-100">
+                    <label className="flex items-center gap-2 text-sm font-medium text-gray-700 bg-gray-50 px-3 py-2.5 rounded-lg cursor-pointer border hover:bg-gray-100">
                         <input
                             type="checkbox"
                             className="w-4 h-4 text-blue-600 rounded focus:ring-blue-500 border-gray-300"
                             checked={includeSignature}
                             onChange={e => setIncludeSignature(e.target.checked)}
                         />
-                        Include Signature
+                        Include Signature on PDFs
                     </label>
                 </div>
             </div>
 
-            <div className="bg-white rounded-lg shadow-sm overflow-hidden">
+            <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden min-h-[400px]">
                 <div className="table-container">
-                    <table>
+                    <table className="w-full text-left border-collapse">
                         <thead>
-                            <tr>
-                                <th>Invoice #</th>
-                                <th>Date</th>
-                                <th>Customer</th>
-                                <th>Amount</th>
-                                <th>Status</th>
-                                <th>Actions</th>
+                            <tr className="bg-gray-50/80 border-b border-gray-200 text-xs uppercase tracking-wider text-gray-500">
+                                <th className="p-4 font-semibold">Invoice #</th>
+                                <th className="p-4 font-semibold">Customer</th>
+                                <th className="p-4 font-semibold">Billed</th>
+                                <th className="p-4 font-semibold">Balance</th>
+                                <th className="p-4 font-semibold">Status</th>
+                                <th className="p-4 font-semibold text-right">Actions</th>
                             </tr>
                         </thead>
-                        <tbody>
+                        <tbody className="divide-y divide-gray-100">
                             {filteredInvoices.length > 0 ? (
                                 filteredInvoices.map((invoice) => (
-                                    <tr key={invoice.id} className="hover:bg-gray-50 transition-colors">
-                                        <td className="font-medium text-blue-600">
+                                    <tr key={invoice.id} className="hover:bg-blue-50/20 transition-colors group">
+                                        <td className="p-4 font-medium text-blue-600">
                                             {editingId === invoice.id ? (
                                                 <div className="flex items-center gap-2">
                                                     <input
-                                                        className="border rounded px-2 py-1 w-32 text-sm"
+                                                        className="border border-gray-200 rounded px-2 py-1 w-32 text-sm"
                                                         value={editNumber}
                                                         onChange={e => setEditNumber(e.target.value)}
                                                         autoFocus
                                                     />
-                                                    <button onClick={saveInvoiceNumber} disabled={saving} className="text-green-600 hover:text-green-800">
-                                                        <Save size={16} />
-                                                    </button>
-                                                    <button onClick={cancelEditing} className="text-gray-500 hover:text-gray-700">
-                                                        <X size={16} />
-                                                    </button>
+                                                    <button onClick={saveInvoiceNumber} disabled={saving} className="text-green-600 hover:text-green-800"><Save size={16} /></button>
+                                                    <button onClick={cancelEditing} className="text-gray-500 hover:text-gray-700"><X size={16} /></button>
                                                 </div>
                                             ) : (
                                                 <div className="flex items-center gap-2 group">
-                                                    <FileText size={16} />
+                                                    <FileText size={16} className="text-blue-400" />
                                                     {invoice.invoiceNumber}
                                                     <button
                                                         onClick={() => startEditing(invoice)}
                                                         className="opacity-0 group-hover:opacity-100 text-gray-400 hover:text-blue-600 transition-opacity p-1"
-                                                        title="Edit Invoice Number"
                                                     >
                                                         <Edit size={14} />
                                                     </button>
                                                 </div>
                                             )}
                                         </td>
-                                        <td>{invoice.date ? format(new Date(invoice.date), 'dd MMM yyyy') : 'N/A'}</td>
-                                        <td className="font-medium">{invoice.customerName}</td>
-                                        <td className="font-bold text-gray-900">₹ {invoice.totalAmount?.toFixed(2)}</td>
-                                        <td>
-                                            <select
-                                                value={invoice.status || (invoice.balance <= 0 ? "Paid" : "Pending")}
-                                                onChange={(e) => handleStatusUpdate(invoice.id, e.target.value)}
-                                                className={`px-3 py-1 rounded-full text-xs font-medium border-none outline-none cursor-pointer appearance-none ${(invoice.status === 'Paid' || (!invoice.status && invoice.balance <= 0))
-                                                    ? 'bg-green-100 text-green-800'
-                                                    : invoice.status === 'Cancelled'
-                                                        ? 'bg-red-100 text-red-800'
-                                                        : 'bg-yellow-100 text-yellow-800'
-                                                    }`}
-                                            >
-                                                <option value="Pending">Pending</option>
-                                                <option value="Paid">Paid</option>
-                                                <option value="Cancelled">Cancelled</option>
-                                            </select>
+                                        <td className="p-4">
+                                            <p className="font-bold text-gray-900">{invoice.customerName}</p>
+                                            <div className="text-[11px] text-gray-500 flex items-center gap-1 mt-0.5"><Clock size={10} /> {invoice.date ? format(new Date(invoice.date), 'dd MMM yyyy') : 'N/A'}</div>
                                         </td>
-                                        <td>
-                                            <button
-                                                onClick={() => handleViewPdf(invoice.id)}
-                                                className="btn btn-outline text-sm py-1 px-3 mr-2"
-                                            >
-                                                <Eye size={16} /> View
-                                            </button>
-                                            <button
-                                                onClick={() => handleDownload(invoice.id, invoice.invoiceNumber)}
-                                                disabled={downloadingId === invoice.id}
-                                                className="btn btn-outline text-sm py-1 px-3"
-                                            >
-                                                {downloadingId === invoice.id ? (
-                                                    <Loader size={16} className="animate-spin" />
-                                                ) : (
-                                                    <>
-                                                        <Download size={16} /> PDF
-                                                    </>
+                                        <td className="p-4 font-medium text-gray-900">₹ {invoice.totalAmount?.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</td>
+                                        <td className="p-4">
+                                            {invoice.balance > 0 ? (
+                                                <span className="font-bold text-red-600">₹ {invoice.balance.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</span>
+                                            ) : (
+                                                <span className="font-medium text-green-600">₹ 0.00</span>
+                                            )}
+                                            {invoice.dueDate && invoice.balance > 0 && (
+                                                <div className="text-[10px] text-gray-400 mt-0.5">Due: {format(new Date(invoice.dueDate), 'dd MMM yyyy')}</div>
+                                            )}
+                                        </td>
+                                        <td className="p-4">
+                                            {getStatusBadge(invoice.computedStatus)}
+                                        </td>
+                                        <td className="p-4 text-right">
+                                            <div className="flex items-center justify-end gap-2">
+                                                {invoice.balance > 0 && (
+                                                    <button
+                                                        onClick={() => { setPaymentInvoice(invoice); setPaymentAmount(invoice.balance); setShowPaymentModal(true); }}
+                                                        className="flex items-center gap-1 px-3 py-1.5 rounded-md text-sm font-medium transition-colors bg-green-50 text-green-700 hover:bg-green-100 border border-green-200"
+                                                        title="Record Payment"
+                                                    >
+                                                        Pay
+                                                    </button>
                                                 )}
-                                            </button>
-                                            <button
-                                                onClick={() => handleDelete(invoice.id)}
-                                                className="btn btn-outline text-red-600 hover:bg-red-50 text-sm py-1 px-3"
-                                            >
-                                                <Trash2 size={16} /> Delete
-                                            </button>
+
+                                                <button
+                                                    onClick={() => handleShareWhatsApp(invoice)}
+                                                    className="p-1.5 text-green-600 hover:bg-green-50 border border-transparent hover:border-green-100 rounded-md transition-all flex items-center gap-1 text-xs font-medium"
+                                                    title="Share via WhatsApp"
+                                                >
+                                                    <MessageCircle size={18} />
+                                                </button>
+
+                                                <button
+                                                    onClick={() => handleDownload(invoice.id, invoice.invoiceNumber)}
+                                                    disabled={downloadingId === invoice.id}
+                                                    className="p-1.5 text-blue-600 hover:bg-blue-50 rounded-md transition-colors border border-transparent"
+                                                    title="Download PDF"
+                                                >
+                                                    {downloadingId === invoice.id ? <Loader size={18} className="animate-spin" /> : <Download size={18} />}
+                                                </button>
+
+                                                <div className="relative" ref={activeDropdown === invoice.id ? dropdownRef : null}>
+                                                    <button
+                                                        className="p-1.5 text-gray-500 hover:bg-gray-100 rounded-md transition-colors"
+                                                        onClick={() => setActiveDropdown(activeDropdown === invoice.id ? null : invoice.id)}
+                                                    >
+                                                        <MoreVertical size={18} />
+                                                    </button>
+
+                                                    {activeDropdown === invoice.id && (
+                                                        <div className="absolute right-0 mt-1 w-40 bg-white border border-gray-100 rounded-lg shadow-xl z-50 py-1 text-sm text-left">
+                                                            <button onClick={() => { handleViewPdf(invoice.id); setActiveDropdown(null); }} className="w-full text-left px-4 py-2 text-gray-700 hover:bg-gray-50 flex items-center gap-2">
+                                                                <Eye size={14} /> View Open PDF
+                                                            </button>
+                                                            <button onClick={() => { handleDelete(invoice.id); setActiveDropdown(null); }} className="w-full text-left px-4 py-2 text-red-600 hover:bg-red-50 flex items-center gap-2">
+                                                                <Trash2 size={14} /> Delete
+                                                            </button>
+                                                        </div>
+                                                    )}
+                                                </div>
+                                            </div>
                                         </td>
                                     </tr>
                                 ))
                             ) : (
                                 <tr>
-                                    <td colSpan="6" className="text-center py-8 text-gray-500">
-                                        No invoices found.
+                                    <td colSpan="6" className="text-center py-16">
+                                        <div className="flex flex-col items-center text-gray-400">
+                                            <FileText size={48} className="mb-4 opacity-20" />
+                                            <p className="text-lg font-medium text-gray-500">No invoices found</p>
+                                            <p className="text-sm mt-1">Convert a quotation to create your first invoice.</p>
+                                        </div>
                                     </td>
                                 </tr>
                             )}
@@ -286,6 +383,44 @@ const Invoices = () => {
                     </table>
                 </div>
             </div>
+
+            {/* Payment Modal */}
+            {showPaymentModal && paymentInvoice && (
+                <div className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4">
+                    <form onSubmit={handleRecordPayment} className="bg-white rounded-xl shadow-2xl max-w-sm w-full p-6 animate-slideDown">
+                        <div className="flex justify-between items-center mb-4">
+                            <h3 className="text-lg font-bold text-gray-900">Record Payment</h3>
+                            <button type="button" onClick={() => setShowPaymentModal(false)} className="text-gray-400 hover:text-gray-600"><X size={20} /></button>
+                        </div>
+                        <p className="text-sm text-gray-500 mb-6">Enter payment amount for invoice <strong className="text-gray-800">{paymentInvoice.invoiceNumber}</strong>.</p>
+
+                        <div className="bg-gray-50 rounded-lg p-3 mb-4 space-y-1 text-sm">
+                            <div className="flex justify-between"><span className="text-gray-500">Total Billed:</span> <strong className="text-gray-900">₹ {paymentInvoice.totalAmount.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</strong></div>
+                            <div className="flex justify-between"><span className="text-gray-500">Previously Paid:</span> <strong className="text-green-600">₹ {paymentInvoice.paidAmount.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</strong></div>
+                            <div className="border-t border-gray-200 my-1 pt-1 flex justify-between"><span className="font-bold text-gray-700">Remaining Balance:</span> <strong className="text-red-600">₹ {paymentInvoice.balance.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</strong></div>
+                        </div>
+
+                        <div className="mb-5">
+                            <label className="block text-xs font-bold text-gray-500 uppercase mb-2">Payment Amount</label>
+                            <div className="relative">
+                                <input
+                                    type="number"
+                                    step="0.01"
+                                    required
+                                    max={paymentInvoice.balance}
+                                    className="w-full pl-9 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"
+                                    value={paymentAmount}
+                                    onChange={e => setPaymentAmount(e.target.value)}
+                                />
+                            </div>
+                        </div>
+
+                        <button type="submit" disabled={processingPayment} className="w-full btn btn-primary flex justify-center py-2.5 shadow-sm">
+                            {processingPayment ? 'Processing...' : 'Apply Payment'}
+                        </button>
+                    </form>
+                </div>
+            )}
         </div >
     );
 };

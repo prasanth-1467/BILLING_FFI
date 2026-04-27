@@ -1,5 +1,6 @@
 import React from 'react';
 import { NavLink, Outlet, useLocation } from 'react-router-dom';
+/* eslint-disable no-unused-vars */
 import { logout } from '../services/authService';
 import {
     LayoutDashboard,
@@ -8,11 +9,13 @@ import {
     FileText,
     Receipt,
     Menu,
-    Bell,
+    Bell as BellIcon,
     UserCircle,
     LogOut,
-    ShoppingBag
+    ShoppingBag,
+    Brain
 } from 'lucide-react';
+import NotificationBell from '../components/NotificationBell';
 import '../index.css';
 
 const SidebarItem = ({ to, icon: Icon, label }) => {
@@ -42,6 +45,7 @@ const MainLayout = () => {
             case '/purchase-orders': return 'Purchase Orders';
             case '/purchase-orders/new': return 'New Purchase Order';
             case '/invoices': return 'Invoices';
+            case '/insights': return 'Agent Insights';
             default: return 'Dashboard';
         }
     };
@@ -75,6 +79,12 @@ const MainLayout = () => {
                     <SidebarItem to="/purchase-orders" icon={ShoppingBag} label="Purchase Orders" />
                     <SidebarItem to="/purchase-orders/new" icon={ShoppingBag} label="Create PO" />
                     <SidebarItem to="/invoices" icon={Receipt} label="Invoices" />
+
+                    <div className="pt-4 pb-2 px-4">
+                        <p className="text-[10px] font-bold text-gray-500 uppercase tracking-widest">Intelligence</p>
+                    </div>
+                    <SidebarItem to="/insights" icon={Brain} label="Agent Insights" />
+
                     <SidebarItem to="/profile" icon={UserCircle} label="Profile" />
                 </nav>
 
@@ -98,9 +108,7 @@ const MainLayout = () => {
                     <h2 className="text-2xl font-semibold text-gray-800">{getPageTitle()}</h2>
 
                     <div className="flex items-center gap-4">
-                        <button className="p-2 text-gray-500 hover:bg-gray-100 rounded-full transition-colors">
-                            <Bell size={20} />
-                        </button>
+                        <NotificationBell />
                         <button
                             onClick={handleLogout}
                             className="p-2 text-red-500 hover:bg-red-50 rounded-full transition-colors"
