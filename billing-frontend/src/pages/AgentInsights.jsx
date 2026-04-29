@@ -53,7 +53,12 @@ const AgentInsights = () => {
             invoices.forEach(inv => {
                (inv.items || []).forEach(item => {
                    const pId = typeof item.productId === 'object' ? item.productId?._id : item.productId;
-                   const name = item.name || item.productId?.name || 'Unknown';
+                   let name = item.name || item.productId?.name;
+                   if (!name && pId) {
+                       const foundProduct = products.find(p => p._id === pId || p.id === pId);
+                       if (foundProduct) name = foundProduct.name;
+                   }
+                   name = name || 'Unknown';
                    if (!productSales[name]) productSales[name] = 0;
                    productSales[name] += item.qty || 0;
                });
