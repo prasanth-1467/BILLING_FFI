@@ -332,7 +332,7 @@ function generatePoPDF(res, po) {
     doc.fontSize(10).font("Helvetica-Bold").text(`For ${company.name}`, 350, footerY, { align: "right", width: 200 });
 
     if (includeSignature) {
-        const signaturePath = path.join(__dirname, '../assets/signature.png');
+        const signaturePath = path.join(__dirname, '../assets/Signature.png');
         if (fs.existsSync(signaturePath)) {
             try {
                 doc.image(signaturePath, 450, footerY + 15, { width: 80 });

@@ -280,7 +280,7 @@ function generatePDF(res, data, type = "TAX INVOICE") {
     doc.fontSize(10).text(`For ${company.name}`, 350, termsY, { align: "right" });
 
     if (includeSignature) {
-        const signaturePath = path.join(__dirname, '../assets/signature.png');
+        const signaturePath = path.join(__dirname, '../assets/Signature.png');
         if (fs.existsSync(signaturePath)) {
             try {
                 // Place signature image
