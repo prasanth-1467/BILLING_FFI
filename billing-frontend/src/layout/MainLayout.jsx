@@ -65,7 +65,7 @@ const MainLayout = () => {
     return (
         <div className="flex h-screen bg-[#f8fafc]">
             {/* Sidebar */}
-            <aside className="w-64 bg-[#0f172a] text-slate-200 shadow-2xl flex flex-col z-20 border-r border-slate-800/50">
+            <aside className="w-64 bg-[#0f172a] text-slate-200 shadow-2xl flex flex-col z-20 border-r border-slate-800/50 no-print">
                 <div className="p-6 mb-4">
                     <div className="flex items-center gap-3 group cursor-default">
                         <div className="bg-gradient-to-br from-indigo-500 to-purple-600 p-2.5 rounded-xl shadow-lg shadow-indigo-500/20 group-hover:rotate-12 transition-transform duration-300">
@@ -115,7 +115,7 @@ const MainLayout = () => {
             {/* Main Content */}
             <div className="flex-1 flex flex-col overflow-hidden">
                 {/* Header - Glassmorphism */}
-                <header className="bg-white/80 backdrop-blur-md border-b border-slate-200 h-16 flex items-center justify-between px-8 z-10 sticky top-0">
+                <header className="bg-white/80 backdrop-blur-md border-b border-slate-200 h-16 flex items-center justify-between px-8 z-10 sticky top-0 no-print">
                     <div className="flex flex-col">
                         <h2 className="text-xl font-bold text-slate-800 tracking-tight">{getPageTitle()}</h2>
                         <p className="text-[10px] text-slate-400 font-medium">{new Date().toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' })}</p>

@@ -1,6 +1,6 @@
 import React, { useEffect, useState, useRef } from 'react';
 import api from '../services/api';
-import { Loader, FileText, CheckCircle, Clock, Eye, Download, Trash2, Edit, Save, X, MoreVertical, FilePlus, Send, RefreshCcw, Copy } from 'lucide-react';
+import { Loader, FileText, CheckCircle, Clock, Eye, Download, Trash2, Edit, Save, X, MoreVertical, FilePlus, Send, RefreshCcw, Copy, Printer } from 'lucide-react';
 import { format } from 'date-fns';
 import { useNavigate } from 'react-router-dom';
 
@@ -9,6 +9,7 @@ const Quotations = () => {
   const [quotes, setQuotes] = useState([]);
   const [loading, setLoading] = useState(true);
   const [convertingId, setConvertingId] = useState(null);
+  const [printingId, setPrintingId] = useState(null);
   const [includeSignature, setIncludeSignature] = useState(false);
   const [expandedId, setExpandedId] = useState(null);
   
@@ -81,6 +82,56 @@ const Quotations = () => {
     } catch (error) {
       console.error('Failed to download PDF', error);
       alert('Failed to download PDF');
+    }
+  };
+
+  const handlePrint = async (id) => {
+    try {
+      setPrintingId(id);
+      const response = await api.get(`/quotations/${id}/pdf`, {
+        params: { includeSignature },
+        responseType: 'blob',
+      });
+
+      // Check if response is JSON (error)
+      if (response.headers['content-type']?.includes('application/json')) {
+        const text = await response.data.text();
+        const json = JSON.parse(text);
+        alert(json.error || "Failed to generate PDF");
+        setPrintingId(null);
+        return;
+      }
+
+      const blob = new Blob([response.data], { type: 'application/pdf' });
+      const url = window.URL.createObjectURL(blob);
+
+      // Create hidden iframe
+      const iframe = document.createElement('iframe');
+      iframe.style.display = 'none';
+      iframe.src = url;
+      document.body.appendChild(iframe);
+
+      iframe.onload = () => {
+        setTimeout(() => {
+          if (iframe.contentWindow) {
+            iframe.contentWindow.focus();
+            iframe.contentWindow.print();
+          }
+          
+          // Cleanup
+          setTimeout(() => {
+            window.URL.revokeObjectURL(url);
+            if (document.body.contains(iframe)) {
+              document.body.removeChild(iframe);
+            }
+            setPrintingId(null);
+          }, 1000);
+        }, 200);
+      };
+    } catch (error) {
+      console.error('Failed to print PDF', error);
+      alert('Failed to prepare print dialog');
+      setPrintingId(null);
     }
   };
 
@@ -303,6 +354,15 @@ const Quotations = () => {
                             title="Download PDF"
                           >
                             <Download size={18} />
+                          </button>
+
+                          <button
+                            onClick={() => handlePrint(q.id)}
+                            disabled={printingId === q.id}
+                            className="p-1.5 text-slate-600 hover:bg-slate-50 rounded-md transition-colors border border-transparent"
+                            title="Quick Print"
+                          >
+                            {printingId === q.id ? <Loader size={18} className="animate-spin" /> : <Printer size={18} />}
                           </button>
 
                           <button
