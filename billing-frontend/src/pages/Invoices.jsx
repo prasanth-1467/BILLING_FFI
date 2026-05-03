@@ -1,6 +1,6 @@
 import React, { useEffect, useState, useRef } from 'react';
 import api from '../services/api';
-import { Search, Loader, Download, FileText, CheckCircle, Clock, Eye, Trash2, Edit, Save, X, MoreVertical, IndianRupee, MessageCircle, AlertTriangle } from 'lucide-react';
+import { Search, Loader, Download, FileText, CheckCircle, Clock, Eye, Trash2, Edit, Save, X, MoreVertical, IndianRupee, MessageCircle, AlertTriangle, Printer } from 'lucide-react';
 import { format, isPast, startOfDay } from 'date-fns';
 
 const Invoices = () => {
@@ -8,6 +8,7 @@ const Invoices = () => {
     const [loading, setLoading] = useState(true);
     const [searchTerm, setSearchTerm] = useState('');
     const [downloadingId, setDownloadingId] = useState(null);
+    const [printingId, setPrintingId] = useState(null);
     const [includeSignature, setIncludeSignature] = useState(false);
 
     const [editingId, setEditingId] = useState(null);
@@ -149,6 +150,57 @@ const Invoices = () => {
 
     const handleViewPdf = (id) => {
         window.open(`${import.meta.env.VITE_API_URL}/invoices/${id}/pdf?includeSignature=${includeSignature}`, '_blank', 'noopener,noreferrer');
+    };
+
+    const handlePrint = async (id) => {
+        try {
+            setPrintingId(id);
+            const response = await api.get(`/invoices/${id}/pdf`, {
+                params: { includeSignature },
+                responseType: 'blob',
+            });
+
+            // Check if response is JSON (error)
+            if (response.headers['content-type']?.includes('application/json')) {
+                const text = await response.data.text();
+                const json = JSON.parse(text);
+                alert(json.error || "Failed to generate PDF");
+                setPrintingId(null);
+                return;
+            }
+
+            const blob = new Blob([response.data], { type: 'application/pdf' });
+            const url = window.URL.createObjectURL(blob);
+
+            // Create hidden iframe
+            const iframe = document.createElement('iframe');
+            iframe.style.display = 'none';
+            iframe.src = url;
+            document.body.appendChild(iframe);
+
+            iframe.onload = () => {
+                // Focus and print
+                setTimeout(() => {
+                    if (iframe.contentWindow) {
+                        iframe.contentWindow.focus();
+                        iframe.contentWindow.print();
+                    }
+                    
+                    // Cleanup after a delay
+                    setTimeout(() => {
+                        window.URL.revokeObjectURL(url);
+                        if (document.body.contains(iframe)) {
+                            document.body.removeChild(iframe);
+                        }
+                        setPrintingId(null);
+                    }, 1000);
+                }, 200);
+            };
+        } catch (error) {
+            console.error('Failed to print PDF', error);
+            alert('Failed to prepare print dialog');
+            setPrintingId(null);
+        }
     };
 
     // Calculate dynamic state for each invoice based on due date
@@ -343,6 +395,15 @@ const Invoices = () => {
                                                     title="Download PDF"
                                                 >
                                                     {downloadingId === invoice.id ? <Loader size={18} className="animate-spin" /> : <Download size={18} />}
+                                                </button>
+
+                                                <button
+                                                    onClick={() => handlePrint(invoice.id)}
+                                                    disabled={printingId === invoice.id}
+                                                    className="p-1.5 text-slate-600 hover:bg-slate-50 rounded-md transition-colors border border-transparent"
+                                                    title="Quick Print"
+                                                >
+                                                    {printingId === invoice.id ? <Loader size={18} className="animate-spin" /> : <Printer size={18} />}
                                                 </button>
 
                                                 <div className="relative" ref={activeDropdown === invoice.id ? dropdownRef : null}>

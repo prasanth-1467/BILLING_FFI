@@ -136,6 +136,19 @@ router.post("/from-quotation/:quoteId", async (req, res) => {
     res.status(400).json({ error: err.message, stack: err.stack });
   }
 });
+// Get single invoice
+router.get("/:id", async (req, res) => {
+  try {
+    const invoice = await Invoice.findById(req.params.id)
+      .populate("customerId")
+      .populate("items.productId");
+    if (!invoice) return res.status(404).json({ error: "Invoice not found" });
+    res.json(invoice);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 // Get all invoices
 router.get("/", async (req, res) => {
   const invoices = await Invoice.find().populate("customerId");
