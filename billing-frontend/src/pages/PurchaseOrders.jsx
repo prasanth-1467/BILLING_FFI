@@ -12,6 +12,8 @@ const PurchaseOrders = () => {
 
     // Editing State
     const [editingId, setEditingId] = useState(null);
+    const [editingDateId, setEditingDateId] = useState(null);
+    const [editDate, setEditDate] = useState("");
     const [editPoNumber, setEditPoNumber] = useState("");
     const [saving, setSaving] = useState(false);
 
@@ -141,6 +143,33 @@ const PurchaseOrders = () => {
         }
     };
 
+    const startEditingDate = (po) => {
+        setEditingDateId(po._id || po.id);
+        const dateVal = po.date || po.createdAt;
+        setEditDate(dateVal ? new Date(dateVal).toISOString().split('T')[0] : new Date().toISOString().split('T')[0]);
+    };
+
+    const cancelEditingDate = () => {
+        setEditingDateId(null);
+        setEditDate("");
+    };
+
+    const savePoDate = async () => {
+        if (!editDate) return alert("Date cannot be empty");
+        setSaving(true);
+        try {
+            await api.patch(`/purchase-orders/${editingDateId}`, { date: editDate });
+            setPos(pos.map(p =>
+                (p._id === editingDateId || p.id === editingDateId) ? { ...p, date: editDate } : p
+            ));
+            cancelEditingDate();
+        } catch (error) {
+            alert(error.response?.data?.error || "Failed to update date");
+        } finally {
+            setSaving(false);
+        }
+    };
+
     if (loading) {
         return (
             <div className="flex justify-center items-center h-64">
@@ -189,7 +218,34 @@ const PurchaseOrders = () => {
                             {pos.map((po) => (
                                 <tr key={po._id || po.id} className="hover:bg-gray-50">
                                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                                        {new Date(po.date || po.createdAt).toLocaleDateString()}
+                                        {editingDateId === (po._id || po.id) ? (
+                                            <div className="flex items-center gap-2">
+                                                <input
+                                                    type="date"
+                                                    className="border rounded px-2 py-0.5 text-xs focus:ring-blue-500 focus:border-blue-500"
+                                                    value={editDate}
+                                                    onChange={e => setEditDate(e.target.value)}
+                                                    autoFocus
+                                                />
+                                                <button onClick={savePoDate} disabled={saving} className="text-green-600 hover:text-green-800">
+                                                    <Save size={14} />
+                                                </button>
+                                                <button onClick={cancelEditingDate} className="text-gray-500 hover:text-gray-700">
+                                                    <X size={14} />
+                                                </button>
+                                            </div>
+                                        ) : (
+                                            <div className="flex items-center gap-1 group/date">
+                                                {new Date(po.date || po.createdAt).toLocaleDateString()}
+                                                <button
+                                                    onClick={() => startEditingDate(po)}
+                                                    className="opacity-0 group-hover/date:opacity-100 text-gray-400 hover:text-blue-600 transition-opacity p-1"
+                                                    title="Edit Date"
+                                                >
+                                                    <Edit size={12} />
+                                                </button>
+                                            </div>
+                                        )}
                                     </td>
                                     <td className="px-6 py-4 whitespace-nowrap font-medium text-gray-900">
                                         {editingId === (po._id || po.id) ? (

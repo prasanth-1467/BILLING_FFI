@@ -12,6 +12,8 @@ const Invoices = () => {
     const [includeSignature, setIncludeSignature] = useState(false);
 
     const [editingId, setEditingId] = useState(null);
+    const [editingDateId, setEditingDateId] = useState(null);
+    const [editDate, setEditDate] = useState("");
     const [editNumber, setEditNumber] = useState("");
     const [saving, setSaving] = useState(false);
 
@@ -147,6 +149,32 @@ const Invoices = () => {
             setSaving(false);
         }
     };
+    const startEditingDate = (invoice) => {
+        setEditingDateId(invoice.id);
+        setEditDate(invoice.date ? format(new Date(invoice.date), 'yyyy-MM-dd') : format(new Date(), 'yyyy-MM-dd'));
+    };
+
+    const cancelEditingDate = () => {
+        setEditingDateId(null);
+        setEditDate("");
+    };
+
+    const saveInvoiceDate = async () => {
+        if (!editDate) return alert("Date cannot be empty");
+        setSaving(true);
+        try {
+            await api.patch(`/invoices/${editingDateId}`, { date: editDate });
+            setInvoices(invoices.map(inv =>
+                (inv._id === editingDateId || inv.id === editingDateId) ? { ...inv, date: editDate } : inv
+            ));
+            cancelEditingDate();
+        } catch (error) {
+            alert(error.response?.data?.error || "Failed to update date");
+        } finally {
+            setSaving(false);
+        }
+    };
+
 
     const handleViewPdf = (id) => {
         window.open(`${import.meta.env.VITE_API_URL}/invoices/${id}/pdf?includeSignature=${includeSignature}`, '_blank', 'noopener,noreferrer');
@@ -352,7 +380,30 @@ const Invoices = () => {
                                         </td>
                                         <td className="p-4">
                                             <p className="font-bold text-gray-900">{invoice.customerName}</p>
-                                            <div className="text-[11px] text-gray-500 flex items-center gap-1 mt-0.5"><Clock size={10} /> {invoice.date ? format(new Date(invoice.date), 'dd MMM yyyy') : 'N/A'}</div>
+                                            {editingDateId === invoice.id ? (
+                                                <div className="flex items-center gap-2 mt-1">
+                                                    <input
+                                                        type="date"
+                                                        className="border border-gray-200 rounded px-2 py-0.5 text-[11px]"
+                                                        value={editDate}
+                                                        onChange={e => setEditDate(e.target.value)}
+                                                        autoFocus
+                                                    />
+                                                    <button onClick={saveInvoiceDate} disabled={saving} className="text-green-600 hover:text-green-800"><Save size={14} /></button>
+                                                    <button onClick={cancelEditingDate} className="text-gray-500 hover:text-gray-700"><X size={14} /></button>
+                                                </div>
+                                            ) : (
+                                                <div className="text-[11px] text-gray-500 flex items-center gap-1 mt-0.5 group/date">
+                                                    <Clock size={10} /> 
+                                                    {invoice.date ? format(new Date(invoice.date), 'dd MMM yyyy') : 'N/A'}
+                                                    <button
+                                                        onClick={() => startEditingDate(invoice)}
+                                                        className="opacity-0 group-hover/date:opacity-100 text-gray-400 hover:text-blue-600 transition-opacity p-0.5"
+                                                    >
+                                                        <Edit size={12} />
+                                                    </button>
+                                                </div>
+                                            )}
                                         </td>
                                         <td className="p-4 font-medium text-gray-900">₹ {invoice.totalAmount?.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</td>
                                         <td className="p-4">
