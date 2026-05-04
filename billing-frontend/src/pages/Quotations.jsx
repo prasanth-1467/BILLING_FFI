@@ -14,6 +14,8 @@ const Quotations = () => {
   const [expandedId, setExpandedId] = useState(null);
   
   const [editingId, setEditingId] = useState(null);
+  const [editingDateId, setEditingDateId] = useState(null);
+  const [editDate, setEditDate] = useState("");
   const [editNumber, setEditNumber] = useState("");
   const [saving, setSaving] = useState(false);
 
@@ -194,6 +196,32 @@ const Quotations = () => {
       setSaving(false);
     }
   };
+  const startEditingDate = (quote) => {
+    setEditingDateId(quote.id);
+    setEditDate(quote.date ? format(new Date(quote.date), 'yyyy-MM-dd') : format(new Date(), 'yyyy-MM-dd'));
+  };
+
+  const cancelEditingDate = () => {
+    setEditingDateId(null);
+    setEditDate("");
+  };
+
+  const saveQuoteDate = async () => {
+    if (!editDate) return alert("Date cannot be empty");
+    setSaving(true);
+    try {
+      await api.patch(`/quotations/${editingDateId}`, { date: editDate });
+      setQuotes(quotes.map(q =>
+        (q._id === editingDateId || q.id === editingDateId) ? { ...q, date: editDate } : q
+      ));
+      cancelEditingDate();
+    } catch (error) {
+      alert(error.response?.data?.error || "Failed to update date");
+    } finally {
+      setSaving(false);
+    }
+  };
+
 
   if (loading) {
     return (
@@ -328,7 +356,36 @@ const Quotations = () => {
                           </div>
                         )}
                       </td>
-                      <td className="p-4 text-gray-700">{q.date ? format(new Date(q.date), 'dd MMM yyyy') : 'N/A'}</td>
+                      <td className="p-4 text-gray-700">
+                        {editingDateId === q.id ? (
+                          <div className="flex items-center gap-2">
+                            <input
+                              type="date"
+                              className="border border-gray-300 rounded-md px-2 py-0.5 text-xs focus:ring-2 focus:ring-blue-500 outline-none"
+                              value={editDate}
+                              onChange={e => setEditDate(e.target.value)}
+                              autoFocus
+                            />
+                            <button onClick={saveQuoteDate} disabled={saving} className="p-1 rounded bg-green-50 text-green-600 hover:bg-green-100">
+                              <Save size={14} />
+                            </button>
+                            <button onClick={cancelEditingDate} className="p-1 rounded bg-gray-50 text-gray-500 hover:bg-gray-100">
+                              <X size={14} />
+                            </button>
+                          </div>
+                        ) : (
+                          <div className="flex items-center gap-1 group/date">
+                             {q.date ? format(new Date(q.date), 'dd MMM yyyy') : 'N/A'}
+                             <button
+                               onClick={() => startEditingDate(q)}
+                               className="opacity-0 group-hover/date:opacity-100 text-gray-400 hover:text-blue-600 transition-opacity p-1"
+                               title="Edit Date"
+                             >
+                               <Edit size={12} />
+                             </button>
+                          </div>
+                        )}
+                      </td>
                       <td className="p-4">
                         <p className="font-bold text-gray-900">{q.customerName || '-'}</p>
                       </td>

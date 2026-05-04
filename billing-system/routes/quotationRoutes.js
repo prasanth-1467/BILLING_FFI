@@ -172,11 +172,11 @@ router.delete("/:id", async (req, res) => {
   }
 });
 
-// PATCH /api/quotations/:id - Update quotation (specifically quoteNumber)
+// PATCH /api/quotations/:id - Update quotation (specifically quoteNumber and date)
 router.patch("/:id", async (req, res) => {
   try {
     const { id } = req.params;
-    const { quoteNumber } = req.body;
+    const { quoteNumber, date } = req.body;
 
     const quote = await Quotation.findOne({ $or: [{ _id: id }, { id: id }] });
     if (!quote) return res.status(404).json({ error: "Quotation not found" });
@@ -188,6 +188,10 @@ router.patch("/:id", async (req, res) => {
         return res.status(400).json({ error: "Quotation number already exists" });
       }
       quote.quoteNumber = quoteNumber;
+    }
+
+    if (date) {
+      quote.date = date;
     }
 
     await quote.save();

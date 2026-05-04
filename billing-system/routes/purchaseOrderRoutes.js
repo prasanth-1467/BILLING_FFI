@@ -80,7 +80,7 @@ router.get("/:id", async (req, res) => {
 // UPDATE PO (Methods like PATCH)
 router.patch("/:id", async (req, res) => {
   try {
-    const { poNumber } = req.body;
+    const { poNumber, date } = req.body;
 
     // Check if PO exists
     const po = await PurchaseOrder.findById(req.params.id);
@@ -93,9 +93,13 @@ router.patch("/:id", async (req, res) => {
         return res.status(400).json({ error: "PO Number already exists" });
       }
       po.poNumber = poNumber;
-      await po.save();
     }
 
+    if (date) {
+      po.date = date;
+    }
+
+    await po.save();
     res.json(po);
   } catch (err) {
     console.error("Update failed", err);
