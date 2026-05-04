@@ -25,6 +25,14 @@ app.use("/api/purchase-orders", require("./routes/purchaseOrderRoutes"));
 app.use("/api/notifications", require("./routes/notificationRoutes"));
 
 
+app.get("/health", (req, res) => {
+  res.status(200).json({
+    status: "OK",
+    uptime: process.uptime(),
+    timestamp: new Date()
+  });
+});
+
 app.get("/", (req, res) => {
   res.status(200).json({
     status: "OK",
