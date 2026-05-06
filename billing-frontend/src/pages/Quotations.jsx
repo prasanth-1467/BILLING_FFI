@@ -1,6 +1,6 @@
 import React, { useEffect, useState, useRef } from 'react';
 import api from '../services/api';
-import { Loader, FileText, CheckCircle, Clock, Eye, Download, Trash2, Edit, Save, X, MoreVertical, FilePlus, Send, RefreshCcw, Copy, Printer } from 'lucide-react';
+import { Loader, FileText, CheckCircle, Clock, Eye, Download, Trash2, Edit, Save, X, MoreVertical, FilePlus, Send, RefreshCcw, Copy, Printer, MessageCircle, Mail } from 'lucide-react';
 import { format } from 'date-fns';
 import { useNavigate } from 'react-router-dom';
 
@@ -155,6 +155,34 @@ const Quotations = () => {
       setQuotes(quotes.map(q => ((q._id || q.id) === id ? { ...q, status: newStatus } : q)));
     } catch (error) {
        alert("Failed to change status");
+    }
+  };
+
+  const handleShareWhatsApp = (quote, toAdmin = false) => {
+    const adminPhone = import.meta.env.VITE_ADMIN_PHONE;
+    const customerPhone = quote.customerId?.phone;
+    const targetPhone = toAdmin ? adminPhone : customerPhone;
+
+    if (!targetPhone) {
+      alert(toAdmin ? 'Admin phone number is not configured in .env file.' : 'Customer does not have a phone number saved.');
+      return;
+    }
+
+    const text = `Hello ${toAdmin ? 'Admin' : quote.customerName},\n\n${toAdmin ? '*Admin Copy* of ' : ''}Quotation *${quote.quoteNumber}* for *₹${Number(quote.total).toLocaleString('en-IN')}* has been generated.\n\nThank you!`;
+    const wsUrl = `https://wa.me/${targetPhone.startsWith('91') ? targetPhone : '91' + targetPhone}?text=${encodeURIComponent(text)}`;
+    window.open(wsUrl, '_blank');
+  };
+
+  const handleEmailToMe = async (quote) => {
+    try {
+      setSaving(true);
+      await api.post(`/quotations/${quote.id}/email-to-me?includeSignature=${includeSignature}`);
+      alert('Email sent successfully to your admin email!');
+    } catch (error) {
+      console.error('Email failed', error);
+      alert(error.response?.data?.error || 'Failed to send email. Check .env configuration.');
+    } finally {
+      setSaving(false);
     }
   };
 
@@ -457,6 +485,12 @@ const Quotations = () => {
                                   <div className="border-t border-gray-100 my-1"></div>
                                   <button onClick={() => { handleDuplicate(q.id); setActiveDropdown(null); }} className="w-full text-left px-4 py-2 text-gray-700 hover:bg-gray-50 flex items-center gap-2">
                                      <Copy size={14}/> Duplicate
+                                  </button>
+                                  <button onClick={() => { handleShareWhatsApp(q, false); setActiveDropdown(null); }} className="w-full text-left px-4 py-2 text-green-600 hover:bg-green-50 flex items-center gap-2">
+                                     <MessageCircle size={14}/> Share to Customer
+                                  </button>
+                                  <button onClick={() => { handleShareWhatsApp(q, true); setActiveDropdown(null); }} className="w-full text-left px-4 py-2 text-green-600 hover:bg-green-50 flex items-center gap-2">
+                                     <MessageCircle size={14}/> Share to Me
                                   </button>
                                   <button onClick={() => { handleDelete(q.id); setActiveDropdown(null); }} className="w-full text-left px-4 py-2 text-red-600 hover:bg-red-50 flex items-center gap-2">
                                      <Trash2 size={14}/> Delete

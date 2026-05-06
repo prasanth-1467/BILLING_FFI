@@ -1,6 +1,6 @@
 import React, { useEffect, useState, useRef } from 'react';
 import api from '../services/api';
-import { Search, Loader, Download, FileText, CheckCircle, Clock, Eye, Trash2, Edit, Save, X, MoreVertical, IndianRupee, MessageCircle, AlertTriangle, Printer } from 'lucide-react';
+import { Search, Loader, Download, FileText, CheckCircle, Clock, Eye, Trash2, Edit, Save, X, MoreVertical, IndianRupee, MessageCircle, AlertTriangle, Printer, Mail } from 'lucide-react';
 import { format, isPast, startOfDay } from 'date-fns';
 
 const Invoices = () => {
@@ -113,15 +113,30 @@ const Invoices = () => {
         }
     };
 
-    const handleShareWhatsApp = (invoice) => {
-        const phone = invoice.customerId?.phone;
-        if (!phone) {
-            alert('Customer does not have a phone number saved.');
+    const handleShareWhatsApp = (invoice, toAdmin = false) => {
+        const adminPhone = import.meta.env.VITE_ADMIN_PHONE;
+        const customerPhone = invoice.customerId?.phone;
+        const targetPhone = toAdmin ? adminPhone : customerPhone;
+        if (!targetPhone) {
+            alert(toAdmin ? 'Admin phone number is not configured in .env file.' : 'Customer does not have a phone number saved.');
             return;
         }
-        const text = `Hello ${invoice.customerName},\n\nYour Invoice *${invoice.invoiceNumber}* for *₹${Number(invoice.totalAmount).toLocaleString('en-IN')}* has been generated.\nPending Balance: *₹${Number(invoice.balance).toLocaleString('en-IN')}*.\nDue Date: ${invoice.dueDate ? format(new Date(invoice.dueDate), 'dd MMM yyyy') : 'Immediate'}.\n\nPlease find the PDF copy attached or request via reply.\n\nThank you for your business!`;
-        const wsUrl = `https://wa.me/91${phone}?text=${encodeURIComponent(text)}`;
+        const text = `Hello ${toAdmin ? 'Admin' : invoice.customerName},\n\n${toAdmin ? '*Admin Copy* of ' : ''}Invoice *${invoice.invoiceNumber}* for *₹${Number(invoice.totalAmount).toLocaleString('en-IN')}* has been generated.\nPending Balance: *₹${Number(invoice.balance).toLocaleString('en-IN')}*.\nDue Date: ${invoice.dueDate ? format(new Date(invoice.dueDate), 'dd MMM yyyy') : 'Immediate'}.\n\nThank you!`;
+        const wsUrl = `https://wa.me/${targetPhone.startsWith('91') ? targetPhone : '91' + targetPhone}?text=${encodeURIComponent(text)}`;
         window.open(wsUrl, '_blank');
+    };
+
+    const handleEmailToMe = async (invoice) => {
+        try {
+            setSaving(true); // Reuse saving state for loader
+            await api.post(`/invoices/${invoice.id}/email-to-me?includeSignature=${includeSignature}`);
+            alert('Email sent successfully to your admin email!');
+        } catch (error) {
+            console.error('Email failed', error);
+            alert(error.response?.data?.error || 'Failed to send email. Check .env configuration.');
+        } finally {
+            setSaving(false);
+        }
     };
 
     const startEditing = (invoice) => {
@@ -469,6 +484,12 @@ const Invoices = () => {
                                                         <div className="absolute right-0 mt-1 w-40 bg-white border border-gray-100 rounded-lg shadow-xl z-50 py-1 text-sm text-left">
                                                             <button onClick={() => { handleViewPdf(invoice.id); setActiveDropdown(null); }} className="w-full text-left px-4 py-2 text-gray-700 hover:bg-gray-50 flex items-center gap-2">
                                                                 <Eye size={14} /> View Open PDF
+                                                            </button>
+                                                            <button onClick={() => { handleShareWhatsApp(invoice, true); setActiveDropdown(null); }} className="w-full text-left px-4 py-2 text-green-600 hover:bg-green-50 flex items-center gap-2">
+                                                                <MessageCircle size={14} /> Share to Me
+                                                            </button>
+                                                            <button onClick={() => { handleEmailToMe(invoice); setActiveDropdown(null); }} className="w-full text-left px-4 py-2 text-blue-600 hover:bg-blue-50 flex items-center gap-2">
+                                                                <Mail size={14} /> Email to Me
                                                             </button>
                                                             <button onClick={() => { handleDelete(invoice.id); setActiveDropdown(null); }} className="w-full text-left px-4 py-2 text-red-600 hover:bg-red-50 flex items-center gap-2">
                                                                 <Trash2 size={14} /> Delete

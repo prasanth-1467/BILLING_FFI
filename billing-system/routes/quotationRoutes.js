@@ -1,6 +1,8 @@
 const express = require("express");
 const router = express.Router();
 const Quotation = require("../models/Quotation");
+const { generatePDF } = require("../utils/pdfGenerator");
+const { sendEmailWithAttachment } = require("../utils/emailService");
 const Product = require("../models/Product");
 const Customer = require("../models/Customer");
 const Counter = require("../models/Counter"); // Added Counter import
@@ -89,7 +91,9 @@ router.post("/", async (req, res) => {
 
 // Get all quotations
 router.get("/", async (req, res) => {
-  const quotes = await Quotation.find().populate("customerId");
+  const quotes = await Quotation.find()
+    .populate("customerId")
+    .sort({ quoteNumber: 1 });
   res.json(quotes);
 });
 
@@ -113,6 +117,7 @@ router.get("/:id/pdf", async (req, res) => {
         name: quote.customerId.name,
         address: quote.customerId.address,
         gst: quote.customerId.gstNumber,
+        phone: quote.customerId.phone,
         state: quote.customerId.state,
         shipTo: quote.shipTo // Pass shipTo data
       },
@@ -139,7 +144,6 @@ router.get("/:id/pdf", async (req, res) => {
       includeSignature // Add to data object
     };
 
-    const { generatePDF } = require("../utils/pdfGenerator");
 
     res.setHeader('Content-Type', 'application/pdf');
     res.setHeader('Content-Disposition', `attachment; filename=Quotation-${quote.quoteNumber}.pdf`);
@@ -234,7 +238,7 @@ router.post("/:id/duplicate", async (req, res) => {
     );
     const date = new Date();
     const year = date.getFullYear();
-    const month = date.getMonth(); 
+    const month = date.getMonth();
     const startYear = month >= 3 ? year : year - 1;
     const fyString = `${String(startYear).slice(-2)}-${String(startYear + 1).slice(-2)}`;
     const newQuoteNumber = `FFI/${fyString}/${String(counter.seq).padStart(3, '0')}`;
@@ -253,6 +257,62 @@ router.post("/:id/duplicate", async (req, res) => {
     res.json(newQuote);
   } catch (err) {
     res.status(400).json({ error: err.message });
+  }
+});
+
+// Email Quotation to Admin
+router.post("/:id/email-to-me", async (req, res) => {
+  try {
+    const quote = await Quotation.findById(req.params.id)
+      .populate("customerId")
+      .populate("items.productId");
+    if (!quote) return res.status(404).json({ error: "Quotation not found" });
+
+    const pdfData = {
+      number: quote.quoteNumber,
+      date: quote.date,
+      paymentTerms: "Valid for 30 days",
+      customer: {
+        name: quote.customerId.name,
+        address: quote.customerId.address,
+        gst: quote.customerId.gstNumber,
+        phone: quote.customerId.phone,
+        state: quote.customerId.state,
+        shipTo: quote.shipTo
+      },
+      items: quote.items.map(item => ({
+        name: item.name || item.productId?.name || "Product",
+        qty: item.qty,
+        rate: item.rate,
+        amount: item.amount,
+        hsn: item.hsn || item.productId?.hsn || "",
+        gstRate: item.gstRate,
+        unit: item.unit || item.productId?.unit || ""
+      })),
+      subtotal: quote.subtotal,
+      discountPercent: quote.discountPercent,
+      discount: (quote.subtotal * (quote.discountPercent || 0)) / 100,
+      taxableAmount: quote.taxableAmount,
+      gst: quote.gstBreakup,
+      roundOff: quote.roundOff,
+      total: quote.total,
+      includeSignature: req.query.includeSignature === "true"
+    };
+
+    const pdfBuffer = await generatePDF(pdfData);
+
+    await sendEmailWithAttachment({
+      to: process.env.ADMIN_EMAIL,
+      subject: `Proforma/Quotation Copy: ${quote.quoteNumber}`,
+      text: `Please find the attached PDF copy of Quotation ${quote.quoteNumber}.`,
+      filename: `Quotation-${quote.quoteNumber}.pdf`,
+      content: pdfBuffer,
+    });
+
+    res.json({ message: "Email sent successfully" });
+  } catch (err) {
+    console.error("Email failed:", err);
+    res.status(500).json({ error: err.message });
   }
 });
 

@@ -4,6 +4,8 @@ const Invoice = require("../models/Invoice");
 const Quotation = require("../models/Quotation");
 const Product = require("../models/Product");
 const Counter = require("../models/Counter"); // Added Counter import
+const { generatePDF } = require("../utils/pdfGenerator");
+const { sendEmailWithAttachment } = require("../utils/emailService");
 
 // UPDATE INVOICE DETAILS (Number, etc.)
 router.patch("/:id", async (req, res) => {
@@ -151,7 +153,9 @@ router.get("/:id", async (req, res) => {
 
 // Get all invoices
 router.get("/", async (req, res) => {
-  const invoices = await Invoice.find().populate("customerId");
+  const invoices = await Invoice.find()
+    .populate("customerId")
+    .sort({ invoiceNumber: 1 });
   res.json(invoices);
 });
 
@@ -182,6 +186,7 @@ router.get('/:id/pdf', async (req, res) => {
         name: invoice.customerId.name,
         address: invoice.customerId.address,
         gst: invoice.customerId.gstNumber,
+        phone: invoice.customerId.phone,
         state: invoice.customerId.state, // Pass State
         shipTo: invoice.shipTo // Pass shipTo
       },
@@ -204,7 +209,6 @@ router.get('/:id/pdf', async (req, res) => {
       includeSignature // Add to data object
     };
 
-    const { generatePDF } = require("../utils/pdfGenerator");
 
     res.setHeader('Content-Type', 'application/pdf');
     res.setHeader('Content-Disposition', `attachment; filename=Invoice-${invoice.invoiceNumber}.pdf`);
@@ -227,7 +231,7 @@ router.patch("/:id/payment", async (req, res) => {
 
     const newPaidAmount = (invoice.paidAmount || 0) + Number(amount);
     const newBalance = invoice.total - newPaidAmount;
-    
+
     let newStatus = "Unpaid";
     if (newBalance <= 0) {
       newStatus = "Paid";
@@ -235,18 +239,74 @@ router.patch("/:id/payment", async (req, res) => {
       newStatus = "Partially Paid";
     } else {
       if (invoice.dueDate && new Date(invoice.dueDate) < new Date()) {
-         newStatus = "Overdue";
+        newStatus = "Overdue";
       }
     }
 
     invoice.paidAmount = newPaidAmount;
     invoice.balance = newBalance;
     invoice.status = newStatus;
-    
+
     await invoice.save();
     res.json(invoice);
   } catch (error) {
     res.status(500).json({ error: error.message });
+  }
+});
+
+// Email Invoice to Admin
+router.post("/:id/email-to-me", async (req, res) => {
+  try {
+    const invoice = await Invoice.findById(req.params.id)
+      .populate("customerId")
+      .populate("items.productId");
+    if (!invoice) return res.status(404).json({ error: "Invoice not found" });
+
+    const pdfData = {
+      number: invoice.invoiceNumber,
+      date: invoice.date,
+      paymentTerms: "Due on Receipt",
+      customer: {
+        name: invoice.customerId.name,
+        address: invoice.customerId.address,
+        gst: invoice.customerId.gstNumber,
+        phone: invoice.customerId.phone,
+        state: invoice.customerId.state,
+        shipTo: invoice.shipTo
+      },
+      items: invoice.items.map(item => ({
+        name: item.name || item.productId?.name || "Product",
+        qty: item.qty,
+        rate: item.rate,
+        amount: item.amount,
+        hsn: item.hsn || item.productId?.hsn || "",
+        gstRate: item.gstRate,
+        unit: item.unit || item.productId?.unit || ""
+      })),
+      subtotal: invoice.subtotal,
+      discountPercent: invoice.discountPercent,
+      discount: (invoice.subtotal * (invoice.discountPercent || 0)) / 100,
+      taxableAmount: invoice.taxableAmount,
+      gst: invoice.gstBreakup,
+      roundOff: invoice.roundOff,
+      total: invoice.total,
+      includeSignature: req.query.includeSignature === "true"
+    };
+
+    const pdfBuffer = await generatePDF(pdfData);
+
+    await sendEmailWithAttachment({
+      to: process.env.ADMIN_EMAIL,
+      subject: `Invoice Copy: ${invoice.invoiceNumber}`,
+      text: `Please find the attached PDF copy of Invoice ${invoice.invoiceNumber}.`,
+      filename: `Invoice-${invoice.invoiceNumber}.pdf`,
+      content: pdfBuffer,
+    });
+
+    res.json({ message: "Email sent successfully" });
+  } catch (err) {
+    console.error("Email failed:", err);
+    res.status(500).json({ error: err.message });
   }
 });
 
