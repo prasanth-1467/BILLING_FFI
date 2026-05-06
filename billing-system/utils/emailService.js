@@ -1,22 +1,22 @@
 const nodemailer = require("nodemailer");
 
-// Create transporter once
-const transporter = nodemailer.createTransport({
-  host: "smtp.gmail.com",
-  port: 465,
-  secure: true, // use SSL
-  auth: {
-    user: process.env.EMAIL_USER,
-    pass: process.env.EMAIL_PASS,
-  },
-});
-
 const sendEmailWithAttachment = async ({ to, subject, text, filename, content }) => {
   // Check for missing environment variables
   if (!process.env.EMAIL_USER || !process.env.EMAIL_PASS) {
-    console.error("CRITICAL: EMAIL_USER or EMAIL_PASS environment variables are missing!");
+    console.error("Missing Email Config. Available EMAIL keys:", Object.keys(process.env).filter(k => k.includes("EMAIL")));
     throw new Error("Email configuration missing on server");
   }
+
+  // Create transporter inside for better serverless compatibility
+  const transporter = nodemailer.createTransport({
+    host: "smtp.gmail.com",
+    port: 465,
+    secure: true, // use SSL
+    auth: {
+      user: process.env.EMAIL_USER,
+      pass: process.env.EMAIL_PASS,
+    },
+  });
 
   const mailOptions = {
     from: process.env.EMAIL_USER,
