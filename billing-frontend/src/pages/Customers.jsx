@@ -54,8 +54,8 @@ const Customers = () => {
 
   const handleCreate = async (e) => {
     e.preventDefault();
-    if (form.phone && form.phone.length !== 10) {
-      alert('Phone number must be exactly 10 digits');
+    if (form.phone && (form.phone.length < 10 || form.phone.length > 11)) {
+      alert('Phone number must be 10 or 11 digits');
       return;
     }
     if (form.gstNumber && form.gstNumber !== 'URP' && form.gstNumber.length !== 15) {
@@ -268,15 +268,14 @@ const Customers = () => {
               </div>
 
               <div>
-                <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1.5">Phone Number *</label>
+                <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1.5">Phone Number</label>
                 <input
-                  required
-                  placeholder="10-digit mobile number"
+                  placeholder="10 or 11 digit number"
                   value={form.phone}
-                  maxLength={10}
+                  maxLength={11}
                   onChange={e => {
                     const val = e.target.value.replace(/\D/g, '');
-                    if (val.length <= 10) setForm({ ...form, phone: val });
+                    if (val.length <= 11) setForm({ ...form, phone: val });
                   }}
                   className="w-full border border-gray-300 rounded-lg px-4 py-2.5 bg-gray-50 focus:bg-white"
                 />

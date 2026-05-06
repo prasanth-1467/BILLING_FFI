@@ -4,12 +4,29 @@ const company = require("../config/companyDetails");
 const fs = require('fs');
 const path = require('path');
 
-function generatePDF(res, data, type = "TAX INVOICE") {
+function generatePDF(resOrData, dataOrNone, type = "TAX INVOICE") {
+    let res, data;
+    let isBufferMode = false;
+
+    // Check if first arg is a response-like object (has .pipe)
+    if (resOrData && typeof resOrData.pipe === 'function') {
+        res = resOrData;
+        data = dataOrNone;
+    } else {
+        isBufferMode = true;
+        data = resOrData;
+        type = dataOrNone || "TAX INVOICE";
+    }
+
     const includeSignature = data?.includeSignature === true;
     const doc = new PDFDocument({ size: "A4", margin: 40 });
 
-    // Pipe to response
-    doc.pipe(res);
+    let buffers = [];
+    if (isBufferMode) {
+        doc.on('data', chunk => buffers.push(chunk));
+    } else {
+        doc.pipe(res);
+    }
 
     // --- FALLBACK FOR OLD DATA (Missing Round Off) ---
     // If roundOff is missing/zero but total has decimals, apply rounding on the fly.
@@ -108,6 +125,7 @@ function generatePDF(res, data, type = "TAX INVOICE") {
     doc.font("Helvetica").text(data.customer.address, { width: colWidth });
     if (data.customer.state) doc.text(data.customer.state); // Add State
     if (data.customer.gst) doc.text(`GSTIN: ${data.customer.gst}`);
+    if (data.customer.phone) doc.text(`Phone: ${data.customer.phone}`);
     const billToEndY = doc.y;
 
     let shipToEndY = addressY; // Default if no ship to
@@ -298,6 +316,15 @@ function generatePDF(res, data, type = "TAX INVOICE") {
     doc.text("Authorized Signatory", 350, doc.y, { align: "right" });
 
     doc.end();
+
+    if (isBufferMode) {
+        return new Promise((resolve, reject) => {
+            doc.on('end', () => {
+                resolve(Buffer.concat(buffers));
+            });
+            doc.on('error', reject);
+        });
+    }
 }
 
 // Helper: Draw Line
