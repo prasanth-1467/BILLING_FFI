@@ -1,23 +1,21 @@
 const nodemailer = require("nodemailer");
 
-const sendEmailWithAttachment = async ({ to, subject, text, filename, content }) => {
-  const transporter = nodemailer.createTransport({
-    host: "smtp.gmail.com",
-    port: 465,
-    secure: true, // use SSL
-    auth: {
-      user: process.env.EMAIL_USER,
-      pass: process.env.EMAIL_PASS,
-    },
-  });
+// Create transporter once
+const transporter = nodemailer.createTransport({
+  host: "smtp.gmail.com",
+  port: 465,
+  secure: true, // use SSL
+  auth: {
+    user: process.env.EMAIL_USER,
+    pass: process.env.EMAIL_PASS,
+  },
+});
 
-  // Verify connection configuration
-  try {
-    await transporter.verify();
-    console.log("SMTP connection verified successfully");
-  } catch (error) {
-    console.error("SMTP verification failed:", error);
-    throw new Error("Email service is currently unavailable");
+const sendEmailWithAttachment = async ({ to, subject, text, filename, content }) => {
+  // Check for missing environment variables
+  if (!process.env.EMAIL_USER || !process.env.EMAIL_PASS) {
+    console.error("CRITICAL: EMAIL_USER or EMAIL_PASS environment variables are missing!");
+    throw new Error("Email configuration missing on server");
   }
 
   const mailOptions = {
@@ -33,7 +31,14 @@ const sendEmailWithAttachment = async ({ to, subject, text, filename, content })
     ],
   };
 
-  return transporter.sendMail(mailOptions);
+  try {
+    const info = await transporter.sendMail(mailOptions);
+    console.log("Email sent successfully:", info.messageId);
+    return info;
+  } catch (error) {
+    console.error("Failed to send email:", error);
+    throw error;
+  }
 };
 
 module.exports = { sendEmailWithAttachment };
