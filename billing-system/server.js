@@ -43,6 +43,18 @@ app.get("/", (req, res) => {
   });
 });
 
+// Debug endpoint to check env variables (without showing values)
+app.get("/api/debug/env", (req, res) => {
+  res.json({
+    EMAIL_USER: !!process.env.EMAIL_USER,
+    EMAIL_PASS: !!process.env.EMAIL_PASS,
+    ADMIN_EMAIL: !!process.env.ADMIN_EMAIL,
+    MONGO_URI: !!process.env.MONGO_URI,
+    PORT: process.env.PORT || "5000",
+    NODE_ENV: process.env.NODE_ENV || "development"
+  });
+});
+
 const PORT = process.env.PORT || 5000;
 app.listen(PORT, () => {
   console.log(`Server running on port ${PORT}`);
