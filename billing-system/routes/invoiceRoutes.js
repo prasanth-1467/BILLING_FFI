@@ -306,7 +306,10 @@ router.post("/:id/email-to-me", async (req, res) => {
     res.json({ message: "Email sent successfully" });
   } catch (err) {
     console.error("Email failed:", err);
-    res.status(500).json({ error: err.message });
+    res.status(500).json({ 
+      error: err.message || "Failed to send email", 
+      details: err.code || "UNKNOWN_ERROR"
+    });
   }
 });
 
