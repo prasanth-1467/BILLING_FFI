@@ -60,29 +60,46 @@ const PurchaseOrder = () => {
     }, []);
 
     const handleAddProduct = () => {
+        if (!selectedProductCode.trim()) return;
+
         const product = products.find(p =>
             p._id === selectedProductCode ||
             p.productCode === selectedProductCode ||
-            p.code === selectedProductCode
+            p.code === selectedProductCode ||
+            p.name === selectedProductCode
         );
-        if (!product) return;
 
-        const existingItem = items.find(i => i.product === product._id);
-        if (existingItem) {
-            alert("Product already added! Adjust quantity in the table.");
-            return;
+        let newItem;
+        if (product) {
+            const existingItem = items.find(i => i.product === product._id);
+            if (existingItem) {
+                alert("Product already added! Adjust quantity in the table.");
+                return;
+            }
+
+            newItem = {
+                product: product._id,
+                productCode: product.productCode || product.code,
+                name: product.name,
+                modelNo: '', 
+                unit: product.unit || 'PCS',
+                qty: 1,
+                rate: product.purchasePrice || 0,
+                gstRate: product.gstRate || 0
+            };
+        } else {
+            // Manual Item
+            newItem = {
+                product: null,
+                productCode: 'MANUAL',
+                name: selectedProductCode,
+                modelNo: '',
+                unit: 'PCS',
+                qty: 1,
+                rate: 0,
+                gstRate: 0
+            };
         }
-
-        const newItem = {
-            product: product._id,
-            productCode: product.productCode || product.code,
-            name: product.name,
-            modelNo: '', // Initialize empty manul field
-            unit: product.unit,
-            qty: 1,
-            rate: product.purchasePrice || 0,
-            gstRate: product.gstRate || 5 // Default to 5 if not set
-        };
 
         setItems([...items, newItem]);
         setSelectedProductCode('');
@@ -323,8 +340,20 @@ const PurchaseOrder = () => {
                             {items.map((item, index) => (
                                 <tr key={index}>
                                     <td className="px-6 py-4 whitespace-normal max-w-xs">
-                                        <div className="text-sm font-medium text-gray-900 break-words">{item.name}</div>
-                                        <div className="text-sm text-gray-500">{item.productCode}</div>
+                                        {!item.product ? (
+                                            <input
+                                                type="text"
+                                                className="w-full px-2 py-1 border rounded focus:ring-blue-500 focus:border-blue-500 text-sm font-medium"
+                                                value={item.name}
+                                                onChange={(e) => updateItem(index, 'name', e.target.value)}
+                                                placeholder="Item Name"
+                                            />
+                                        ) : (
+                                            <>
+                                                <div className="text-sm font-medium text-gray-900 break-words">{item.name}</div>
+                                                <div className="text-sm text-gray-500">{item.productCode}</div>
+                                            </>
+                                        )}
                                     </td>
                                     <td className="px-6 py-4 whitespace-nowrap">
                                         <input
@@ -357,7 +386,17 @@ const PurchaseOrder = () => {
                                         />
                                     </td>
                                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                                        {item.unit}
+                                        {!item.product ? (
+                                            <input
+                                                type="text"
+                                                className="w-20 px-2 py-1 border rounded focus:ring-blue-500 focus:border-blue-500 text-sm"
+                                                value={item.unit}
+                                                onChange={(e) => updateItem(index, 'unit', e.target.value)}
+                                                placeholder="Unit"
+                                            />
+                                        ) : (
+                                            item.unit
+                                        )}
                                     </td>
                                     <td className="px-6 py-4 whitespace-nowrap">
                                         <input

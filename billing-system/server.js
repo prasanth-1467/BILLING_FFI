@@ -46,9 +46,11 @@ app.get("/", (req, res) => {
 // Debug endpoint to check env variables (without showing values)
 app.get("/api/debug/env", (req, res) => {
   res.json({
+    RESEND_API_KEY: !!process.env.RESEND_API_KEY,
+    EMAIL_FROM: process.env.EMAIL_FROM || "onboarding@resend.dev",
     EMAIL_USER: !!process.env.EMAIL_USER,
     EMAIL_PASS: !!process.env.EMAIL_PASS,
-    ADMIN_EMAIL: !!process.env.ADMIN_EMAIL,
+    ADMIN_EMAIL: process.env.ADMIN_EMAIL || "not set",
     MONGO_URI: !!process.env.MONGO_URI,
     PORT: process.env.PORT || "5000",
     NODE_ENV: process.env.NODE_ENV || "development"

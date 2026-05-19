@@ -14,8 +14,9 @@ const poSchema = new mongoose.Schema({
       product: {
         type: mongoose.Schema.Types.ObjectId,
         ref: "Product",
-        required: true
+        required: false
       },
+      name: String,
       modelNo: String,
       qty: { type: Number, required: true },
       unit: String,
