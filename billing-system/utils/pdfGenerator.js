@@ -315,15 +315,17 @@ function generatePDF(resOrData, dataOrNone, type = "TAX INVOICE") {
 
     doc.text("Authorized Signatory", 350, doc.y, { align: "right" });
 
-    doc.end();
-
     if (isBufferMode) {
-        return new Promise((resolve, reject) => {
+        const pdfPromise = new Promise((resolve, reject) => {
             doc.on('end', () => {
                 resolve(Buffer.concat(buffers));
             });
             doc.on('error', reject);
         });
+        doc.end();
+        return pdfPromise;
+    } else {
+        doc.end();
     }
 }
 
