@@ -191,6 +191,345 @@ const Invoices = () => {
     };
 
 
+    const handleExportToExcel = () => {
+        if (filteredInvoices.length === 0) {
+            alert("No invoices to export!");
+            return;
+        }
+
+        // 1. Headers matching user request & screenshot
+        const headers = [
+            "Invoice Date",
+            "Invoice Number",
+            "Customer Billing Name",
+            "Customer Billing GSTIN",
+            "State Place of Supply",
+            "Taxable Amount",
+            "CGST",
+            "SGST",
+            "IGST",
+            "Total Amount"
+        ];
+
+        // 2. Map row data
+        const rows = filteredInvoices.map(inv => {
+            const formattedDate = inv.date ? format(new Date(inv.date), 'dd-MM-yyyy') : '';
+            
+            // Extract state code from GSTIN or state mapping
+            let stateSupply = "-";
+            const gst = inv.customerId?.gstNumber || "";
+            if (gst.length >= 2 && !isNaN(gst.substring(0, 2))) {
+                stateSupply = gst.substring(0, 2);
+            } else {
+                const rawState = (inv.customerId?.state || "").toLowerCase().replace(/\s+/g, "");
+                if (rawState === "tamilnadu" || rawState === "tn") {
+                    stateSupply = "33";
+                } else {
+                    stateSupply = inv.customerId?.state || "-";
+                }
+            }
+
+            const customerGSTIN = gst || "URD";
+            const taxable = inv.taxableAmount || 0;
+            const cgst = inv.gstBreakup?.CGST || 0;
+            const sgst = inv.gstBreakup?.SGST || 0;
+            const igst = inv.gstBreakup?.IGST || 0;
+            const total = inv.totalAmount || 0;
+
+            return [
+                formattedDate,
+                inv.invoiceNumber,
+                inv.customerName || "-",
+                customerGSTIN,
+                stateSupply,
+                taxable.toFixed(2),
+                cgst.toFixed(2),
+                sgst.toFixed(2),
+                igst.toFixed(2),
+                total.toFixed(2)
+            ];
+        });
+
+        // 3. Generate CSV content
+        const csvContent = [
+            headers.join(","),
+            ...rows.map(row => row.map(val => `"${String(val).replace(/"/g, '""')}"`).join(","))
+        ].join("\n");
+
+        // 4. Generate TSV content (for clipboard copy)
+        const tsvContent = [
+            headers.join("\t"),
+            ...rows.map(row => row.join("\t"))
+        ].join("\n");
+
+        // 5. Open dynamic preview tab
+        const previewWindow = window.open("", "_blank");
+        if (!previewWindow) {
+            alert("Pop-up blocked! Please allow pop-ups for this site to open the export assistant.");
+            return;
+        }
+
+        // Build HTML for a gorgeous preview and copy tool
+        const tableHeadersHTML = headers.map(h => `<th style="padding: 12px 16px; font-weight: 600; text-align: left; border-bottom: 2px solid #e2e8f0; font-size: 13px; text-transform: uppercase; color: #4a5568; letter-spacing: 0.5px;">${h}</th>`).join("");
+        const tableRowsHTML = rows.map(row => {
+            const cells = row.map((val, idx) => {
+                let cellStyle = "padding: 12px 16px; border-bottom: 1px solid #edf2f7; font-size: 14px; color: #2d3748;";
+                // Color formatting for numbers
+                if (idx >= 5) {
+                    cellStyle += " font-family: monospace; font-weight: 500; text-align: right;";
+                }
+                if (idx === 1) {
+                    cellStyle += " font-weight: 600; color: #3182ce;";
+                }
+                return `<td style="${cellStyle}">${val}</td>`;
+            }).join("");
+            return `<tr style="transition: background-color 0.2s;" onmouseover="this.style.backgroundColor='#f7fafc'" onmouseout="this.style.backgroundColor='transparent'">${cells}</tr>`;
+        }).join("");
+
+        previewWindow.document.write(`
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Export Assistant | Fine Flow Irrigation</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Outfit:wght@500;600;700&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #f7fafc;
+            margin: 0;
+            padding: 40px 24px;
+            color: #2d3748;
+        }
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+        .header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 24px;
+        }
+        h1 {
+            font-family: 'Outfit', sans-serif;
+            font-size: 28px;
+            font-weight: 700;
+            color: #1a202c;
+            margin: 0;
+        }
+        .subtitle {
+            color: #718096;
+            font-size: 14px;
+            margin-top: 4px;
+        }
+        .button-group {
+            display: flex;
+            gap: 12px;
+        }
+        .btn {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            padding: 12px 20px;
+            font-size: 14px;
+            font-weight: 600;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.2s;
+            border: none;
+            outline: none;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+        }
+        .btn-sheets {
+            background-color: #0f9d58;
+            color: white;
+        }
+        .btn-sheets:hover {
+            background-color: #0b8043;
+            transform: translateY(-1px);
+            box-shadow: 0 4px 6px rgba(15,157,88,0.2);
+        }
+        .btn-open {
+            background-color: #4285f4;
+            color: white;
+        }
+        .btn-open:hover {
+            background-color: #357ae8;
+            transform: translateY(-1px);
+            box-shadow: 0 4px 6px rgba(66,133,244,0.2);
+        }
+        .btn-download {
+            background-color: #edf2f7;
+            color: #4a5568;
+            border: 1px solid #cbd5e0;
+        }
+        .btn-download:hover {
+            background-color: #e2e8f0;
+        }
+        .instructions-card {
+            background: linear-gradient(135deg, #ebf8ff 0%, #e6fffa 100%);
+            border: 1px solid #bee3f8;
+            border-radius: 12px;
+            padding: 20px;
+            margin-bottom: 30px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.02);
+        }
+        .instructions-title {
+            font-weight: 700;
+            font-size: 16px;
+            color: #2b6cb0;
+            margin-bottom: 12px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        .instructions-list {
+            margin: 0;
+            padding-left: 20px;
+            font-size: 14px;
+            line-height: 1.6;
+            color: #2d3748;
+        }
+        .instructions-list li {
+            margin-bottom: 8px;
+        }
+        .card {
+            background: white;
+            border-radius: 12px;
+            border: 1px solid #e2e8f0;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);
+            overflow: hidden;
+        }
+        .table-wrapper {
+            overflow-x: auto;
+            max-height: 500px;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 14px;
+        }
+        th {
+            background-color: #f7fafc;
+            position: sticky;
+            top: 0;
+            z-index: 10;
+        }
+        .success-toast {
+            position: fixed;
+            bottom: 24px;
+            right: 24px;
+            background-color: #2d3748;
+            color: white;
+            padding: 16px 24px;
+            border-radius: 8px;
+            font-weight: 600;
+            font-size: 14px;
+            box-shadow: 0 10px 15px -3px rgba(0,0,0,0.3);
+            display: none;
+            animation: slideUp 0.3s ease-out;
+            z-index: 100;
+        }
+        @keyframes slideUp {
+            from { transform: translateY(100px); opacity: 0; }
+            to { transform: translateY(0); opacity: 1; }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <div>
+                <h1>Invoices Export Assistant</h1>
+                <div class="subtitle">Fine Flow Irrigation • ${rows.length} Invoices Found</div>
+            </div>
+            <div class="button-group">
+                <button id="copyBtn" class="btn btn-sheets">
+                    📋 Copy for Google Sheets / Excel
+                </button>
+                <button id="openBtn" class="btn btn-open">
+                    ↗️ Open Google Sheets
+                </button>
+                <button id="dlBtn" class="btn btn-download">
+                    📥 Download CSV
+                </button>
+            </div>
+        </div>
+
+        <div class="instructions-card">
+            <div class="instructions-title">💡 How to instantly paste into Google Sheets / Excel without downloading:</div>
+            <ol class="instructions-list">
+                <li>Click the green <strong>"📋 Copy for Google Sheets / Excel"</strong> button in the top right.</li>
+                <li>Click the blue <strong>"↗️ Open Google Sheets"</strong> button to open a new blank sheet in a new tab.</li>
+                <li>Select cell <strong>A1</strong> in Google Sheets, and press <strong>Ctrl+V</strong> (or <strong>Cmd+V</strong> on Mac) to paste the entire table instantly!</li>
+            </ol>
+        </div>
+
+        <div class="card">
+            <div style="padding: 16px 20px; border-bottom: 1px solid #e2e8f0; font-weight: 600; font-size: 15px; color: #4a5568; background-color: #f7fafc;">
+                📊 Table Preview
+            </div>
+            <div class="table-wrapper">
+                <table>
+                    <thead>
+                        <tr>${tableHeadersHTML}</tr>
+                    </thead>
+                    <tbody>
+                        ${tableRowsHTML}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <div id="toast" class="success-toast">
+        ✓ Table copied to clipboard! Ready to paste (Ctrl+V) in Google Sheets/Excel.
+    </div>
+
+    <script>
+        const tsvData = ${JSON.stringify(tsvContent)};
+        const csvData = ${JSON.stringify(csvContent)};
+
+        // Copy functionality
+        document.getElementById("copyBtn").addEventListener("click", () => {
+            navigator.clipboard.writeText(tsvData).then(() => {
+                const toast = document.getElementById("toast");
+                toast.style.display = "block";
+                setTimeout(() => {
+                    toast.style.display = "none";
+                }, 4000);
+            }).catch(err => {
+                alert("Failed to copy table: " + err);
+            });
+        });
+
+        // Open Sheets
+        document.getElementById("openBtn").addEventListener("click", () => {
+            window.open("https://sheets.new", "_blank");
+        });
+
+        // Local Download Fallback
+        document.getElementById("dlBtn").addEventListener("click", () => {
+            const csvContentWithBOM = "\\uFEFF" + csvData;
+            const base64Content = btoa(unescape(encodeURIComponent(csvContentWithBOM)));
+            const dataUri = "data:text/csv;charset=utf-8;base64," + base64Content;
+            
+            const link = document.createElement("a");
+            link.href = dataUri;
+            link.download = "Invoices_Export_" + new Date().toISOString().split('T')[0] + ".csv";
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+        });
+    </script>
+</body>
+</html>
+        `);
+        previewWindow.document.close();
+    };
+
     const handleViewPdf = (id) => {
         window.open(`${import.meta.env.VITE_API_URL}/invoices/${id}/pdf?includeSignature=${includeSignature}`, '_blank', 'noopener,noreferrer');
     };
@@ -339,6 +678,14 @@ const Invoices = () => {
                 </div>
 
                 <div className="flex items-center gap-2">
+                    <button
+                        onClick={handleExportToExcel}
+                        className="flex items-center gap-2 text-sm font-medium text-white bg-green-600 px-4 py-2.5 rounded-lg border border-green-700 hover:bg-green-700 shadow-sm transition-all hover:shadow-md cursor-pointer"
+                        title="Export Invoices to Excel Sheet"
+                    >
+                        <Download size={16} />
+                        Export to Excel
+                    </button>
                     <label className="flex items-center gap-2 text-sm font-medium text-gray-700 bg-gray-50 px-3 py-2.5 rounded-lg cursor-pointer border hover:bg-gray-100">
                         <input
                             type="checkbox"
