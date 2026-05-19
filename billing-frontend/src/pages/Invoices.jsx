@@ -197,7 +197,7 @@ const Invoices = () => {
             return;
         }
 
-        // 1. Headers matching user request & screenshot
+        // 1. Headers matching user request & screenshot with tax rate slabs
         const headers = [
             "Invoice Date",
             "Invoice Number",
@@ -205,9 +205,15 @@ const Invoices = () => {
             "Customer Billing GSTIN",
             "State Place of Supply",
             "Taxable Amount",
-            "CGST",
-            "SGST",
-            "IGST",
+            "CGST 2.5%",
+            "SGST 2.5%",
+            "CGST 9%",
+            "SGST 9%",
+            "IGST 5%",
+            "IGST 18%",
+            "Other CGST",
+            "Other SGST",
+            "Other IGST",
             "Total Amount"
         ];
 
@@ -229,11 +235,56 @@ const Invoices = () => {
                 }
             }
 
+            // Determine if Tamil Nadu (Intra-state)
+            const isIntraState = stateSupply === "33";
+
+            // Initialize tax rates variables
+            let cgst2_5 = 0;
+            let sgst2_5 = 0;
+            let cgst9 = 0;
+            let sgst9 = 0;
+            let igst5 = 0;
+            let igst18 = 0;
+            let otherCgst = 0;
+            let otherSgst = 0;
+            let otherIgst = 0;
+
+            const items = inv.items || [];
+            const discountPercent = inv.discountPercent || 0;
+
+            items.forEach(item => {
+                const qty = item.qty || 0;
+                const rate = item.rate || 0;
+                const itemAmount = qty * rate;
+                const itemTaxable = itemAmount - (itemAmount * discountPercent / 100);
+                const gstRate = item.gstRate || 0;
+                const taxAmount = (itemTaxable * gstRate) / 100;
+
+                if (isIntraState) {
+                    const halfTax = taxAmount / 2;
+                    if (gstRate === 5) {
+                        cgst2_5 += halfTax;
+                        sgst2_5 += halfTax;
+                    } else if (gstRate === 18) {
+                        cgst9 += halfTax;
+                        sgst9 += halfTax;
+                    } else {
+                        otherCgst += halfTax;
+                        otherSgst += halfTax;
+                    }
+                } else {
+                    if (gstRate === 5) {
+                        igst5 += taxAmount;
+                    } else if (gstRate === 18) {
+                        igst18 += taxAmount;
+                    } else {
+                        otherIgst += taxAmount;
+                    }
+                }
+            });
+
             const customerGSTIN = gst || "URD";
             const taxable = inv.taxableAmount || 0;
-            const cgst = inv.gstBreakup?.CGST || 0;
-            const sgst = inv.gstBreakup?.SGST || 0;
-            const igst = inv.gstBreakup?.IGST || 0;
             const total = inv.totalAmount || 0;
 
             return [
@@ -243,9 +294,15 @@ const Invoices = () => {
                 customerGSTIN,
                 stateSupply,
                 taxable.toFixed(2),
-                cgst.toFixed(2),
-                sgst.toFixed(2),
-                igst.toFixed(2),
+                cgst2_5 > 0 ? cgst2_5.toFixed(2) : "0.00",
+                sgst2_5 > 0 ? sgst2_5.toFixed(2) : "0.00",
+                cgst9 > 0 ? cgst9.toFixed(2) : "0.00",
+                sgst9 > 0 ? sgst9.toFixed(2) : "0.00",
+                igst5 > 0 ? igst5.toFixed(2) : "0.00",
+                igst18 > 0 ? igst18.toFixed(2) : "0.00",
+                otherCgst > 0 ? otherCgst.toFixed(2) : "0.00",
+                otherSgst > 0 ? otherSgst.toFixed(2) : "0.00",
+                otherIgst > 0 ? otherIgst.toFixed(2) : "0.00",
                 total.toFixed(2)
             ];
         });
