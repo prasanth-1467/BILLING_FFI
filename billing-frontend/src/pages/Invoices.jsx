@@ -1,15 +1,19 @@
 import React, { useEffect, useState, useRef } from 'react';
+import { useNavigate } from 'react-router-dom';
 import api from '../services/api';
-import { Search, Loader, Download, FileText, CheckCircle, Clock, Eye, Trash2, Edit, Save, X, MoreVertical, IndianRupee, MessageCircle, AlertTriangle, Printer, Mail } from 'lucide-react';
+import { Search, Loader, Download, FileText, CheckCircle, Clock, Eye, Trash2, Edit, Save, X, MoreVertical, IndianRupee, MessageCircle, AlertTriangle, Printer, Mail, Plus } from 'lucide-react';
 import { format, isPast, startOfDay } from 'date-fns';
 
 const Invoices = () => {
+    const navigate = useNavigate();
     const [invoices, setInvoices] = useState([]);
     const [loading, setLoading] = useState(true);
     const [searchTerm, setSearchTerm] = useState('');
     const [downloadingId, setDownloadingId] = useState(null);
     const [printingId, setPrintingId] = useState(null);
     const [includeSignature, setIncludeSignature] = useState(false);
+    const [includeSeal, setIncludeSeal] = useState(false);
+    const [selectedTheme, setSelectedTheme] = useState('indigo');
 
     const [editingId, setEditingId] = useState(null);
     const [editingDateId, setEditingDateId] = useState(null);
@@ -28,7 +32,19 @@ const Invoices = () => {
 
     useEffect(() => {
         fetchInvoices();
+        fetchDefaultTheme();
     }, []);
+
+    const fetchDefaultTheme = async () => {
+        try {
+            const response = await api.get('/settings');
+            if (response.data && response.data.defaultTheme) {
+                setSelectedTheme(response.data.defaultTheme);
+            }
+        } catch (error) {
+            console.error('Failed to fetch default theme', error);
+        }
+    };
 
     useEffect(() => {
         const handleClickOutside = (event) => {
@@ -55,7 +71,7 @@ const Invoices = () => {
         try {
             setDownloadingId(id);
             const response = await api.get(`/invoices/${id}/pdf`, {
-                params: { includeSignature },
+                params: { includeSignature, includeSeal, theme: selectedTheme },
                 responseType: 'blob',
             });
 
@@ -128,14 +144,16 @@ const Invoices = () => {
 
     const handleEmailToMe = async (invoice) => {
         try {
-            setSaving(true); // Reuse saving state for loader
-            await api.post(`/invoices/${invoice.id}/email-to-me?includeSignature=${includeSignature}`);
-            alert('Email sent successfully to your admin email!');
+            setSaving(true);
+            setDownloadingId(invoice.id);
+            await api.post(`/invoices/${invoice.id}/email-to-me?includeSignature=${includeSignature}&includeSeal=${includeSeal}&theme=${selectedTheme}`);
+            alert("Copy sent to admin email successfully!");
         } catch (error) {
             console.error('Email failed', error);
             alert(error.response?.data?.error || 'Failed to send email. Check .env configuration.');
         } finally {
             setSaving(false);
+            setDownloadingId(null);
         }
     };
 
@@ -588,14 +606,14 @@ const Invoices = () => {
     };
 
     const handleViewPdf = (id) => {
-        window.open(`${import.meta.env.VITE_API_URL}/invoices/${id}/pdf?includeSignature=${includeSignature}`, '_blank', 'noopener,noreferrer');
+        window.open(`${import.meta.env.VITE_API_URL}/invoices/${id}/pdf?includeSignature=${includeSignature}&includeSeal=${includeSeal}&theme=${selectedTheme}`, '_blank', 'noopener,noreferrer');
     };
 
     const handlePrint = async (id) => {
         try {
             setPrintingId(id);
             const response = await api.get(`/invoices/${id}/pdf`, {
-                params: { includeSignature },
+                params: { includeSignature, includeSeal, theme: selectedTheme },
                 responseType: 'blob',
             });
 
@@ -647,7 +665,7 @@ const Invoices = () => {
         if (inv.balance <= 0) return "Paid";
         if (inv.dueDate && isPast(startOfDay(new Date(inv.dueDate))) && inv.balance > 0) return "Overdue";
         if (inv.paidAmount > 0) return "Partially Paid";
-        return "Unpaid";
+        return "Pending";
     };
 
     const normalized = invoices.map(inv => ({
@@ -676,7 +694,7 @@ const Invoices = () => {
             case 'Paid': return <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-bold border border-green-200 bg-green-50 text-green-700">Paid</span>;
             case 'Partially Paid': return <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-bold border border-blue-200 bg-blue-50 text-blue-700">Partially Paid</span>;
             case 'Overdue': return <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-bold border border-red-200 bg-red-50 text-red-700">Overdue</span>;
-            default: return <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-bold border border-orange-200 bg-orange-50 text-orange-700">Unpaid</span>;
+            default: return <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-bold border border-orange-200 bg-orange-50 text-orange-700">Pending</span>;
         }
     };
 
@@ -736,6 +754,14 @@ const Invoices = () => {
 
                 <div className="flex items-center gap-2">
                     <button
+                        onClick={() => navigate('/invoices/new')}
+                        className="flex items-center gap-2 text-sm font-medium text-white bg-blue-600 px-4 py-2.5 rounded-lg border border-blue-700 hover:bg-blue-700 shadow-sm transition-all hover:shadow-md cursor-pointer"
+                        title="Create a Direct Custom Invoice"
+                    >
+                        <Plus size={16} />
+                        Create Direct Invoice
+                    </button>
+                    <button
                         onClick={handleExportToExcel}
                         className="flex items-center gap-2 text-sm font-medium text-white bg-green-600 px-4 py-2.5 rounded-lg border border-green-700 hover:bg-green-700 shadow-sm transition-all hover:shadow-md cursor-pointer"
                         title="Export Invoices to Excel Sheet"
@@ -752,6 +778,27 @@ const Invoices = () => {
                         />
                         Include Signature on PDFs
                     </label>
+                    <label className="flex items-center gap-2 text-sm font-medium text-gray-700 bg-gray-50 px-3 py-2.5 rounded-lg cursor-pointer border hover:bg-gray-100">
+                        <input
+                            type="checkbox"
+                            className="w-4 h-4 text-blue-600 rounded focus:ring-blue-500 border-gray-300"
+                            checked={includeSeal}
+                            onChange={e => setIncludeSeal(e.target.checked)}
+                        />
+                        Include Seal on PDFs
+                    </label>
+                    <select
+                        value={selectedTheme}
+                        onChange={(e) => setSelectedTheme(e.target.value)}
+                        className="text-sm font-medium text-gray-700 bg-gray-50 px-3 py-2.5 rounded-lg border hover:bg-gray-100 outline-none cursor-pointer"
+                        title="Select PDF Theme"
+                    >
+                        <option value="indigo">Classic Indigo</option>
+                        <option value="emerald">Forest Emerald</option>
+                        <option value="crimson">Warm Crimson</option>
+                        <option value="charcoal">Sleek Charcoal</option>
+                        <option value="plain">Plain Black & White</option>
+                    </select>
                 </div>
             </div>
 

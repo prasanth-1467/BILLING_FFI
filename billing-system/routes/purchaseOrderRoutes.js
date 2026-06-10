@@ -5,7 +5,7 @@ const PurchaseOrder = require("../models/PurchaseOrder");
 // CREATE PO
 router.post("/", async (req, res) => {
   try {
-    if (!req.body.supplier) {
+    if (!req.body.supplier && !req.body.supplierName) {
       return res.status(400).json({ error: "Supplier is required" });
     }
 
@@ -49,12 +49,24 @@ router.get("/:id/pdf", async (req, res) => {
     if (!po) return res.status(404).json({ error: "Purchase Order not found" });
 
     const includeSignature = req.query.includeSignature === 'true';
+    const includeSeal = req.query.includeSeal === 'true';
 
     res.setHeader('Content-Type', 'application/pdf');
     res.setHeader('Content-Disposition', `attachment; filename=PO-${po.poNumber}.pdf`);
 
     const poData = po.toObject();
     poData.includeSignature = includeSignature;
+    poData.includeSeal = includeSeal;
+
+    // Resolve theme
+    const BusinessSettings = require("../models/BusinessSettings");
+    const themeConfig = require("../config/themeConfig");
+    let resolvedThemeName = req.query.theme || po.theme;
+    if (!resolvedThemeName) {
+      const settings = await BusinessSettings.findOne();
+      resolvedThemeName = settings?.defaultTheme || "indigo";
+    }
+    poData.theme = themeConfig[resolvedThemeName] || themeConfig.indigo;
 
     generatePoPDF(res, poData);
 
@@ -97,6 +109,10 @@ router.patch("/:id", async (req, res) => {
 
     if (date) {
       po.date = date;
+    }
+
+    if (req.body.theme !== undefined) {
+      po.theme = req.body.theme;
     }
 
     await po.save();

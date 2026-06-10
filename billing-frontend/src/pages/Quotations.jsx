@@ -11,7 +11,9 @@ const Quotations = () => {
   const [convertingId, setConvertingId] = useState(null);
   const [printingId, setPrintingId] = useState(null);
   const [includeSignature, setIncludeSignature] = useState(false);
+  const [includeSeal, setIncludeSeal] = useState(false);
   const [expandedId, setExpandedId] = useState(null);
+  const [selectedTheme, setSelectedTheme] = useState('indigo');
   
   const [editingId, setEditingId] = useState(null);
   const [editingDateId, setEditingDateId] = useState(null);
@@ -49,7 +51,19 @@ const Quotations = () => {
 
   useEffect(() => {
     fetchQuotes();
+    fetchDefaultTheme();
   }, []);
+
+  const fetchDefaultTheme = async () => {
+    try {
+      const response = await api.get('/settings');
+      if (response.data && response.data.defaultTheme) {
+        setSelectedTheme(response.data.defaultTheme);
+      }
+    } catch (error) {
+      console.error('Failed to fetch default theme', error);
+    }
+  };
 
   const handleConvert = async (quoteId) => {
     setConvertingId(quoteId);
@@ -71,7 +85,7 @@ const Quotations = () => {
   const handleDownload = async (id, quoteNumber) => {
     try {
       const response = await api.get(`/quotations/${id}/pdf`, {
-        params: { includeSignature },
+        params: { includeSignature, includeSeal, theme: selectedTheme },
         responseType: 'blob',
       });
       const url = window.URL.createObjectURL(new Blob([response.data]));
@@ -91,7 +105,7 @@ const Quotations = () => {
     try {
       setPrintingId(id);
       const response = await api.get(`/quotations/${id}/pdf`, {
-        params: { includeSignature },
+        params: { includeSignature, includeSeal, theme: selectedTheme },
         responseType: 'blob',
       });
 
@@ -176,7 +190,7 @@ const Quotations = () => {
   const handleEmailToMe = async (quote) => {
     try {
       setSaving(true);
-      await api.post(`/quotations/${quote.id}/email-to-me?includeSignature=${includeSignature}`);
+      await api.post(`/quotations/${quote.id}/email-to-me?includeSignature=${includeSignature}&includeSeal=${includeSeal}&theme=${selectedTheme}`);
       alert('Email sent successfully to your admin email!');
     } catch (error) {
       console.error('Email failed', error);
@@ -329,6 +343,27 @@ const Quotations = () => {
             />
             Include Signature on PDFs
           </label>
+           <label className="flex items-center gap-2 text-sm font-medium text-gray-700 bg-gray-50 px-3 py-2.5 rounded-lg cursor-pointer border hover:bg-gray-100">
+            <input
+              type="checkbox"
+              className="w-4 h-4 text-blue-600 rounded focus:ring-blue-500 border-gray-300"
+              checked={includeSeal}
+              onChange={e => setIncludeSeal(e.target.checked)}
+            />
+            Include Seal on PDFs
+          </label>
+          <select
+            value={selectedTheme}
+            onChange={(e) => setSelectedTheme(e.target.value)}
+            className="text-sm font-medium text-gray-700 bg-gray-50 px-3 py-2.5 rounded-lg border hover:bg-gray-100 outline-none cursor-pointer"
+            title="Select PDF Theme"
+          >
+            <option value="indigo">Classic Indigo</option>
+            <option value="emerald">Forest Emerald</option>
+            <option value="crimson">Warm Crimson</option>
+            <option value="charcoal">Sleek Charcoal</option>
+            <option value="plain">Plain Black & White</option>
+          </select>
         </div>
         
         <button className="btn btn-outline flex items-center gap-2 flex-shrink-0" onClick={fetchQuotes}>

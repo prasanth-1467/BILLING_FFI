@@ -50,6 +50,7 @@ const MainLayout = () => {
             '/purchase-orders': 'Purchase Management',
             '/purchase-orders/new': 'Raise Purchase Order',
             '/invoices': 'Billing & Invoices',
+            '/invoices/new': 'Direct Invoice Builder',
             '/insights': 'Business Intelligence',
             '/profile': 'User Profile'
         };
@@ -87,6 +88,7 @@ const MainLayout = () => {
                     <SidebarItem to="/purchase-orders" icon={ShoppingBag} label="Purchase Orders" />
                     <SidebarItem to="/purchase-orders/new" icon={ShoppingBag} label="Create PO" />
                     <SidebarItem to="/invoices" icon={Receipt} label="Invoices" />
+                    <SidebarItem to="/invoices/new" icon={Receipt} label="Create Invoice" />
 
                     <div className="mt-8 mb-2 px-6">
                         <p className="text-[10px] font-bold text-slate-500 uppercase tracking-widest border-b border-slate-800 pb-2">AI Insights</p>

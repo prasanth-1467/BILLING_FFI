@@ -7,6 +7,7 @@ import Customers from './pages/Customers';
 import Quotation from './pages/Quotation';
 import Quotations from './pages/Quotations';
 import Invoices from './pages/Invoices';
+import CreateInvoice from './pages/CreateInvoice';
 import Profile from './pages/Profile';
 import Login from './pages/Login';
 import AgentInsights from './pages/AgentInsights';
@@ -34,6 +35,7 @@ function App() {
             <Route path="purchase-orders" element={<PurchaseOrders />} />
             <Route path="purchase-orders/new" element={<PurchaseOrder />} />
             <Route path="invoices" element={<Invoices />} />
+            <Route path="invoices/new" element={<CreateInvoice />} />
             <Route path="insights" element={<AgentInsights />} />
             <Route path="profile" element={<Profile />} />
             {/* Redirect unknown routes to Dashboard */}

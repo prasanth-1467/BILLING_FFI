@@ -43,7 +43,12 @@ const Products = () => {
   const fetchProducts = async () => {
     try {
       const response = await api.get('/products');
-      setProducts(response.data);
+      const sorted = (response.data || []).sort((a, b) => {
+        const codeA = (a.productCode || a.code || '').toLowerCase();
+        const codeB = (b.productCode || b.code || '').toLowerCase();
+        return codeA.localeCompare(codeB, undefined, { numeric: true, sensitivity: 'base' });
+      });
+      setProducts(sorted);
     } catch (error) {
       console.error('Failed to fetch products', error);
     } finally {
@@ -149,7 +154,15 @@ const Products = () => {
   const handleInlineEdit = async (id, field, value) => {
     try {
       await api.put(`/products/${id}`, { [field]: value });
-      setProducts(products.map(p => (p._id === id ? { ...p, [field]: value } : p)));
+      const updated = products.map(p => (p._id === id ? { ...p, [field]: value } : p));
+      if (field === 'productCode' || field === 'code') {
+        updated.sort((a, b) => {
+          const codeA = (a.productCode || a.code || '').toLowerCase();
+          const codeB = (b.productCode || b.code || '').toLowerCase();
+          return codeA.localeCompare(codeB, undefined, { numeric: true, sensitivity: 'base' });
+        });
+      }
+      setProducts(updated);
     } catch (error) {
       console.error(`Failed to update ${field}`, error);
     }
@@ -207,44 +220,58 @@ const Products = () => {
   return (
     <div className="space-y-6">
       {/* Dashboard Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-        <div className="bg-white p-5 rounded-xl shadow-sm border border-gray-100 flex items-center gap-4">
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <div
+          onClick={() => {
+            setStockFilter('All');
+            setCategoryFilter('All');
+          }}
+          className={`bg-white p-5 rounded-xl shadow-sm border flex items-center gap-4 cursor-pointer transition-all duration-200 hover:-translate-y-0.5 hover:shadow-md active:translate-y-0 ${stockFilter === 'All' && categoryFilter === 'All'
+              ? 'border-blue-500 ring-2 ring-blue-100'
+              : 'border-gray-100'
+            }`}
+        >
           <div className="w-12 h-12 rounded-full bg-blue-50 flex items-center justify-center text-blue-600">
             <Package size={24} />
           </div>
           <div>
-            <p className="text-sm text-gray-500">Total Products</p>
+            <p className="text-sm text-gray-500 font-medium">Total Products</p>
             <h3 className="text-2xl font-bold text-gray-900">{products.length}</h3>
+            <p className="text-xs text-blue-600 font-semibold mt-0.5">Click to view all</p>
           </div>
         </div>
 
-        <div className="bg-white p-5 rounded-xl shadow-sm border border-gray-100 flex items-center gap-4">
-          <div className="w-12 h-12 rounded-full bg-emerald-50 flex items-center justify-center text-emerald-600">
-            <TrendingUp size={24} />
-          </div>
-          <div>
-            <p className="text-sm text-gray-500">Stock Value</p>
-            <h3 className="text-2xl font-bold text-gray-900">₹{totalStockValue.toLocaleString()}</h3>
-          </div>
-        </div>
-
-        <div className="bg-white p-5 rounded-xl shadow-sm border border-gray-100 flex items-center gap-4">
+        <div
+          onClick={() => setStockFilter('Low Stock')}
+          className={`bg-white p-5 rounded-xl shadow-sm border flex items-center gap-4 cursor-pointer transition-all duration-200 hover:-translate-y-0.5 hover:shadow-md active:translate-y-0 ${stockFilter === 'Low Stock'
+              ? 'border-orange-500 ring-2 ring-orange-100'
+              : 'border-gray-100'
+            }`}
+        >
           <div className="w-12 h-12 rounded-full bg-orange-50 flex items-center justify-center text-orange-600">
             <AlertTriangle size={24} />
           </div>
           <div>
-            <p className="text-sm text-gray-500">Low Stock</p>
+            <p className="text-sm text-gray-500 font-medium">Low Stock</p>
             <h3 className="text-2xl font-bold text-gray-900">{lowStockCount}</h3>
+            <p className="text-xs text-orange-600 font-semibold mt-0.5">Click to filter list</p>
           </div>
         </div>
 
-        <div className="bg-white p-5 rounded-xl shadow-sm border border-gray-100 flex items-center gap-4">
+        <div
+          onClick={() => setStockFilter('Out of Stock')}
+          className={`bg-white p-5 rounded-xl shadow-sm border flex items-center gap-4 cursor-pointer transition-all duration-200 hover:-translate-y-0.5 hover:shadow-md active:translate-y-0 ${stockFilter === 'Out of Stock'
+              ? 'border-red-500 ring-2 ring-red-100'
+              : 'border-gray-100'
+            }`}
+        >
           <div className="w-12 h-12 rounded-full bg-red-50 flex items-center justify-center text-red-600">
             <AlertCircle size={24} />
           </div>
           <div>
-            <p className="text-sm text-gray-500">Out of Stock</p>
+            <p className="text-sm text-gray-500 font-medium">Out of Stock</p>
             <h3 className="text-2xl font-bold text-gray-900">{outOfStockCount}</h3>
+            <p className="text-xs text-red-600 font-semibold mt-0.5">Click to filter list</p>
           </div>
         </div>
       </div>
@@ -389,8 +416,8 @@ const Products = () => {
               <input type="number" step="0.01" value={form.gstRate} onChange={e => setForm({ ...form, gstRate: e.target.value })} className="w-full border rounded px-3 py-2" />
             </div>
             <div>
-              <label className="block text-xs font-medium text-gray-500 uppercase tracking-wider mb-1">Current Stock</label>
-              <input type="number" value={form.stockQty} onChange={e => setForm({ ...form, stockQty: e.target.value })} className="w-full border rounded px-3 py-2 font-medium text-blue-600" />
+              <label className="block text-xs font-medium text-gray-500 uppercase tracking-wider mb-1">Current Stock *</label>
+              <input type="number" required value={form.stockQty} onChange={e => setForm({ ...form, stockQty: e.target.value })} className="w-full border rounded px-3 py-2 font-medium text-blue-600" />
             </div>
             <div>
               <label className="block text-xs font-medium text-gray-500 uppercase tracking-wider mb-1">Reorder Level</label>

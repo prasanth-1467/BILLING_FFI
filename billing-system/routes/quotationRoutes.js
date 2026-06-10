@@ -10,74 +10,107 @@ const Counter = require("../models/Counter"); // Added Counter import
 // Create quotation
 router.post("/", async (req, res) => {
   try {
-    const { customerId, items, discountPercent, expiryDate, shipTo } = req.body;
-
-    const customer = await Customer.findById(customerId);
-    if (!customer) return res.status(404).json({ error: "Customer not found" });
-
-
-
-    // Verify Stock & Prepare Items
-    const { calculateGST, calculateFinal } = require("../utils/taxCalculator");
-
-    // 1. Process Items (Check stock, get rates)
-    let enrichedItems = [];
-    for (let item of items) {
-      const product = await Product.findById(item.productId);
-      if (!product) return res.status(404).json({ error: "Product not found" });
-
-      if (product.stockQty < item.qty)
-        return res.status(400).json({ error: `Insufficient stock for ${product.name}` });
-
-      enrichedItems.push({
-        productId: product._id,
-        qty: item.qty,
-        rate: product.sellingPrice,
-        gstRate: product.gstRate || 0, // Ensure GST rate exists
-        amount: item.qty * product.sellingPrice
-      });
-    }
-
-    // 2. Determine State Type
-    const normalize = (str) => (str || "").toLowerCase().replace(/\s+/g, "");
-    const isIntraState = normalize(customer.state) === "tamilnadu";
-
-    // 3. Calculate Totals using Utility
-    const calcInitial = calculateGST(enrichedItems, customer.state);
-    const results = calculateFinal(calcInitial.subtotal, discountPercent, enrichedItems, isIntraState);
-
-    // Destructure Results
-    const { subtotal, taxableAmount, gstBreakup, roundOff, total } = results;
-
-    // Generate Sequential Quote Number
-    const counter = await Counter.findOneAndUpdate(
-      { id: "quoteNumber" },
-      { $inc: { seq: 1 } },
-      { new: true, upsert: true }
-    );
+    const { 
+      quoteNumber,
+      customerId, 
+      customerName, 
+      customerGSTIN, 
+      customerAddress, 
+      customerState, 
+      customerPhone,
+      items, 
+      discountPercent, 
+      expiryDate, 
+      shipTo 
+    } = req.body;
 
     const date = new Date();
+
+    // 1. Handle quoteNumber (Mandatory)
+    let finalQuoteNumber = quoteNumber ? quoteNumber.trim() : null;
+    if (!finalQuoteNumber) {
+      return res.status(404).json({ error: "Quotation number is mandatory" });
+    }
+
     const year = date.getFullYear();
     const month = date.getMonth(); // 0-11
-    // Financial Year Logic: If month >= 3 (April), start of new FY.
-    // e.g., April 2025 -> 25-26. Jan 2026 -> 25-26.
     const startYear = month >= 3 ? year : year - 1;
     const fyString = `${String(startYear).slice(-2)}-${String(startYear + 1).slice(-2)}`;
 
-    const quoteNumber = `FFI/${fyString}/${String(counter.seq).padStart(3, '0')}`;
+    if (!finalQuoteNumber.toUpperCase().startsWith("FFI/")) {
+      let numPart = finalQuoteNumber;
+      if (/^\d+$/.test(numPart)) {
+        numPart = String(numPart).padStart(3, '0');
+      }
+      finalQuoteNumber = `FFI/${fyString}/${numPart}`;
+    }
+
+    // Uniqueness check
+    const existing = await Quotation.findOne({ quoteNumber: finalQuoteNumber });
+    if (existing) {
+      return res.status(400).json({ error: `Quotation number "${finalQuoteNumber}" already exists` });
+    }
+
+    // 2. Process Items (Enrich and get rates)
+    let enrichedItems = [];
+    for (let item of items) {
+      let dbProduct = null;
+      if (item.productId) {
+        dbProduct = await Product.findById(item.productId);
+      }
+
+      enrichedItems.push({
+        productId: item.productId || null,
+        productCode: item.productCode || (dbProduct ? (dbProduct.productCode || dbProduct.code) : "Custom"),
+        name: item.name || (dbProduct ? dbProduct.name : "Custom Product"),
+        hsn: item.hsn || (dbProduct ? dbProduct.hsn : "-"),
+        unit: item.unit || (dbProduct ? dbProduct.unit : "Nos"),
+        qty: Number(item.qty),
+        rate: Number(item.rate),
+        gstRate: Number(item.gstRate || 0),
+        amount: Number(item.qty) * Number(item.rate)
+      });
+    }
+
+    // 3. Determine State Type for Tax Splits
+    let finalState = customerState || "Tamil Nadu";
+    if (customerId) {
+      const dbCustomer = await Customer.findById(customerId);
+      if (dbCustomer) {
+        finalState = dbCustomer.state;
+      }
+    }
+
+    const normalize = (str) => (str || "").toLowerCase().replace(/\s+/g, "");
+    const isIntraState = normalize(finalState) === "tamilnadu";
+
+    // 4. Calculate Totals using taxCalculator Utility
+    const { calculateGST, calculateFinal } = require("../utils/taxCalculator");
+    const calcInitial = calculateGST(enrichedItems, finalState);
+    const results = calculateFinal(calcInitial.subtotal, Number(discountPercent || 0), enrichedItems, isIntraState);
+
+    const { subtotal, taxableAmount, gstBreakup, roundOff, total } = results;
 
     const quote = new Quotation({
-      quoteNumber,
-      customerId,
+      quoteNumber: finalQuoteNumber,
+      customerId: customerId || null,
+      
+      // Manual columns (will be saved cleanly)
+      customerName: customerName || null,
+      customerGSTIN: customerGSTIN || null,
+      customerAddress: customerAddress || null,
+      customerState: customerState || null,
+      customerPhone: customerPhone || null,
+      
       items: enrichedItems,
       subtotal,
-      discountPercent,
+      discountPercent: Number(discountPercent || 0),
       taxableAmount,
-
       gstBreakup,
       roundOff,
       total,
       expiryDate,
+      theme: req.body.theme || null,
       shipTo
     });
 
@@ -107,26 +140,38 @@ router.get("/:id/pdf", async (req, res) => {
     if (!quote) return res.status(404).json({ error: "Quotation not found" });
 
     const includeSignature = req.query.includeSignature === 'true';
+    const includeSeal = req.query.includeSeal === 'true';
+
+    // Resolve theme
+    const BusinessSettings = require("../models/BusinessSettings");
+    const themeConfig = require("../config/themeConfig");
+    let resolvedThemeName = req.query.theme || quote.theme;
+    if (!resolvedThemeName) {
+      const settings = await BusinessSettings.findOne();
+      resolvedThemeName = settings?.defaultTheme || "indigo";
+    }
+    const theme = themeConfig[resolvedThemeName] || themeConfig.indigo;
 
     // Prepare Data for Generator
     const pdfData = {
       number: quote.quoteNumber,
+      theme,
       date: quote.date,
       paymentTerms: "Valid for 30 days",
       customer: {
-        name: quote.customerId.name,
-        address: quote.customerId.address,
-        gst: quote.customerId.gstNumber,
-        phone: quote.customerId.phone,
-        state: quote.customerId.state,
+        name: quote.customerName || quote.customerId?.name || "-",
+        address: quote.customerAddress || quote.customerId?.address || "-",
+        gst: quote.customerGSTIN || quote.customerId?.gstNumber || "URD",
+        phone: quote.customerPhone || quote.customerId?.phone || "-",
+        state: quote.customerState || quote.customerId?.state || "-",
         shipTo: quote.shipTo // Pass shipTo data
       },
       items: quote.items.map(item => {
         const product = item.productId || {};
         return {
-          name: product.name || "Unknown Product",
-          hsn: product.hsn || "-",
-          unit: product.unit || "-",
+          name: item.name || product.name || "Unknown Product",
+          hsn: item.hsn || product.hsn || "-",
+          unit: item.unit || product.unit || "-",
           qty: item.qty,
           rate: item.rate,
           gstRate: item.gstRate,
@@ -141,7 +186,8 @@ router.get("/:id/pdf", async (req, res) => {
       gst: quote.gstBreakup,
       roundOff: quote.roundOff,
       total: quote.total,
-      includeSignature // Add to data object
+      includeSignature, // Add to data object
+      includeSeal
     };
 
 
@@ -196,6 +242,10 @@ router.patch("/:id", async (req, res) => {
 
     if (date) {
       quote.date = date;
+    }
+
+    if (req.body.theme !== undefined) {
+      quote.theme = req.body.theme;
     }
 
     await quote.save();
@@ -273,11 +323,11 @@ router.post("/:id/email-to-me", async (req, res) => {
       date: quote.date,
       paymentTerms: "Valid for 30 days",
       customer: {
-        name: quote.customerId.name,
-        address: quote.customerId.address,
-        gst: quote.customerId.gstNumber,
-        phone: quote.customerId.phone,
-        state: quote.customerId.state,
+        name: quote.customerName || quote.customerId?.name || "-",
+        address: quote.customerAddress || quote.customerId?.address || "-",
+        gst: quote.customerGSTIN || quote.customerId?.gstNumber || "URD",
+        phone: quote.customerPhone || quote.customerId?.phone || "-",
+        state: quote.customerState || quote.customerId?.state || "-",
         shipTo: quote.shipTo
       },
       items: quote.items.map(item => ({
@@ -296,8 +346,19 @@ router.post("/:id/email-to-me", async (req, res) => {
       gst: quote.gstBreakup,
       roundOff: quote.roundOff,
       total: quote.total,
-      includeSignature: req.query.includeSignature === "true"
+      includeSignature: req.query.includeSignature === "true",
+      includeSeal: req.query.includeSeal === "true"
     };
+
+    // Resolve theme
+    const BusinessSettings = require("../models/BusinessSettings");
+    const themeConfig = require("../config/themeConfig");
+    let resolvedThemeNameForEmail = req.query.theme || quote.theme;
+    if (!resolvedThemeNameForEmail) {
+      const settings = await BusinessSettings.findOne();
+      resolvedThemeNameForEmail = settings?.defaultTheme || "indigo";
+    }
+    pdfData.theme = themeConfig[resolvedThemeNameForEmail] || themeConfig.indigo;
 
     const pdfBuffer = await generatePDF(pdfData);
 

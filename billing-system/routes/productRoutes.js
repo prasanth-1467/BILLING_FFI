@@ -6,6 +6,10 @@ const RestockAgent = require("../agents/RestockAgent");
 // Add product
 router.post("/", async (req, res) => {
   try {
+    const { stockQty } = req.body;
+    if (stockQty === undefined || stockQty === null || stockQty === "") {
+      return res.status(400).json({ error: "Stock quantity is required when adding a new product" });
+    }
     const product = new Product(req.body);
     await product.save();
 

@@ -1,15 +1,17 @@
 const PDFDocument = require("pdfkit");
 const company = require("../config/companyDetails");
-
 const fs = require('fs');
 const path = require('path');
 
 function generatePoPDF(res, po) {
     const includeSignature = po?.includeSignature === true;
+    const includeSeal = po?.includeSeal === true;
+    const theme = po.theme || require("../config/themeConfig").indigo;
     const doc = new PDFDocument({ size: "A4", margin: 40, bufferPages: true });
 
     // Stream to response
     doc.pipe(res);
+    doc.fillColor(theme.primary);
 
     // ===========================
     // SECTION 1: DOCUMENT TITLE & COMPANY INFO
@@ -17,7 +19,8 @@ function generatePoPDF(res, po) {
     let y = 40;
 
     // Company Name
-    doc.fontSize(18).font("Helvetica-Bold").text(company.name, { align: "center" });
+    doc.fontSize(18).font("Helvetica-Bold").fillColor("#1E3A8A").text(company.name, { align: "center" });
+    doc.fillColor(theme.primary); // Restore color
     y += 20;
 
     // Company Address & Contact
@@ -31,7 +34,7 @@ function generatePoPDF(res, po) {
     doc.fontSize(16).font("Helvetica-Bold").text("PURCHASE ORDER", 40, y, { align: "center" });
     y += 25;
 
-    drawLine(doc, y);
+    drawLine(doc, y, theme.accent);
     y += 15;
 
     // ===========================
@@ -42,102 +45,116 @@ function generatePoPDF(res, po) {
     const colWidth = 230;
     const startSection2Y = y;
 
-    // --- Left Block: Supplier ---
-    doc.fontSize(10).font("Helvetica-Bold").text("To (Supplier):", leftColX, y);
-    y += 15;
-
     // Calculate Supplier Block Height
-    let supplierY = y;
-    if (po.supplier) {
-        doc.font("Helvetica-Bold").text(po.supplier.name, leftColX, supplierY, { width: colWidth });
-        supplierY += doc.heightOfString(po.supplier.name, { width: colWidth }) + 2;
+    let supplierHeight = 15;
+    const activeSupplier = po.supplier || {
+        name: po.supplierName,
+        address: po.supplierAddress,
+        gstin: po.supplierGSTIN,
+        phone: po.supplierPhone,
+        email: po.supplierEmail
+    };
 
-        doc.font("Helvetica");
-        if (po.supplier.address) {
-            doc.text(po.supplier.address, leftColX, supplierY, { width: colWidth });
-            supplierY += doc.heightOfString(po.supplier.address, { width: colWidth }) + 2;
+    if (activeSupplier && activeSupplier.name) {
+        supplierHeight += doc.heightOfString(activeSupplier.name || "-", { width: colWidth - 10 }) + 2;
+        if (activeSupplier.address) {
+            supplierHeight += doc.heightOfString(activeSupplier.address, { width: colWidth - 10 }) + 2;
         }
-        if (po.supplier.gstin) {
-            doc.text(`GSTIN: ${po.supplier.gstin}`, leftColX, supplierY, { width: colWidth });
-            supplierY += 12;
+        if (activeSupplier.gstin) {
+            supplierHeight += 12;
         }
-        // Phone/Email if needed
-        if (po.supplier.phone) {
-            doc.text(`Phone: ${po.supplier.phone}`, leftColX, supplierY, { width: colWidth });
-            supplierY += 12;
+        if (activeSupplier.phone) {
+            supplierHeight += 12;
         }
     } else {
-        doc.font("Helvetica").text("Unknown Supplier", leftColX, supplierY);
-        supplierY += 12;
+        supplierHeight += 12;
     }
-    const section2LeftEndY = supplierY;
 
-    // --- Right Block: PO Details ---
-    let poDetailsY = startSection2Y;
-    doc.fontSize(10).font("Helvetica-Bold").text("PO Details:", rightColX, poDetailsY);
+    const poDetailsHeight = 15 + 12 + 12 + (po.expectedDeliveryDate ? 12 : 0) + 15;
+    const blockHeight2 = Math.max(supplierHeight, poDetailsHeight) + 10;
 
-    // Switch to normal font and list details using simple text flow
-    doc.font("Helvetica").fontSize(10);
-    // Use a small offset for the details block below the header
-    let detailsY = doc.y + 5;
+    // Draw cards first
+    doc.roundedRect(38, y - 5, 235, blockHeight2, 6).fill(theme.tableHeaderBg);
+    doc.roundedRect(348, y - 5, 207, blockHeight2, 6).fill(theme.tableHeaderBg);
 
-    // Render each line cleanly
-    doc.text(`PO No: ${po.poNumber}`, rightColX, detailsY);
+    // Overlay Left Block: Supplier
+    doc.fillColor(theme.primary).fontSize(10).font("Helvetica-Bold").text("To (Supplier):", 45, y);
+    if (activeSupplier && activeSupplier.name) {
+        doc.font("Helvetica-Bold").text(activeSupplier.name, 45, doc.y, { width: colWidth - 10 });
+        doc.font("Helvetica").fillColor(theme.secondaryText);
+        if (activeSupplier.address) {
+            doc.text(activeSupplier.address, 45, doc.y, { width: colWidth - 10 });
+        }
+        if (activeSupplier.gstin) {
+            doc.text(`GSTIN: ${activeSupplier.gstin}`, 45, doc.y, { width: colWidth - 10 });
+        }
+        if (activeSupplier.phone) {
+            doc.text(`Phone: ${activeSupplier.phone}`, 45, doc.y, { width: colWidth - 10 });
+        }
+    } else {
+        doc.font("Helvetica").fillColor(theme.secondaryText).text("Unknown Supplier", 45, doc.y);
+    }
+
+    // Overlay Right Block: PO Details
+    doc.fillColor(theme.primary).fontSize(10).font("Helvetica-Bold").text("PO Details:", 355, y);
+    doc.font("Helvetica").fontSize(10).fillColor(theme.secondaryText);
+    doc.text(`PO No: ${po.poNumber}`, 355, doc.y);
     doc.text(`Date: ${new Date(po.date).toLocaleDateString("en-IN")}`);
-
     if (po.expectedDeliveryDate) {
         doc.text(`Exp. Delivery: ${new Date(po.expectedDeliveryDate).toLocaleDateString("en-IN")}`);
     }
 
-    const section2RightEndY = doc.y;
+    // Restore primary color
+    doc.fillColor(theme.primary);
 
     // End of Section 2
-    y = Math.max(section2LeftEndY, section2RightEndY) + 15;
-    drawLine(doc, y);
+    y = y + blockHeight2 + 10;
+    drawLine(doc, y, theme.accent);
     y += 15;
 
     // ===========================
     // SECTION 3: BILL TO + SHIP TO
     // ===========================
-    const startSection3Y = y;
+    // Calculate heights for Section 3 cards
+    const billToHeight = 15
+        + doc.heightOfString(company.name, { width: colWidth - 10 })
+        + doc.heightOfString(company.address, { width: colWidth - 10 })
+        + 12 // GSTIN
+        + 12 // Phone
+        + 12 // Email
+        + 10;
 
-    // --- Left Block: Bill To ---
-    // Bill To is US (The Buyer) - Using Company Details
-    doc.fontSize(10).font("Helvetica-Bold").text("Bill To:", leftColX, y);
-    y += 15;
+    const shipToHeight = 15
+        + doc.heightOfString(company.name, { width: colWidth - 10 })
+        + doc.heightOfString(company.address, { width: colWidth - 10 })
+        + 10;
 
-    let billToY = y;
-    doc.font("Helvetica-Bold").text(company.name, leftColX, billToY, { width: colWidth });
-    billToY += doc.heightOfString(company.name, { width: colWidth }) + 2;
+    const blockHeight3 = Math.max(billToHeight, shipToHeight) + 10;
 
-    doc.font("Helvetica").text(company.address, leftColX, billToY, { width: colWidth });
-    billToY += doc.heightOfString(company.address, { width: colWidth }) + 2;
+    // Draw cards first
+    doc.roundedRect(38, y - 5, 235, blockHeight3, 6).fill(theme.tableHeaderBg);
+    doc.roundedRect(348, y - 5, 207, blockHeight3, 6).fill(theme.tableHeaderBg);
 
-    doc.text(`GSTIN: ${company.gstin}`, leftColX, billToY);
-    billToY += 12;
-    doc.text(`Phone: ${company.phone}`, leftColX, billToY);
-    billToY += 12;
-    doc.text(`Email: ${company.email}`, leftColX, billToY);
-    billToY += 12;
+    // Overlay Left Block: Bill To
+    doc.fillColor(theme.primary).fontSize(10).font("Helvetica-Bold").text("Bill To:", 45, y);
+    doc.font("Helvetica-Bold").text(company.name, 45, doc.y, { width: colWidth - 10 });
+    doc.font("Helvetica").fillColor(theme.secondaryText);
+    doc.text(company.address, 45, doc.y, { width: colWidth - 10 });
+    doc.text(`GSTIN: ${company.gstin}`, 45, doc.y);
+    doc.text(`Phone: ${company.phone}`, 45, doc.y);
+    doc.text(`Email: ${company.email}`, 45, doc.y);
 
-    const section3LeftEndY = billToY;
+    // Overlay Right Block: Ship To
+    doc.fillColor(theme.primary).fontSize(10).font("Helvetica-Bold").text("Ship To:", 355, y);
+    doc.font("Helvetica-Bold").text(company.name, 355, doc.y, { width: colWidth - 10 });
+    doc.font("Helvetica").fillColor(theme.secondaryText);
+    doc.text(company.address, 355, doc.y, { width: colWidth - 10 });
 
-    // --- Right Block: Ship To ---
-    // Defaulting to Bill To details as requested
-    let shipToY = startSection3Y;
-    doc.fontSize(10).font("Helvetica-Bold").text("Ship To:", rightColX, shipToY);
-    shipToY += 15;
-
-    doc.font("Helvetica-Bold").text(company.name, rightColX, shipToY, { width: colWidth });
-    shipToY += doc.heightOfString(company.name, { width: colWidth }) + 2;
-
-    doc.font("Helvetica").text(company.address, rightColX, shipToY, { width: colWidth });
-    shipToY += doc.heightOfString(company.address, { width: colWidth }) + 2;
-
-    const section3RightEndY = shipToY;
+    // Restore primary color
+    doc.fillColor(theme.primary);
 
     // End of Section 3
-    y = Math.max(section3LeftEndY, section3RightEndY) + 20;
+    y = y + blockHeight3 + 15;
 
     // ===========================
     // SECTION 4: ITEMS TABLE
@@ -165,8 +182,8 @@ function generatePoPDF(res, po) {
     };
 
     const drawHeader = (currY) => {
-        doc.rect(40, currY - 5, 525, 20).fill("#f3f4f6").stroke();
-        doc.fillColor("black");
+        doc.rect(40, currY - 5, 525, 20).fill(theme.tableHeaderBg);
+        doc.fillColor(theme.tableHeaderText);
 
         doc.fontSize(9).font("Helvetica-Bold");
         doc.text("S.No", colX.sl, currY, { width: colW.sl, align: "center" });
@@ -177,6 +194,8 @@ function generatePoPDF(res, po) {
         doc.text("Unit", colX.unit, currY, { width: colW.unit, align: "center" });
         doc.text("Rate", colX.rate, currY, { width: colW.rate, align: "right" });
         doc.text("Amount", colX.amount, currY, { width: colW.amount, align: "right" });
+        
+        doc.fillColor(theme.primary);
     };
 
     drawHeader(y);
@@ -184,14 +203,14 @@ function generatePoPDF(res, po) {
 
     // Items Loop
     let subtotal = 0;
-    const taxSlabs = {}; // { 18: { taxable: 0, tax: 0 } }
+    const taxSlabs = {};
 
     doc.font("Helvetica").fontSize(9);
 
     po.items.forEach((item, i) => {
         const rate = Number(item.rate || 0);
         const qty = Number(item.qty || 0);
-        const gstRate = Number(item.gstRate || 0); // Need to ensure schema has this now
+        const gstRate = Number(item.gstRate || 0);
         const amount = qty * rate;
 
         subtotal += amount;
@@ -221,6 +240,7 @@ function generatePoPDF(res, po) {
             doc.font("Helvetica").fontSize(9);
         }
 
+        doc.fillColor(theme.primary);
         doc.text(i + 1, colX.sl, y, { width: colW.sl, align: "center" });
         doc.text(productName, colX.prod, y, { width: colW.prod });
         doc.text(modelNo, colX.model, y, { width: colW.model, align: "center" });
@@ -233,25 +253,20 @@ function generatePoPDF(res, po) {
         y += rowHeight;
     });
 
-    drawLine(doc, y);
+    drawLine(doc, y, theme.accent);
     y += 10;
 
     // --- TOTALS & TAX BREAKDOWN ---
-    // Assuming Intra-state (CGST/SGST) unless we detect otherwise, but for simplicty and robustness 
-    // without full state address parsing validation, we will display CGST/SGST split by default for local POs.
-    // Ideally we compare company.state vs supplier.state.
-
-    // Calculate Grand Total
     let totalTax = 0;
     Object.values(taxSlabs).forEach(s => totalTax += s.tax);
     let totalAmount = subtotal + totalTax;
 
-    // Round Off
     const roundedTotal = Math.round(totalAmount);
     const roundOff = roundedTotal - totalAmount;
 
     const totalsX = 350;
 
+    doc.fillColor(theme.secondaryText);
     // Subtotal
     doc.text(`Subtotal (Taxable):`, totalsX, y);
     doc.text(subtotal.toFixed(2), 0, y, { align: "right" });
@@ -261,11 +276,6 @@ function generatePoPDF(res, po) {
     Object.keys(taxSlabs).sort((a, b) => Number(a) - Number(b)).forEach(rateKey => {
         const slab = taxSlabs[rateKey];
         const rate = Number(rateKey);
-
-        // Split into CGST / SGST (Assumed Intra-State for simplicity or consistent default)
-        // If we want accurate state check:
-        // const isInterState = company.state?.toLowerCase() !== po.supplier?.state?.toLowerCase();
-        // For now, let's assume standard split as requested "LIKE INVOICE PDF" which typically splits.
 
         const halfRate = rate / 2;
         const halfTax = slab.tax / 2;
@@ -285,10 +295,15 @@ function generatePoPDF(res, po) {
         y += 15;
     }
 
-    doc.fontSize(12).font("Helvetica-Bold");
+    doc.fontSize(12).font("Helvetica-Bold").fillColor(theme.primary);
     doc.text(`Grand Total:`, totalsX, y);
     doc.text(`Rs. ${roundedTotal.toFixed(2)}`, 0, y, { align: "right" });
-    y += 40;
+
+    drawLine(doc, y + 15, theme.accent);
+    y += 25;
+    const wordsRepresentation = numberToRupeesWords(roundedTotal);
+    doc.fillColor(theme.secondaryText).font("Helvetica-Oblique").fontSize(9).text(`Amount in Words: ${wordsRepresentation}`, 40, y);
+    y += 25;
 
     // ===========================
     // FOOTER: TERMS & SIGNATORY
@@ -319,8 +334,8 @@ function generatePoPDF(res, po) {
     const footerY = doc.page.height - doc.page.margins.bottom - requiredHeight;
 
     // Terms (Left - 60%)
-    doc.fontSize(10).font("Helvetica-Bold").text("Terms & Conditions:", 40, footerY);
-    doc.fontSize(9).font("Helvetica");
+    doc.fontSize(10).font("Helvetica-Bold").fillColor(theme.primary).text("Terms & Conditions:", 40, footerY);
+    doc.fontSize(9).font("Helvetica").fillColor(theme.secondaryText);
     let currentTermY = footerY + 15;
 
     terms.forEach(term => {
@@ -329,28 +344,98 @@ function generatePoPDF(res, po) {
     });
 
     // Signatory (Right - 40%)
-    doc.fontSize(10).font("Helvetica-Bold").text(`For ${company.name}`, 350, footerY, { align: "right", width: 200 });
+    doc.fontSize(10).font("Helvetica-Bold").fillColor(theme.primary).text(`For ${company.name}`, 350, footerY, { align: "right", width: 200 });
 
-    if (includeSignature) {
-        const signaturePath = path.join(__dirname, '../assets/Signature.png');
-        if (fs.existsSync(signaturePath)) {
-            try {
-                doc.image(signaturePath, 450, footerY + 15, { width: 80 });
-            } catch (err) {
-                console.error("Error loading signature image:", err);
-            }
+    const signaturePath = path.join(__dirname, '../assets/Signature.png');
+    const sealPathDefault = path.join(__dirname, '../assets/Seal.png');
+    const sealPathFFI = path.join(__dirname, '../assets/Seal_FFI.png');
+    const sealPath = fs.existsSync(sealPathFFI) ? sealPathFFI : sealPathDefault;
+    const hasSignature = includeSignature && fs.existsSync(signaturePath);
+    const hasSeal = includeSeal && fs.existsSync(sealPath);
+
+    if (hasSeal) {
+        try {
+            doc.image(sealPath, 340, footerY + 10, { width: 75 });
+        } catch (err) {
+            console.error("Error loading seal image:", err);
         }
     }
 
-    // Adjust Text Y position: Push down further if signature is included
-    const authSignatoryY = includeSignature ? footerY + 70 : footerY + 60;
+    if (hasSignature) {
+        try {
+            doc.image(signaturePath, 450, footerY + 15, { width: 80 });
+        } catch (err) {
+            console.error("Error loading signature image:", err);
+        }
+    }
+
+    // Adjust Text Y position: Push down further if signature or seal is included
+    const authSignatoryY = (hasSignature || hasSeal) ? footerY + 70 : footerY + 60;
     doc.text("Authorized Signatory", 350, authSignatoryY, { align: "right", width: 200 });
 
     doc.end();
 }
 
-function drawLine(doc, y) {
-    doc.strokeColor("#aaaaaa").lineWidth(1).moveTo(40, y).lineTo(555, y).stroke();
+function drawLine(doc, y, color = "#aaaaaa") {
+    doc.strokeColor(color).lineWidth(1).moveTo(40, y).lineTo(555, y).stroke();
+}
+
+function numberToRupeesWords(amount) {
+    const num = Math.round(amount);
+    if (num === 0) return "Rupees Zero Only";
+
+    const a = [
+        "", "One", "Two", "Three", "Four", "Five", "Six", "Seven", "Eight", "Nine", "Ten",
+        "Eleven", "Twelve", "Thirteen", "Fourteen", "Fifteen", "Sixteen", "Seventeen", "Eighteen", "Nineteen"
+    ];
+    const b = ["", "", "Twenty", "Thirty", "Forty", "Fifty", "Sixty", "Seventy", "Eighty", "Ninety"];
+
+    function numToWords(n) {
+        if (n < 20) return a[n];
+        const digit = n % 10;
+        if (digit === 0) return b[Math.floor(n / 10)];
+        return b[Math.floor(n / 10)] + " " + a[digit];
+    }
+
+    function convertLessThanThousand(n) {
+        let word = "";
+        if (n >= 100) {
+            word += a[Math.floor(n / 100)] + " Hundred";
+            n %= 100;
+            if (n > 0) word += " and ";
+        }
+        if (n > 0) {
+            word += numToWords(n);
+        }
+        return word;
+    }
+
+    let remaining = num;
+    let words = "";
+
+    if (remaining >= 10000000) {
+        const crores = Math.floor(remaining / 10000000);
+        words += convertLessThanThousand(crores) + " Crore ";
+        remaining %= 10000000;
+    }
+
+    if (remaining >= 100000) {
+        const lakhs = Math.floor(remaining / 100000);
+        words += convertLessThanThousand(lakhs) + " Lakh ";
+        remaining %= 100000;
+    }
+
+    if (remaining >= 1000) {
+        const thousands = Math.floor(remaining / 1000);
+        words += convertLessThanThousand(thousands) + " Thousand ";
+        remaining %= 1000;
+    }
+
+    if (remaining > 0) {
+        words += convertLessThanThousand(remaining);
+    }
+
+    return "Rupees " + words.trim().replace(/\s+/g, ' ') + " Only";
 }
 
 module.exports = { generatePoPDF };

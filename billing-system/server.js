@@ -12,7 +12,19 @@ app.use(express.json());
 app.use(morgan("dev"));
 
 mongoose.connect(process.env.MONGO_URI)
-  .then(() => console.log("MongoDB Connected"))
+  .then(async () => {
+    console.log("MongoDB Connected");
+    try {
+      const BusinessSettings = require("./models/BusinessSettings");
+      const exists = await BusinessSettings.findOne();
+      if (!exists) {
+        await BusinessSettings.create({ defaultTheme: "indigo" });
+        console.log("Default BusinessSettings seeded.");
+      }
+    } catch (e) {
+      console.error("Failed to seed business settings:", e);
+    }
+  })
   .catch(err => console.log(err));
 
 
@@ -25,6 +37,7 @@ app.use("/api/auth", require("./routes/authRoutes"));
 app.use("/api/suppliers", require("./routes/supplierRoutes"));
 app.use("/api/purchase-orders", require("./routes/purchaseOrderRoutes"));
 app.use("/api/notifications", require("./routes/notificationRoutes"));
+app.use("/api/settings", require("./routes/settingsRoutes"));
 
 
 app.get("/health", (req, res) => {

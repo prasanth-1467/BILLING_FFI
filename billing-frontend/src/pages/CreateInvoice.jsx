@@ -1,24 +1,22 @@
 import React, { useEffect, useState, useMemo } from 'react';
 import api from '../services/api';
-import { Plus, Trash2, Save, FileCheck, Calculator, User, Loader, FileText } from 'lucide-react';
+import { Plus, Trash2, Save, FileCheck, Calculator, User, Loader, FileText, ArrowLeft } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
-import usePersistentState from '../hooks/usePersistentState';
 
-// Treat Tamil Nadu as the home/intra state.
-// We normalize by removing spaces and comparing case-insensitively.
 const MY_STATE_NORMALIZED = 'tamilnadu';
 
-const Quotation = () => {
+const CreateInvoice = () => {
     const navigate = useNavigate();
     const [loading, setLoading] = useState(false);
+    const [pageLoading, setPageLoading] = useState(true);
     const [customers, setCustomers] = useState([]);
     const [products, setProducts] = useState([]);
 
-    // --- Direct Quotation Creator State ---
+    // --- Direct Invoice Creator State ---
     const [customerMode, setCustomerMode] = useState('select'); // 'select' | 'manual'
-    const [selectedCustomerId, setSelectedCustomerId] = usePersistentState('quotation_v3.selectedCustomerId', '');
+    const [selectedCustomerId, setSelectedCustomerId] = useState('');
     const [customerSearchText, setCustomerSearchText] = useState('');
-    
+
     // Manual Customer State
     const [manualCustomer, setManualCustomer] = useState({
         name: '',
@@ -29,8 +27,8 @@ const Quotation = () => {
     });
 
     const [productMode, setProductMode] = useState('select'); // 'select' | 'manual'
-    const [selectedProductCode, setSelectedProductCode] = usePersistentState('quotation_v3.selectedProductCode', '');
-    
+    const [selectedProductCode, setSelectedProductCode] = useState('');
+
     // Manual Product/Item Input State
     const [manualProduct, setManualProduct] = useState({
         productCode: '',
@@ -41,23 +39,24 @@ const Quotation = () => {
         gstRate: '5'
     });
 
-    // Quotation Items Table State
-    const [items, setItems] = usePersistentState('quotation_v3.items', []);
-    const [discountPercent, setDiscountPercent] = usePersistentState('quotation_v3.discountPercent', 0);
-    const [quoteNumber, setQuoteNumber] = useState('');
-    const [lastSavedQuoteId, setLastSavedQuoteId] = usePersistentState('quotation_v3.lastSavedQuoteId', '');
+    // Invoice Items Table State
+    const [items, setItems] = useState([]);
 
-    // Ship To State
-    const [isShipSameAsBill, setIsShipSameAsBill] = usePersistentState('quotation_v3.isShipSameAsBill', true);
-    const [shipTo, setShipTo] = usePersistentState('quotation_v3.shipTo', {
+    // Settlement & Metadata State
+    const [discountPercent, setDiscountPercent] = useState(0);
+    const [invoiceDate, setInvoiceDate] = useState(() => new Date().toISOString().split('T')[0]);
+    const [invoiceNumber, setInvoiceNumber] = useState('');
+
+    // Shipping Address State
+    const [isShipSameAsBill, setIsShipSameAsBill] = useState(true);
+    const [shipTo, setShipTo] = useState({
         name: '',
         address: '',
         state: '',
         city: '',
         phone: ''
     });
-
-    // Sync Customer search text with Selected ID
+    // Sync customer search text with selected customer ID
     useEffect(() => {
         if (selectedCustomerId) {
             const matched = customers.find(c => c._id === selectedCustomerId || c.id === selectedCustomerId);
@@ -68,9 +67,27 @@ const Quotation = () => {
             setCustomerSearchText('');
         }
     }, [selectedCustomerId, customers]);
+    // Fetch initial master lists
+    useEffect(() => {
+        const fetchData = async () => {
+            try {
+                const [custRes, prodRes] = await Promise.all([
+                    api.get('/customers'),
+                    api.get('/products')
+                ]);
+                setCustomers(custRes.data || []);
+                setProducts(prodRes.data || []);
+            } catch (error) {
+                console.error("Error loading master lists", error);
+            } finally {
+                setPageLoading(false);
+            }
+        };
+        fetchData();
+    }, []);
 
-    // Derived State - Active selectedCustomer
-    const selectedCustomer = useMemo(() => {
+    // Get Active Customer properties (Dynamic depending on selection vs manual)
+    const activeCustomer = useMemo(() => {
         if (customerMode === 'select') {
             return customers.find(c => c._id === selectedCustomerId || c.id === selectedCustomerId);
         } else {
@@ -84,40 +101,25 @@ const Quotation = () => {
         }
     }, [customerMode, selectedCustomerId, customers, manualCustomer]);
 
-    const isIntraState = useMemo(() => {
-        if (!selectedCustomer?.state) return false;
-        const normalized = selectedCustomer.state.replace(/\s+/g, '').toLowerCase();
-        return normalized === MY_STATE_NORMALIZED;
-    }, [selectedCustomer]);
-
+    // Sync Shipping Details if same as billing
     useEffect(() => {
-        const fetchData = async () => {
-            try {
-                const [custRes, prodRes] = await Promise.all([
-                    api.get('/customers'),
-                    api.get('/products')
-                ]);
-                setCustomers(custRes.data || []);
-                setProducts(prodRes.data || []);
-            } catch (error) {
-                console.error("Error loading data", error);
-            }
-        };
-        fetchData();
-    }, []);
-
-    // Sync ShipTo with Active billing details
-    useEffect(() => {
-        if (isShipSameAsBill && selectedCustomer) {
+        if (isShipSameAsBill && activeCustomer) {
             setShipTo({
-                name: selectedCustomer.name || '',
-                address: selectedCustomer.address || '',
-                state: selectedCustomer.state || '',
+                name: activeCustomer.name || '',
+                address: activeCustomer.address || '',
+                state: activeCustomer.state || '',
                 city: '',
-                phone: selectedCustomer.phone || ''
+                phone: activeCustomer.phone || ''
             });
         }
-    }, [isShipSameAsBill, selectedCustomer, setShipTo]);
+    }, [isShipSameAsBill, activeCustomer]);
+
+    // Identify if Tamil Nadu (Intra-state)
+    const isIntraState = useMemo(() => {
+        if (!activeCustomer?.state) return false;
+        const normalized = activeCustomer.state.replace(/\s+/g, '').toLowerCase();
+        return normalized === MY_STATE_NORMALIZED;
+    }, [activeCustomer]);
 
     // Add Product from Catalog
     const handleAddCatalogProduct = () => {
@@ -166,7 +168,7 @@ const Quotation = () => {
             rate: parseFloat(manualProduct.sellingPrice) || 0,
             gstRate: parseFloat(manualProduct.gstRate) || 0,
             quantity: 1,
-            stock: 9999
+            stock: 9999 // Manual items have virtual infinite stock
         };
 
         setItems([...items, newItem]);
@@ -181,7 +183,7 @@ const Quotation = () => {
     };
 
     // Remove item from table
-    const removeItem = (index) => {
+    const handleRemoveItem = (index) => {
         setItems(items.filter((_, i) => i !== index));
     };
 
@@ -198,7 +200,7 @@ const Quotation = () => {
         setItems(updated);
     };
 
-    // Calculations
+    // Live Calculation Engine
     const totals = useMemo(() => {
         const subtotal = items.reduce((sum, item) => sum + (item.rate * item.quantity), 0);
         const discountAmount = subtotal * (parseFloat(discountPercent) / 100 || 0);
@@ -239,8 +241,12 @@ const Quotation = () => {
         };
     }, [items, discountPercent]);
 
-    // Handle Save Quotation Submit
-    const handleSave = async () => {
+
+    // Handle Form Submit
+    const handleSaveInvoice = async (e) => {
+        e.preventDefault();
+
+        // Validations
         if (customerMode === 'select' && !selectedCustomerId) {
             alert("Please select a customer.");
             return;
@@ -249,31 +255,30 @@ const Quotation = () => {
             alert("Please enter a manual customer name.");
             return;
         }
-        if (!quoteNumber || !quoteNumber.trim()) {
-            alert("Please enter a mandatory Quotation Number.");
+        if (!invoiceNumber || !invoiceNumber.trim()) {
+            alert("Please enter a mandatory Invoice Number.");
             return;
         }
         if (items.length === 0) {
-            alert("Please add at least one item to the quotation.");
+            alert("Please add at least one item to the invoice.");
             return;
         }
 
         setLoading(true);
 
         const payload = {
-            quoteNumber: quoteNumber ? quoteNumber.trim() : null,
+            invoiceNumber: invoiceNumber ? invoiceNumber.trim() : null,
             customerId: customerMode === 'select' ? selectedCustomerId : null,
-            
+
             // Manual customer fields
             customerName: customerMode === 'manual' ? manualCustomer.name : null,
             customerGSTIN: customerMode === 'manual' ? manualCustomer.gstNumber || 'URD' : null,
             customerAddress: customerMode === 'manual' ? manualCustomer.address : null,
             customerState: customerMode === 'manual' ? manualCustomer.state : null,
             customerPhone: customerMode === 'manual' ? manualCustomer.phone : null,
-            
+
             items: items.map(item => ({
                 productId: item.productId,
-                productCode: item.productCode,
                 name: item.name,
                 hsn: item.hsn,
                 unit: item.unit,
@@ -283,90 +288,64 @@ const Quotation = () => {
                 amount: item.quantity * item.rate
             })),
             discountPercent: parseFloat(discountPercent) || 0,
+            paymentType: 'Cash',
+            paidAmount: 0,
+            date: invoiceDate,
+            dueDate: invoiceDate,
             shipTo
         };
 
         try {
-            const res = await api.post('/quotations', payload);
-            const quoteId = res?.data?._id || res?.data?.id;
-            if (quoteId) setLastSavedQuoteId(quoteId);
-
-            // Clear form on success
-            setItems([]);
-            setSelectedCustomerId('');
-            setCustomerSearchText('');
-            setManualCustomer({ name: '', phone: '', gstNumber: '', address: '', state: 'Tamil Nadu' });
-            setDiscountPercent(0);
-            setQuoteNumber('');
-            setIsShipSameAsBill(true);
-            setShipTo({ name: '', address: '', state: '', city: '', phone: '' });
-
-            alert('Quotation Saved Successfully!');
-        } catch (error) {
-            console.error('Save failed', error);
-            alert(error.response?.data?.error || 'Failed to save quotation.');
-        } finally {
-            setLoading(false);
-        }
-    };
-
-    const handleConvertToInvoice = async () => {
-        const quoteId = lastSavedQuoteId;
-        if (!quoteId) {
-            alert('Please save the quotation first, then convert to invoice.');
-            return;
-        }
-        setLoading(true);
-        try {
-            await api.post(`/invoices/from-quotation/${quoteId}`, {
-                paymentType: 'Cash',
-                paidAmount: 0
-            });
-            alert('Invoice added');
+            await api.post('/invoices', payload);
+            alert("Direct Invoice Saved Successfully!");
             navigate('/invoices');
         } catch (error) {
-            console.error('Convert to invoice failed', error);
-            alert('Failed to convert quotation to invoice.');
+            console.error("Direct Invoice Save Failed", error);
+            alert(error.response?.data?.error || "Failed to save direct invoice.");
         } finally {
             setLoading(false);
         }
     };
 
-    const handleReset = () => {
-        if (window.confirm("Are you sure you want to clear the entire form?")) {
-            setItems([]);
-            setSelectedCustomerId('');
-            setCustomerSearchText('');
-            setManualCustomer({ name: '', phone: '', gstNumber: '', address: '', state: 'Tamil Nadu' });
-            setDiscountPercent(0);
-            setQuoteNumber('');
-            setIsShipSameAsBill(true);
-            setShipTo({ name: '', address: '', state: '', city: '', phone: '' });
-            setLastSavedQuoteId('');
-        }
-    };
+    if (pageLoading) {
+        return (
+            <div className="flex items-center justify-center h-[80vh] text-blue-500">
+                <Loader className="animate-spin w-10 h-10 mr-2" /> Initializing direct billing catalog...
+            </div>
+        );
+    }
 
     return (
         <div className="space-y-6 pb-20 max-w-7xl mx-auto">
-            {/* Top Actions */}
+            {/* Top Toolbar */}
             <div className="flex justify-between items-center no-print">
                 <button
+                    onClick={() => navigate('/invoices')}
                     className="btn btn-outline bg-white flex items-center gap-2"
-                    onClick={() => navigate('/quotations')}
                 >
-                    <FileText size={18} /> View Saved Quotations
+                    <ArrowLeft size={16} /> Back to Invoices
                 </button>
-                <button
-                    className="btn btn-outline border-red-200 text-red-600 hover:bg-red-50"
-                    onClick={handleReset}
-                >
-                    Reset Form
-                </button>
+                <div className="flex gap-2">
+                    <button
+                        onClick={() => {
+                            if (window.confirm("Clear all draft edits?")) {
+                                setItems([]);
+                                setSelectedCustomerId('');
+                                setManualCustomer({ name: '', phone: '', gstNumber: '', address: '', state: 'Tamil Nadu' });
+                                setDiscountPercent(0);
+                                setInvoiceNumber('');
+                            }
+                        }}
+                        className="btn btn-outline border-red-200 text-red-600 hover:bg-red-50"
+                    >
+                        Reset Form
+                    </button>
+                </div>
             </div>
 
             {/* Split Grid: Customer & Catalog/Product Selection */}
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-                
+
                 {/* 1. CUSTOMER SECTION */}
                 <div className="card lg:col-span-1 border-t-4 border-blue-500 bg-white p-5 rounded-2xl shadow-sm border border-gray-100">
                     <div className="flex justify-between items-center mb-4">
@@ -487,12 +466,12 @@ const Quotation = () => {
                             </div>
                         )}
 
-                        {customerMode === 'select' && selectedCustomer && (
+                        {customerMode === 'select' && activeCustomer && (
                             <div className="bg-blue-50/50 p-4 border border-blue-100/50 rounded-xl text-sm space-y-1.5 mt-2">
-                                <p className="font-semibold text-blue-900">{selectedCustomer.name}</p>
-                                <p className="text-gray-600"><strong>Phone:</strong> {selectedCustomer.phone || '-'}</p>
-                                <p className="text-gray-600"><strong>State:</strong> {selectedCustomer.state} {isIntraState ? '(Intra-state split)' : '(Inter-state IGST)'}</p>
-                                <p className="text-gray-600"><strong>GSTIN:</strong> <span className="font-mono text-xs">{selectedCustomer.gstNumber || 'URD'}</span></p>
+                                <p className="font-semibold text-blue-900">{activeCustomer.name}</p>
+                                <p className="text-gray-600"><strong>Phone:</strong> {activeCustomer.phone || '-'}</p>
+                                <p className="text-gray-600"><strong>State:</strong> {activeCustomer.state} {isIntraState ? '(Intra-state split)' : '(Inter-state IGST)'}</p>
+                                <p className="text-gray-600"><strong>GSTIN:</strong> <span className="font-mono text-xs">{activeCustomer.gstNumber || 'URD'}</span></p>
                             </div>
                         )}
                     </div>
@@ -561,7 +540,7 @@ const Quotation = () => {
                 <div className="card lg:col-span-2 border-t-4 border-indigo-500 bg-white p-5 rounded-2xl shadow-sm border border-gray-100">
                     <div className="flex justify-between items-center mb-4">
                         <h3 className="text-lg font-bold text-gray-800 flex items-center gap-2">
-                            <Calculator size={20} className="text-indigo-500" /> Add Items to Quotation
+                            <Calculator size={20} className="text-indigo-500" /> Add Items to Invoice
                         </h3>
                         <div className="flex bg-gray-100 p-0.5 rounded-lg text-xs font-semibold">
                             <button
@@ -691,13 +670,18 @@ const Quotation = () => {
                             </div>
                         </div>
                     )}
+
+                    {/* Quick Helper Info */}
+                    <div className="mt-4 text-xs text-slate-400">
+
+                    </div>
                 </div>
             </div>
 
             {/* 3. ITEMS TABLE */}
             <div className="card bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
                 <div className="p-4 border-b border-gray-100 bg-gray-50/50">
-                    <h3 className="text-md font-bold text-gray-800">Quotation Items List</h3>
+                    <h3 className="text-md font-bold text-gray-800">Invoice Items List</h3>
                 </div>
                 <div className="overflow-x-auto">
                     <table className="w-full text-left border-collapse text-sm">
@@ -719,7 +703,7 @@ const Quotation = () => {
                                     <td className="p-4">
                                         <div className="font-bold text-gray-900">{item.name}</div>
                                         <div className="text-xs text-gray-500 mt-0.5">
-                                            Code: <span className="font-semibold text-slate-700">{item.productCode}</span> 
+                                            Code: <span className="font-semibold text-slate-700">{item.productCode}</span>
                                             {item.productId && (
                                                 <span className="ml-2 bg-blue-50 px-1.5 py-0.5 rounded text-[10px] text-blue-700 font-bold border border-blue-100">Cataloged</span>
                                             )}
@@ -765,7 +749,7 @@ const Quotation = () => {
                                     <td className="p-4 text-center">
                                         <button
                                             type="button"
-                                            onClick={() => removeItem(index)}
+                                            onClick={() => handleRemoveItem(index)}
                                             className="text-red-500 hover:bg-red-50 p-2 rounded-md transition-colors"
                                         >
                                             <Trash2 size={16} />
@@ -778,7 +762,7 @@ const Quotation = () => {
                                     <td colSpan="8" className="text-center py-12 text-gray-400">
                                         <div className="flex flex-col items-center">
                                             <FileText size={48} className="mb-3 opacity-20" />
-                                            <p className="font-semibold text-gray-500">No items added to quotation yet</p>
+                                            <p className="font-semibold text-gray-500">No items added to invoice yet</p>
                                             <p className="text-xs">Add products from catalog search or manual entries above.</p>
                                         </div>
                                     </td>
@@ -791,28 +775,40 @@ const Quotation = () => {
 
             {/* 4. TOTALS & SUBMISSION SEGMENT */}
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                
+
                 {/* Meta Inputs & Settlements */}
                 <div className="card md:col-span-1 bg-white p-5 rounded-2xl shadow-sm border border-gray-100 space-y-4">
-                    <h3 className="text-md font-bold text-gray-800 border-b pb-2">Quotation Details</h3>
-                    
+                    <h3 className="text-md font-bold text-gray-800 border-b pb-2">Invoice Details</h3>
+
                     <div>
-                        <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-1">Quotation Number *</label>
+                        <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-1">Invoice Date</label>
                         <input
-                            type="text"
-                            placeholder="Enter Mandatory Quote Number"
-                            className="w-full border rounded px-3 py-2 text-sm outline-none bg-gray-50 font-medium uppercase"
-                            required
-                            value={quoteNumber}
-                            onChange={e => setQuoteNumber(e.target.value)}
+                            type="date"
+                            className="w-full border rounded px-3 py-2 text-sm outline-none bg-gray-50 font-medium"
+                            value={invoiceDate}
+                            onChange={e => setInvoiceDate(e.target.value)}
                         />
                     </div>
+
+                    <div>
+                        <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-1">Invoice Number *</label>
+                        <input
+                            type="text"
+                            placeholder="Enter Mandatory Invoice Number"
+                            className="w-full border rounded px-3 py-2 text-sm outline-none bg-gray-50 font-medium uppercase"
+                            required
+                            value={invoiceNumber}
+                            onChange={e => setInvoiceNumber(e.target.value)}
+                        />
+                    </div>
+
+
                 </div>
 
-                {/* Calculations Panel & Save/Convert Actions */}
+                {/* Calculations Panel & Save Button */}
                 <div className="card md:col-span-2 bg-gray-50 p-6 rounded-2xl shadow-sm border border-gray-200/50 space-y-4">
                     <h3 className="text-md font-bold text-gray-800 border-b pb-2">Financial Breakdown</h3>
-                    
+
                     <div className="space-y-2.5 text-sm">
                         <div className="flex justify-between">
                             <span className="text-slate-500">Subtotal (Gross Item Total)</span>
@@ -844,7 +840,7 @@ const Quotation = () => {
                         </div>
 
                         {/* GST Breakup */}
-                        {selectedCustomer && (
+                        {activeCustomer && (
                             Object.keys(totals.taxSlabs).sort((a, b) => Number(a) - Number(b)).map(rate => {
                                 const slab = totals.taxSlabs[rate];
                                 return isIntraState ? (
@@ -881,22 +877,19 @@ const Quotation = () => {
                         </div>
                     </div>
 
-                    <div className="grid grid-cols-2 gap-4 pt-6 border-t border-gray-200">
+                    <div className="pt-6 border-t border-gray-200">
                         <button
-                            onClick={handleSave}
+                            type="button"
+                            onClick={handleSaveInvoice}
                             disabled={loading || items.length === 0}
                             className="btn btn-primary w-full py-4 text-base font-bold shadow-lg shadow-blue-500/10 flex justify-center items-center gap-2"
                         >
-                            {loading ? <Loader size={20} className="animate-spin" /> : <Save size={20} />}
-                            Save Quotation
-                        </button>
-                        <button
-                            onClick={handleConvertToInvoice}
-                            disabled={loading || !lastSavedQuoteId}
-                            className="btn btn-outline w-full py-4 text-base font-bold bg-white shadow-md flex justify-center items-center gap-2"
-                            title={!lastSavedQuoteId ? 'Save the quotation first' : 'Convert this quotation to an invoice'}
-                        >
-                            <FileCheck size={20} /> Convert to Invoice
+                            {loading ? (
+                                <Loader size={20} className="animate-spin" />
+                            ) : (
+                                <FileCheck size={20} />
+                            )}
+                            Save & Generate Direct Tax Invoice
                         </button>
                     </div>
                 </div>
@@ -906,4 +899,4 @@ const Quotation = () => {
     );
 };
 
-export default Quotation;
+export default CreateInvoice;
