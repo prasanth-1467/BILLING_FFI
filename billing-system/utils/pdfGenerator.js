@@ -19,7 +19,10 @@ function generatePDF(resOrData, dataOrNone, type = "TAX INVOICE") {
     }
 
     const includeSignature = data?.includeSignature === true;
+    const includeSeal = data?.includeSeal === true;
+    const theme = data?.theme || require("../config/themeConfig").indigo;
     const doc = new PDFDocument({ size: "A4", margin: 40 });
+    doc.fillColor(theme.primary);
 
     let buffers = [];
     if (isBufferMode) {
@@ -46,12 +49,13 @@ function generatePDF(resOrData, dataOrNone, type = "TAX INVOICE") {
     const headersY = 40;
 
     // 1. Company Details (Left - x:40)
-    doc.fontSize(16).text(company.name, 40, headersY, { width: 250 }); // Reduced font size to fit 3 cols if long name
-    const companyAddressY = doc.y; // Capture Y where address starts
-    doc.fontSize(9).text(company.address, { width: 200 }); // Constrain width
-    doc.text(`Mobile: ${company.phone}`);
-    doc.text(`Email: ${company.email}`);
-    doc.text(`GSTIN: ${company.gstin}`);
+    doc.fontSize(18).font("Helvetica-Bold").fillColor("#00268D").text(company.name, 40, headersY, { width: 250 });
+    doc.font("Helvetica").fillColor(theme.primary); // Restore font and color
+    const companyAddressY = doc.y + 6; // Capture Y where address starts with a clean gap
+    doc.fontSize(9).text(company.address, 40, companyAddressY, { width: 185, lineGap: 1.5 });
+    doc.text(`Mobile: ${company.phone}`, { width: 185 });
+    doc.text(`Email: ${company.email}`, { width: 185 });
+    doc.text(`GSTIN: ${company.gstin}`, { width: 185 });
     const companyEndY = doc.y;
 
     // 2. Bank Details (Center - x:245) - Compact & Aligned
@@ -108,49 +112,82 @@ function generatePDF(resOrData, dataOrNone, type = "TAX INVOICE") {
     const lineX = 235;
     const lineStartY = companyAddressY;
     const lineEndY = Math.max(companyEndY, bankEndY);
-    doc.lineWidth(0.5).moveTo(lineX, lineStartY).lineTo(lineX, lineEndY).stroke();
+    doc.lineWidth(0.5).strokeColor(theme.accent).moveTo(lineX, lineStartY).lineTo(lineX, lineEndY).stroke();
 
     // Determine max height for line
     const finalHeaderY = Math.max(companyEndY, bankEndY, invoiceEndY) + 15;
 
-    drawLine(doc, finalHeaderY);
+    drawLine(doc, finalHeaderY, theme.accent);
 
-    // --- ADDRESS SECTION (Dynamic Height) ---
+    // --- ADDRESS SECTION (Dynamic Height with themed cards) ---
     const addressY = finalHeaderY + 10; // Dynamic start Y
     const colWidth = 230;
 
+    // Calculate dimensions first for the premium container
+    const billToHeight = 15 
+        + doc.heightOfString(data.customer.name || "-", { width: colWidth })
+        + doc.heightOfString(data.customer.address || "-", { width: colWidth })
+        + (data.customer.state ? 12 : 0)
+        + (data.customer.gst ? 12 : 0)
+        + (data.customer.phone ? 12 : 0)
+        + 10;
+    
+    let shipToHeight = 0;
+    if (data.customer.shipTo) {
+        shipToHeight = 15 
+            + doc.heightOfString(data.customer.shipTo.name || data.customer.name || "-", { width: colWidth })
+            + doc.heightOfString(data.customer.shipTo.address || data.customer.address || "-", { width: colWidth })
+            + 12 
+            + (data.customer.shipTo.phone ? 12 : 0)
+            + 10;
+    }
+    const blockHeight = Math.max(billToHeight, shipToHeight) + 10;
+
+    // Draw cards first
+    doc.roundedRect(38, addressY - 5, 235, blockHeight, 6).fill(theme.tableHeaderBg);
+    if (data.customer.shipTo) {
+        doc.roundedRect(298, addressY - 5, 235, blockHeight, 6).fill(theme.tableHeaderBg);
+    }
+
+    // Now overlay the text on top
     // Bill To (Left)
-    doc.fontSize(10).font("Helvetica-Bold").text("Bill To:", 40, addressY);
-    doc.font("Helvetica-Bold").text(data.customer.name, 40, doc.y, { width: colWidth });
-    doc.font("Helvetica").text(data.customer.address, { width: colWidth });
-    if (data.customer.state) doc.text(data.customer.state); // Add State
-    if (data.customer.gst) doc.text(`GSTIN: ${data.customer.gst}`);
-    if (data.customer.phone) doc.text(`Phone: ${data.customer.phone}`);
+    doc.fillColor(theme.primary).fontSize(10).font("Helvetica-Bold").text("Bill To:", 45, addressY);
+    doc.font("Helvetica-Bold").text(data.customer.name, 45, doc.y, { width: colWidth - 10 });
+    doc.font("Helvetica").fillColor(theme.secondaryText).text(data.customer.address, { width: colWidth - 10 });
+    if (data.customer.state) doc.text(data.customer.state, { width: colWidth - 10 });
+    if (data.customer.gst) doc.text(`GSTIN: ${data.customer.gst}`, { width: colWidth - 10 });
+    if (data.customer.phone) doc.text(`Phone: ${data.customer.phone}`, { width: colWidth - 10 });
     const billToEndY = doc.y;
 
     let shipToEndY = addressY; // Default if no ship to
 
     // Ship To (Right)
     if (data.customer.shipTo) {
-        doc.fontSize(10).font("Helvetica-Bold").text("Ship To:", 300, addressY);
-        doc.font("Helvetica-Bold").text(data.customer.shipTo.name || data.customer.name, 300, doc.y, { width: colWidth });
-        doc.font("Helvetica").text(data.customer.shipTo.address || data.customer.address, { width: colWidth });
+        doc.fillColor(theme.primary).fontSize(10).font("Helvetica-Bold").text("Ship To:", 305, addressY);
+        doc.font("Helvetica-Bold").text(data.customer.shipTo.name || data.customer.name, 305, doc.y, { width: colWidth - 10 });
+        doc.font("Helvetica").fillColor(theme.secondaryText).text(data.customer.shipTo.address || data.customer.address, { width: colWidth - 10 });
         const cityState = [data.customer.shipTo.city, data.customer.shipTo.state].filter(Boolean).join(", ");
-        if (cityState) doc.text(cityState, { width: colWidth });
-        if (data.customer.shipTo.phone) doc.text(`Phone: ${data.customer.shipTo.phone}`);
+        if (cityState) doc.text(cityState, { width: colWidth - 10 });
+        if (data.customer.shipTo.phone) doc.text(`Phone: ${data.customer.shipTo.phone}`, { width: colWidth - 10 });
         shipToEndY = doc.y;
     }
 
-    // Determine separator line position based on max height
-    const sectionEndY = Math.max(billToEndY, shipToEndY) + 10;
-    drawLine(doc, sectionEndY);
+    // Reset default text color to primary theme color
+    doc.fillColor(theme.primary);
+
+    // Determine separator line position based on max height of text/cards
+    const sectionEndY = addressY + blockHeight + 10;
+    drawLine(doc, sectionEndY, theme.accent);
 
     // --- ITEMS TABLE ---
     let y = sectionEndY + 20; // Start table below address section
 
     // Table Header
+    doc.rect(40, y - 5, 510, 20).fill(theme.tableHeaderBg);
+    doc.fillColor(theme.tableHeaderText);
     drawTableRow(doc, y, "Sl", "Description", "HSN", "GST %", "Qty", "Unit", "Rate", "Amount", true);
-    drawLine(doc, y + 20);
+    doc.fillColor(theme.primary);
+    drawLine(doc, y + 20, theme.accent);
     y += 30;
 
     // Items
@@ -167,8 +204,11 @@ function generatePDF(resOrData, dataOrNone, type = "TAX INVOICE") {
             doc.addPage();
             y = 40;
             // Redraw Header
+            doc.rect(40, y - 5, 510, 20).fill(theme.tableHeaderBg);
+            doc.fillColor(theme.tableHeaderText);
             drawTableRow(doc, y, "Sl", "Description", "HSN", "GST %", "Qty", "Unit", "Rate", "Amount", true);
-            drawLine(doc, y + 20);
+            doc.fillColor(theme.primary);
+            drawLine(doc, y + 20, theme.accent);
             y += 30;
         }
 
@@ -178,7 +218,7 @@ function generatePDF(resOrData, dataOrNone, type = "TAX INVOICE") {
             i + 1,
             item.name,
             item.hsn || "-",
-            item.gstRate ? `${item.gstRate}%` : "-",
+            (item.gstRate !== undefined && item.gstRate !== null && item.gstRate !== "") ? `${item.gstRate}%` : "-",
             item.qty,
             item.unit,
             Number(item.rate).toFixed(2),
@@ -188,11 +228,12 @@ function generatePDF(resOrData, dataOrNone, type = "TAX INVOICE") {
         y += totalRowHeight;
     });
 
-    drawLine(doc, y);
+    drawLine(doc, y, theme.accent);
     y += 10;
 
     // --- TOTALS SECTION ---
     const totalsX = 350;
+    doc.fillColor(theme.secondaryText);
     doc.text(`Subtotal:`, totalsX, y);
     doc.text(Number(data.subtotal).toFixed(2), 0, y, { align: "right" });
     y += 15;
@@ -257,8 +298,6 @@ function generatePDF(resOrData, dataOrNone, type = "TAX INVOICE") {
             }
         });
 
-
-
     y += 5;
 
     // Round Off
@@ -269,11 +308,17 @@ function generatePDF(resOrData, dataOrNone, type = "TAX INVOICE") {
         y += 15;
     }
 
-    drawLine(doc, y);
+    drawLine(doc, y, theme.accent);
     y += 10;
 
-    doc.font("Helvetica-Bold").text(`Total Payable:`, totalsX, y);
+    doc.fillColor(theme.primary).font("Helvetica-Bold").text(`Total Payable:`, totalsX, y);
     doc.text(`Rs. ${Number(data.total).toFixed(2)}`, 0, y, { align: "right" });
+
+    drawLine(doc, y + 15, theme.accent);
+    y += 25;
+    const wordsRepresentation = numberToRupeesWords(data.total);
+    doc.fillColor(theme.secondaryText).font("Helvetica-Oblique").fontSize(9).text(`Amount in Words: ${wordsRepresentation}`, 40, y);
+    y += 15;
 
     // --- TERMS & FOOTER ---
     const footerStart = 610;
@@ -283,31 +328,47 @@ function generatePDF(resOrData, dataOrNone, type = "TAX INVOICE") {
         doc.addPage();
     }
 
-
     // Terms & Conditions (Below Bank Details)
     const termsY = 700;
-    doc.font("Helvetica").fontSize(10);
+    doc.fillColor(theme.primary).font("Helvetica-Bold").fontSize(10);
     doc.text("Terms & Conditions:", 40, termsY);
-    doc.fontSize(8).text("1. Goods once sold will not be taken back.");
+    doc.fillColor(theme.secondaryText).font("Helvetica").fontSize(8);
+    doc.text("1. Goods once sold will not be taken back.");
     doc.text("2. 100% payment in advance.");
     doc.text("3. Materials will be supplied within 20 days from the date of receipt of payment.");
     doc.text("4. Transportation and installation shall be arranged by the customer.");
     doc.text("5. Subject to local jurisdiction.");
 
     // Signatory (Right Aligned - same Y as Terms)
-    doc.fontSize(10).text(`For ${company.name}`, 350, termsY, { align: "right" });
+    doc.fillColor(theme.primary).font("Helvetica-Bold").fontSize(10).text(`For ${company.name}`, 350, termsY, { align: "right" });
 
-    if (includeSignature) {
-        const signaturePath = path.join(__dirname, '../assets/Signature.png');
-        if (fs.existsSync(signaturePath)) {
-            try {
-                // Place signature image
-                doc.image(signaturePath, 450, termsY + 15, { width: 80 });
-            } catch (err) {
-                console.error("Error loading signature image:", err);
-            }
+    const signaturePath = path.join(__dirname, '../assets/Signature.png');
+    const sealPathDefault = path.join(__dirname, '../assets/Seal.png');
+    const sealPathFFI = path.join(__dirname, '../assets/Seal_FFI.png');
+    const sealPath = fs.existsSync(sealPathFFI) ? sealPathFFI : sealPathDefault;
+
+    const hasSignature = includeSignature && fs.existsSync(signaturePath);
+    const hasSeal = includeSeal && fs.existsSync(sealPath);
+
+    if (hasSeal) {
+        try {
+            // Place seal image (positioned to the left of the signature)
+            doc.image(sealPath, 340, termsY + 10, { width: 75 });
+        } catch (err) {
+            console.error("Error loading seal image:", err);
         }
-        // Increase spacing if signature is present to avoid overlap
+    }
+
+    if (hasSignature) {
+        try {
+            // Place signature image
+            doc.image(signaturePath, 450, termsY + 15, { width: 80 });
+        } catch (err) {
+            console.error("Error loading signature image:", err);
+        }
+    }
+
+    if (hasSignature || hasSeal) {
         doc.moveDown(6);
     } else {
         doc.moveDown(3);
@@ -330,8 +391,8 @@ function generatePDF(resOrData, dataOrNone, type = "TAX INVOICE") {
 }
 
 // Helper: Draw Line
-function drawLine(doc, y) {
-    doc.strokeColor("#aaaaaa").lineWidth(1).moveTo(40, y).lineTo(550, y).stroke();
+function drawLine(doc, y, color = "#aaaaaa") {
+    doc.strokeColor(color).lineWidth(1).moveTo(40, y).lineTo(550, y).stroke();
 }
 
 // Helper: Draw Table Row
@@ -347,6 +408,64 @@ function drawTableRow(doc, y, sl, desc, hsn, gst, qty, unit, rate, amount, isHea
     doc.text(unit, 350, y, { width: 40, align: "center" });
     doc.text(rate, 400, y, { width: 70, align: "right" });
     doc.text(amount, 470, y, { width: 80, align: "right" });
+}
+
+function numberToRupeesWords(amount) {
+    const num = Math.round(amount);
+    if (num === 0) return "Rupees Zero Only";
+
+    const a = [
+        "", "One", "Two", "Three", "Four", "Five", "Six", "Seven", "Eight", "Nine", "Ten",
+        "Eleven", "Twelve", "Thirteen", "Fourteen", "Fifteen", "Sixteen", "Seventeen", "Eighteen", "Nineteen"
+    ];
+    const b = ["", "", "Twenty", "Thirty", "Forty", "Fifty", "Sixty", "Seventy", "Eighty", "Ninety"];
+
+    function numToWords(n) {
+        if (n < 20) return a[n];
+        const digit = n % 10;
+        if (digit === 0) return b[Math.floor(n / 10)];
+        return b[Math.floor(n / 10)] + " " + a[digit];
+    }
+
+    function convertLessThanThousand(n) {
+        let word = "";
+        if (n >= 100) {
+            word += a[Math.floor(n / 100)] + " Hundred";
+            n %= 100;
+            if (n > 0) word += " and ";
+        }
+        if (n > 0) {
+            word += numToWords(n);
+        }
+        return word;
+    }
+
+    let remaining = num;
+    let words = "";
+
+    if (remaining >= 10000000) {
+        const crores = Math.floor(remaining / 10000000);
+        words += convertLessThanThousand(crores) + " Crore ";
+        remaining %= 10000000;
+    }
+
+    if (remaining >= 100000) {
+        const lakhs = Math.floor(remaining / 100000);
+        words += convertLessThanThousand(lakhs) + " Lakh ";
+        remaining %= 100000;
+    }
+
+    if (remaining >= 1000) {
+        const thousands = Math.floor(remaining / 1000);
+        words += convertLessThanThousand(thousands) + " Thousand ";
+        remaining %= 1000;
+    }
+
+    if (remaining > 0) {
+        words += convertLessThanThousand(remaining);
+    }
+
+    return "Rupees " + words.trim().replace(/\s+/g, ' ') + " Only";
 }
 
 module.exports = { generatePDF };

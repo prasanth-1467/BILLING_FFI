@@ -7,6 +7,143 @@ const Counter = require("../models/Counter"); // Added Counter import
 const { generatePDF } = require("../utils/pdfGenerator");
 const { sendEmailWithAttachment } = require("../utils/emailService");
 
+// CREATE DIRECT INVOICE
+router.post("/", async (req, res) => {
+  try {
+    const { 
+      invoiceNumber,
+      customerId, 
+      customerName, 
+      customerGSTIN, 
+      customerAddress, 
+      customerState, 
+      customerPhone,
+      items, 
+      discountPercent, 
+      paymentType, 
+      paidAmount,
+      date,
+      dueDate,
+      shipTo 
+    } = req.body;
+
+    const invoiceDate = date ? new Date(date) : new Date();
+
+    // 1. Process Items (Reduce stock if productId is defined, format details)
+    let enrichedItems = [];
+    for (let item of items) {
+      // If productId is provided, look it up in database to ensure details are populated and stock is adjusted
+      let dbProduct = null;
+      if (item.productId) {
+        dbProduct = await Product.findById(item.productId);
+        if (dbProduct) {
+          // Adjust stock quantity
+          dbProduct.stockQty = (dbProduct.stockQty || 0) - item.qty;
+          await dbProduct.save();
+        }
+      }
+
+      enrichedItems.push({
+        productId: item.productId || null,
+        name: item.name || (dbProduct ? dbProduct.name : "Custom Product"),
+        hsn: item.hsn || (dbProduct ? dbProduct.hsn : "-"),
+        unit: item.unit || (dbProduct ? dbProduct.unit : "Nos"),
+        qty: Number(item.qty),
+        rate: Number(item.rate),
+        gstRate: Number(item.gstRate || 0),
+        amount: Number(item.qty) * Number(item.rate)
+      });
+    }
+
+    // 2. Determine State Type for Tax Splits
+    // Read state from either cataloged customer or manual entry
+    let finalState = customerState || "Tamil Nadu";
+    if (customerId) {
+      const Customer = require("../models/Customer");
+      const dbCustomer = await Customer.findById(customerId);
+      if (dbCustomer) {
+        finalState = dbCustomer.state;
+      }
+    }
+
+    const normalize = (str) => (str || "").toLowerCase().replace(/\s+/g, "");
+    const isIntraState = normalize(finalState) === "tamilnadu";
+
+    // 3. Calculate Totals using taxCalculator Utility
+    const { calculateGST, calculateFinal } = require("../utils/taxCalculator");
+    const calcInitial = calculateGST(enrichedItems, finalState);
+    const results = calculateFinal(calcInitial.subtotal, Number(discountPercent || 0), enrichedItems, isIntraState);
+
+    const { subtotal, taxableAmount, gstBreakup, roundOff, total } = results;
+
+    // 4. Handle Invoice Number (Mandatory)
+    let finalInvoiceNumber = invoiceNumber ? invoiceNumber.trim() : null;
+    if (!finalInvoiceNumber) {
+      return res.status(404).json({ error: "Invoice number is mandatory" });
+    }
+
+    // Format invoice number to FFI/YY-YY/number if they typed just a number or partial string
+    const invoiceYear = invoiceDate.getFullYear();
+    const invoiceMonth = invoiceDate.getMonth(); // 0-11
+    const invoiceStartYear = invoiceMonth >= 3 ? invoiceYear : invoiceYear - 1;
+    const fyString = `${String(invoiceStartYear).slice(-2)}-${String(invoiceStartYear + 1).slice(-2)}`;
+
+    if (!finalInvoiceNumber.toUpperCase().startsWith("FFI/")) {
+      let numPart = finalInvoiceNumber;
+      if (/^\d+$/.test(numPart)) {
+        numPart = String(numPart).padStart(3, '0');
+      }
+      finalInvoiceNumber = `FFI/${fyString}/${numPart}`;
+    }
+
+    // Uniqueness check for manual invoiceNumber
+    const existing = await Invoice.findOne({ invoiceNumber: finalInvoiceNumber });
+    if (existing) {
+      return res.status(400).json({ error: `Invoice number "${finalInvoiceNumber}" already exists` });
+    }
+
+    const calculatedPaidAmount = Number(paidAmount || 0);
+    const balance = total - calculatedPaidAmount;
+
+    // 5. Create new Invoice Document
+    const invoice = new Invoice({
+      invoiceNumber: finalInvoiceNumber,
+      customerId: customerId || null,
+      
+      // Manual columns (will be saved cleanly)
+      customerName: customerName || null,
+      customerGSTIN: customerGSTIN || null,
+      customerAddress: customerAddress || null,
+      customerState: customerState || null,
+      customerPhone: customerPhone || null,
+      
+      items: enrichedItems,
+      subtotal,
+      discountPercent: Number(discountPercent || 0),
+      taxableAmount,
+      gstBreakup,
+      roundOff,
+      total,
+      paymentType: paymentType || "Cash",
+      paymentTerms: "Due on Receipt",
+      dueDate: dueDate ? new Date(dueDate) : invoiceDate,
+      date: invoiceDate,
+      paidAmount: calculatedPaidAmount,
+      balance,
+      status: balance <= 0 ? "Paid" : (calculatedPaidAmount > 0 ? "Partially Paid" : "Pending"),
+      theme: req.body.theme || null,
+      shipTo: shipTo || null
+    });
+
+    await invoice.save();
+    res.json(invoice);
+
+  } catch (err) {
+    console.error("Direct Invoice Creation Error:", err);
+    res.status(400).json({ error: err.message });
+  }
+});
+
 // UPDATE INVOICE DETAILS (Number, etc.)
 router.patch("/:id", async (req, res) => {
   try {
@@ -120,7 +257,8 @@ router.post("/from-quotation/:quoteId", async (req, res) => {
       balance,
       dueDate: date,
       paymentTerms: "Due on Receipt",
-      status: balance <= 0 ? "Paid" : (paidAmount > 0 ? "Partially Paid" : "Unpaid"),
+      status: balance <= 0 ? "Paid" : (paidAmount > 0 ? "Partially Paid" : "Pending"),
+      theme: quote.theme || null,
       shipTo: quote.shipTo // Copy shipTo from quotation
     });
 
@@ -176,18 +314,30 @@ router.get('/:id/pdf', async (req, res) => {
     }
 
     const includeSignature = req.query.includeSignature === 'true';
+    const includeSeal = req.query.includeSeal === 'true';
+
+    // Resolve theme
+    const BusinessSettings = require("../models/BusinessSettings");
+    const themeConfig = require("../config/themeConfig");
+    let resolvedThemeName = req.query.theme || invoice.theme;
+    if (!resolvedThemeName) {
+      const settings = await BusinessSettings.findOne();
+      resolvedThemeName = settings?.defaultTheme || "indigo";
+    }
+    const theme = themeConfig[resolvedThemeName] || themeConfig.indigo;
 
     // Construct Data Object for PDF
     const pdfData = {
       number: invoice.invoiceNumber,
+      theme,
       date: invoice.date,
       paymentTerms: "Immediate", // You can make this dynamic if added to model
       customer: {
-        name: invoice.customerId.name,
-        address: invoice.customerId.address,
-        gst: invoice.customerId.gstNumber,
-        phone: invoice.customerId.phone,
-        state: invoice.customerId.state, // Pass State
+        name: invoice.customerName || invoice.customerId?.name || "-",
+        address: invoice.customerAddress || invoice.customerId?.address || "-",
+        gst: invoice.customerGSTIN || invoice.customerId?.gstNumber || "URD",
+        phone: invoice.customerPhone || invoice.customerId?.phone || "-",
+        state: invoice.customerState || invoice.customerId?.state || "-", // Pass State
         shipTo: invoice.shipTo // Pass shipTo
       },
       items: invoice.items.map(item => ({
@@ -201,12 +351,13 @@ router.get('/:id/pdf', async (req, res) => {
       })),
       subtotal: invoice.subtotal,
       discountPercent: invoice.discountPercent,
-      discount: invoice.discountAmount,
+      discount: (invoice.subtotal * (invoice.discountPercent || 0)) / 100,
       taxableAmount: invoice.taxableAmount,
       gst: invoice.gstBreakup,
       roundOff: invoice.roundOff,
       total: invoice.total,
-      includeSignature // Add to data object
+      includeSignature, // Add to data object
+      includeSeal
     };
 
 
@@ -232,7 +383,7 @@ router.patch("/:id/payment", async (req, res) => {
     const newPaidAmount = (invoice.paidAmount || 0) + Number(amount);
     const newBalance = invoice.total - newPaidAmount;
 
-    let newStatus = "Unpaid";
+    let newStatus = "Pending";
     if (newBalance <= 0) {
       newStatus = "Paid";
     } else if (newPaidAmount > 0) {
@@ -267,11 +418,11 @@ router.post("/:id/email-to-me", async (req, res) => {
       date: invoice.date,
       paymentTerms: "Due on Receipt",
       customer: {
-        name: invoice.customerId.name,
-        address: invoice.customerId.address,
-        gst: invoice.customerId.gstNumber,
-        phone: invoice.customerId.phone,
-        state: invoice.customerId.state,
+        name: invoice.customerName || invoice.customerId?.name || "-",
+        address: invoice.customerAddress || invoice.customerId?.address || "-",
+        gst: invoice.customerGSTIN || invoice.customerId?.gstNumber || "URD",
+        phone: invoice.customerPhone || invoice.customerId?.phone || "-",
+        state: invoice.customerState || invoice.customerId?.state || "-",
         shipTo: invoice.shipTo
       },
       items: invoice.items.map(item => ({
@@ -290,8 +441,19 @@ router.post("/:id/email-to-me", async (req, res) => {
       gst: invoice.gstBreakup,
       roundOff: invoice.roundOff,
       total: invoice.total,
-      includeSignature: req.query.includeSignature === "true"
+      includeSignature: req.query.includeSignature === "true",
+      includeSeal: req.query.includeSeal === "true"
     };
+
+    // Resolve theme
+    const BusinessSettings = require("../models/BusinessSettings");
+    const themeConfig = require("../config/themeConfig");
+    let resolvedThemeNameForEmail = req.query.theme || invoice.theme;
+    if (!resolvedThemeNameForEmail) {
+      const settings = await BusinessSettings.findOne();
+      resolvedThemeNameForEmail = settings?.defaultTheme || "indigo";
+    }
+    pdfData.theme = themeConfig[resolvedThemeNameForEmail] || themeConfig.indigo;
 
     const pdfBuffer = await generatePDF(pdfData);
 

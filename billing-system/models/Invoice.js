@@ -3,10 +3,24 @@ const mongoose = require("mongoose");
 const invoiceSchema = new mongoose.Schema({
   invoiceNumber: String,
   customerId: { type: mongoose.Schema.Types.ObjectId, ref: "Customer" },
+  
+  // Manual customer details
+  customerName: String,
+  customerGSTIN: String,
+  customerAddress: String,
+  customerState: String,
+  customerPhone: String,
+  
   date: { type: Date, default: Date.now },
   items: [
     {
       productId: { type: mongoose.Schema.Types.ObjectId, ref: "Product" },
+      
+      // Manual product details
+      name: String,
+      hsn: String,
+      unit: String,
+      
       qty: Number,
       rate: Number,
       gstRate: Number,
@@ -24,7 +38,8 @@ const invoiceSchema = new mongoose.Schema({
   dueDate: { type: Date },
   paidAmount: { type: Number, default: 0 },
   balance: Number,
-  status: { type: String, default: "Unpaid" },
+  status: { type: String, default: "Pending" },
+  theme: String,
   shipTo: {
     name: String,
     address: String,

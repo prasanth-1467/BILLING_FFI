@@ -7,8 +7,10 @@ const PurchaseOrders = () => {
     const navigate = useNavigate();
     const [pos, setPos] = useState([]);
     const [includeSignature, setIncludeSignature] = useState(false);
+    const [includeSeal, setIncludeSeal] = useState(false);
     const [loading, setLoading] = useState(true);
     const [printingId, setPrintingId] = useState(null);
+    const [selectedTheme, setSelectedTheme] = useState('indigo');
 
     // Editing State
     const [editingId, setEditingId] = useState(null);
@@ -28,7 +30,18 @@ const PurchaseOrders = () => {
                 setLoading(false);
             }
         };
+        const fetchDefaultTheme = async () => {
+            try {
+                const response = await api.get('/settings');
+                if (response.data && response.data.defaultTheme) {
+                    setSelectedTheme(response.data.defaultTheme);
+                }
+            } catch (error) {
+                console.error('Failed to fetch default theme', error);
+            }
+        };
         fetchPOs();
+        fetchDefaultTheme();
     }, []);
 
     const handleDelete = async (id) => {
@@ -45,7 +58,7 @@ const PurchaseOrders = () => {
     const handleDownload = async (id, poNumber) => {
         try {
             const response = await api.get(`/purchase-orders/${id}/pdf`, {
-                params: { includeSignature },
+                params: { includeSignature, includeSeal, theme: selectedTheme },
                 responseType: 'blob', // Important for file download
             });
             const url = window.URL.createObjectURL(new Blob([response.data]));
@@ -66,7 +79,7 @@ const PurchaseOrders = () => {
         try {
             setPrintingId(id);
             const response = await api.get(`/purchase-orders/${id}/pdf`, {
-                params: { includeSignature },
+                params: { includeSignature, includeSeal, theme: selectedTheme },
                 responseType: 'blob',
             });
 
@@ -192,6 +205,27 @@ const PurchaseOrders = () => {
                         />
                         Include Signature
                     </label>
+                    <label className="flex items-center gap-2 text-sm font-medium text-gray-700 bg-white px-3 py-2 rounded cursor-pointer border hover:bg-gray-50">
+                        <input
+                            type="checkbox"
+                            className="w-4 h-4 text-blue-600 rounded focus:ring-blue-500 border-gray-300"
+                            checked={includeSeal}
+                            onChange={e => setIncludeSeal(e.target.checked)}
+                        />
+                        Include Seal
+                    </label>
+                    <select
+                        value={selectedTheme}
+                        onChange={(e) => setSelectedTheme(e.target.value)}
+                        className="text-sm font-medium text-gray-700 bg-white px-3 py-2 rounded border hover:bg-gray-50 outline-none cursor-pointer"
+                        title="Select PDF Theme"
+                    >
+                        <option value="indigo">Classic Indigo</option>
+                        <option value="emerald">Forest Emerald</option>
+                        <option value="crimson">Warm Crimson</option>
+                        <option value="charcoal">Sleek Charcoal</option>
+                        <option value="plain">Plain Black & White</option>
+                    </select>
                     <button
                         onClick={() => navigate('/purchase-orders/new')}
                         className="btn btn-primary"
@@ -278,7 +312,7 @@ const PurchaseOrders = () => {
                                         )}
                                     </td>
                                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-700">
-                                        {po.supplier?.name || "Unknown Supplier"}
+                                        {po.supplier?.name || po.supplierName || "Unknown Supplier"}
                                     </td>
                                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                                         {po.items?.length || 0}

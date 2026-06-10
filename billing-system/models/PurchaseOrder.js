@@ -5,8 +5,13 @@ const poSchema = new mongoose.Schema({
   supplier: {
     type: mongoose.Schema.Types.ObjectId,
     ref: "Supplier",
-    required: true
+    required: false
   },
+  supplierName: String,
+  supplierGSTIN: String,
+  supplierAddress: String,
+  supplierPhone: String,
+  supplierEmail: String,
   date: { type: Date, default: Date.now },
   expectedDeliveryDate: Date,
   items: [
@@ -29,6 +34,7 @@ const poSchema = new mongoose.Schema({
     enum: ["Draft", "Sent", "Cancelled"],
     default: "Draft"
   },
+  theme: String,
   remarks: String,
   createdAt: { type: Date, default: Date.now }
 });
