@@ -21,6 +21,7 @@ const poSchema = new mongoose.Schema({
         ref: "Product",
         required: false
       },
+      productCode: String,
       name: String,
       modelNo: String,
       qty: { type: Number, required: true },

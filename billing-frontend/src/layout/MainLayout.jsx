@@ -13,15 +13,17 @@ import {
     UserCircle,
     LogOut,
     ShoppingBag,
-    Brain
+    Brain,
+    Truck
 } from 'lucide-react';
 import NotificationBell from '../components/NotificationBell';
 import '../index.css';
 
-const SidebarItem = ({ to, icon: Icon, label }) => {
+const SidebarItem = ({ to, icon: Icon, label, reloadDocument = false }) => {
     return (
         <NavLink
             to={to}
+            reloadDocument={reloadDocument}
             className={({ isActive }) =>
                 `flex items-center gap-3 px-4 py-3 mx-2 rounded-lg transition-all duration-300 group ${isActive
                     ? 'bg-indigo-600/10 text-indigo-400 shadow-[inset_0_0_0_1px_rgba(99,102,241,0.2)]'
@@ -89,6 +91,7 @@ const MainLayout = () => {
                     <SidebarItem to="/purchase-orders/new" icon={ShoppingBag} label="Create PO" />
                     <SidebarItem to="/invoices" icon={Receipt} label="Invoices" />
                     <SidebarItem to="/invoices/new" icon={Receipt} label="Create Invoice" />
+                    <SidebarItem to="/ewaybill-test.html" icon={Truck} label="E-Way Bill Sandbox" reloadDocument />
 
                     <div className="mt-8 mb-2 px-6">
                         <p className="text-[10px] font-bold text-slate-500 uppercase tracking-widest border-b border-slate-800 pb-2">AI Insights</p>

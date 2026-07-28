@@ -106,6 +106,9 @@ function generatePDF(resOrData, dataOrNone, type = "TAX INVOICE") {
     if (data.paymentTerms) {
         doc.text(`Terms: ${data.paymentTerms}`, { align: "right" });
     }
+    if (data.ewayBillNo) {
+        doc.text(`E-Way Bill No: ${data.ewayBillNo}`, { align: "right" });
+    }
     const invoiceEndY = doc.y;
 
     // Vertical Separator Line {Computed dynamically}
@@ -124,20 +127,20 @@ function generatePDF(resOrData, dataOrNone, type = "TAX INVOICE") {
     const colWidth = 230;
 
     // Calculate dimensions first for the premium container
-    const billToHeight = 15 
+    const billToHeight = 15
         + doc.heightOfString(data.customer.name || "-", { width: colWidth })
         + doc.heightOfString(data.customer.address || "-", { width: colWidth })
         + (data.customer.state ? 12 : 0)
         + (data.customer.gst ? 12 : 0)
         + (data.customer.phone ? 12 : 0)
         + 10;
-    
+
     let shipToHeight = 0;
     if (data.customer.shipTo) {
-        shipToHeight = 15 
+        shipToHeight = 15
             + doc.heightOfString(data.customer.shipTo.name || data.customer.name || "-", { width: colWidth })
             + doc.heightOfString(data.customer.shipTo.address || data.customer.address || "-", { width: colWidth })
-            + 12 
+            + 12
             + (data.customer.shipTo.phone ? 12 : 0)
             + 10;
     }
@@ -202,7 +205,8 @@ function generatePDF(resOrData, dataOrNone, type = "TAX INVOICE") {
         // Page break check (Reduced to 600 to leave space for Bank & Footer)
         if (y + totalRowHeight > 600) {
             doc.addPage();
-            y = 40;
+            drawPageHeader(doc, type, data, theme);
+            y = 85;
             // Redraw Header
             doc.rect(40, y - 5, 510, 20).fill(theme.tableHeaderBg);
             doc.fillColor(theme.tableHeaderText);
@@ -326,6 +330,7 @@ function generatePDF(resOrData, dataOrNone, type = "TAX INVOICE") {
     // Check if we need a new page for footer
     if (y > footerStart - 20) {
         doc.addPage();
+        drawPageHeader(doc, type, data, theme);
     }
 
     // Terms & Conditions (Below Bank Details)
@@ -466,6 +471,21 @@ function numberToRupeesWords(amount) {
     }
 
     return "Rupees " + words.trim().replace(/\s+/g, ' ') + " Only";
+}
+
+function drawPageHeader(doc, type, data, theme) {
+    const y = 40;
+    // Draw compact top header
+    doc.fontSize(12).font("Helvetica-Bold").fillColor("#00268D").text(company.name, 40, y, { width: 250 });
+    doc.fontSize(8).font("Helvetica").fillColor(theme.secondaryText).text(`GSTIN: ${company.gstin}`, 40, y + 15);
+    
+    doc.fontSize(10).font("Helvetica-Bold").fillColor(theme.primary).text(type, 400, y, { align: "right" });
+    doc.fontSize(8).font("Helvetica").fillColor(theme.secondaryText);
+    doc.text(`No: ${data.number}`, 400, y + 13, { align: "right" });
+    doc.text(`Date: ${new Date(data.date).toLocaleDateString("en-IN")}`, 400, y + 23, { align: "right" });
+    
+    // Draw horizontal line separator
+    drawLine(doc, y + 35, theme.accent);
 }
 
 module.exports = { generatePDF };

@@ -46,6 +46,7 @@ const CreateInvoice = () => {
     const [discountPercent, setDiscountPercent] = useState(0);
     const [invoiceDate, setInvoiceDate] = useState(() => new Date().toISOString().split('T')[0]);
     const [invoiceNumber, setInvoiceNumber] = useState('');
+    const [ewayBillNo, setEwayBillNo] = useState('');
 
     // Shipping Address State
     const [isShipSameAsBill, setIsShipSameAsBill] = useState(true);
@@ -292,7 +293,8 @@ const CreateInvoice = () => {
             paidAmount: 0,
             date: invoiceDate,
             dueDate: invoiceDate,
-            shipTo
+            shipTo,
+            ewayBillNo: ewayBillNo || null
         };
 
         try {
@@ -334,6 +336,7 @@ const CreateInvoice = () => {
                                 setManualCustomer({ name: '', phone: '', gstNumber: '', address: '', state: 'Tamil Nadu' });
                                 setDiscountPercent(0);
                                 setInvoiceNumber('');
+                                setEwayBillNo('');
                             }
                         }}
                         className="btn btn-outline border-red-200 text-red-600 hover:bg-red-50"
@@ -802,6 +805,16 @@ const CreateInvoice = () => {
                         />
                     </div>
 
+                    <div>
+                        <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-1">E-Way Bill Number (Optional)</label>
+                        <input
+                            type="text"
+                            placeholder="Enter e-Way Bill Number"
+                            className="w-full border rounded px-3 py-2 text-sm outline-none bg-gray-50 font-medium"
+                            value={ewayBillNo}
+                            onChange={e => setEwayBillNo(e.target.value)}
+                        />
+                    </div>
 
                 </div>
 

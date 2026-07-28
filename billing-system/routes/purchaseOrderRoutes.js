@@ -92,7 +92,7 @@ router.get("/:id", async (req, res) => {
 // UPDATE PO (Methods like PATCH)
 router.patch("/:id", async (req, res) => {
   try {
-    const { poNumber, date } = req.body;
+    const { poNumber } = req.body;
 
     // Check if PO exists
     const po = await PurchaseOrder.findById(req.params.id);
@@ -104,19 +104,16 @@ router.patch("/:id", async (req, res) => {
       if (existing) {
         return res.status(400).json({ error: "PO Number already exists" });
       }
-      po.poNumber = poNumber;
     }
 
-    if (date) {
-      po.date = date;
-    }
+    const updated = await PurchaseOrder.findByIdAndUpdate(
+      req.params.id,
+      { $set: req.body },
+      { new: true }
+    ).populate("supplier")
+     .populate("items.product");
 
-    if (req.body.theme !== undefined) {
-      po.theme = req.body.theme;
-    }
-
-    await po.save();
-    res.json(po);
+    res.json(updated);
   } catch (err) {
     console.error("Update failed", err);
     res.status(500).json({ error: err.message });

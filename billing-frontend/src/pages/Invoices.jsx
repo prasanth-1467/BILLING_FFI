@@ -1,7 +1,8 @@
 import React, { useEffect, useState, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import api from '../services/api';
-import { Search, Loader, Download, FileText, CheckCircle, Clock, Eye, Trash2, Edit, Save, X, MoreVertical, IndianRupee, MessageCircle, AlertTriangle, Printer, Mail, Plus } from 'lucide-react';
+import { Search, Loader, Download, FileText, CheckCircle, Clock, Eye, Trash2, Edit, Save, X, MoreVertical, IndianRupee, MessageCircle, AlertTriangle, Printer, Mail, Plus, Truck } from 'lucide-react';
+import { downloadEWayBillJSON } from '../utils/ewayBillFormatter';
 import { format, isPast, startOfDay } from 'date-fns';
 
 const Invoices = () => {
@@ -20,6 +21,8 @@ const Invoices = () => {
     const [editDate, setEditDate] = useState("");
     const [editNumber, setEditNumber] = useState("");
     const [saving, setSaving] = useState(false);
+    const [editingEwayBillId, setEditingEwayBillId] = useState(null);
+    const [editEwayBillNo, setEditEwayBillNo] = useState("");
 
     const [activeDropdown, setActiveDropdown] = useState(null);
     const dropdownRef = useRef(null);
@@ -208,6 +211,91 @@ const Invoices = () => {
         }
     };
 
+    const startEditingEwayBill = (invoice) => {
+        setEditingEwayBillId(invoice.id);
+        setEditEwayBillNo(invoice.ewayBillNo || "");
+    };
+
+    const cancelEditingEwayBill = () => {
+        setEditingEwayBillId(null);
+        setEditEwayBillNo("");
+    };
+
+    const saveEwayBillNo = async () => {
+        setSaving(true);
+        try {
+            await api.patch(`/invoices/${editingEwayBillId}`, { ewayBillNo: editEwayBillNo });
+            setInvoices(invoices.map(inv =>
+                (inv._id === editingEwayBillId || inv.id === editingEwayBillId) ? { ...inv, ewayBillNo: editEwayBillNo } : inv
+            ));
+            cancelEditingEwayBill();
+        } catch (error) {
+            alert(error.response?.data?.error || "Failed to update E-Way Bill number");
+        } finally {
+            setSaving(false);
+        }
+    };
+
+    const isEWayBillRequired = (invoice) => {
+        let stateSupply = "-";
+        const gst = invoice.customerId?.gstNumber || invoice.customerGSTIN || "";
+        if (gst.length >= 2 && !isNaN(gst.substring(0, 2))) {
+            stateSupply = gst.substring(0, 2);
+        } else {
+            const rawState = (invoice.customerId?.state || invoice.customerState || "").toLowerCase().replace(/\s+/g, "");
+            if (rawState === "tamilnadu" || rawState === "tn") {
+                stateSupply = "33";
+            } else {
+                stateSupply = invoice.customerId?.state || invoice.customerState || "-";
+            }
+        }
+        const isIntraState = stateSupply === "33" || stateSupply === "Tamil Nadu";
+        const totalVal = invoice.totalAmount || invoice.total || 0;
+        return isIntraState ? totalVal >= 100000 : totalVal >= 50000;
+    };
+
+    const handleDownloadEWayBill = (invoice) => {
+        const vehicleNo = window.prompt("Enter Vehicle Registration Number (e.g., TN38AB1234):");
+        if (!vehicleNo) return;
+        
+        const toPincodeInput = window.prompt("Enter Delivery Pincode (6-digit number):");
+        if (!toPincodeInput) return;
+        const toPincode = parseInt(toPincodeInput, 10);
+        if (isNaN(toPincode) || String(toPincode).length !== 6) {
+            alert("Invalid pincode. Must be a 6-digit number.");
+            return;
+        }
+        
+        const toPlace = window.prompt("Enter Delivery Place / City (e.g., Coimbatore):", invoice.customerId?.city || "Coimbatore");
+        if (toPlace === null) return;
+        
+        const formattedInvoiceData = {
+            invoiceNumber: invoice.invoiceNumber,
+            date: invoice.date,
+            customerGSTIN: invoice.customerId?.gstNumber || invoice.customerGSTIN || "URP",
+            customerName: invoice.customerId?.name || invoice.customerName || "Customer",
+            customerAddress: invoice.customerId?.address || invoice.customerAddress || "Address",
+            customerState: invoice.customerId?.state || invoice.customerState || "Tamil Nadu",
+            discountPercent: invoice.discountPercent || 0,
+            vehicleNo: vehicleNo.trim().toUpperCase(),
+            toPincode: toPincode,
+            toPlace: toPlace.trim() || invoice.customerId?.state || "Coimbatore",
+            items: (invoice.items || []).map(item => ({
+                name: item.name || item.productId?.name || "Product",
+                hsn: item.hsn || item.productId?.hsn || "8424",
+                qty: item.qty,
+                rate: item.rate,
+                gstRate: item.gstRate,
+                unit: item.unit || item.productId?.unit || "NOS"
+            }))
+        };
+        
+        try {
+            downloadEWayBillJSON(formattedInvoiceData);
+        } catch (error) {
+            alert("E-Way Bill download failed: " + error.message);
+        }
+    };
 
     const handleExportToExcel = () => {
         if (filteredInvoices.length === 0) {
@@ -677,7 +765,9 @@ const Invoices = () => {
         balance: inv.balance ?? (inv.total - (inv.paidAmount || 0)),
         date: inv.date,
         computedStatus: computeStatus(inv)
-    }));
+    })).sort((a, b) => {
+        return (a.invoiceNumber || '').localeCompare(b.invoiceNumber || '', undefined, { numeric: true, sensitivity: 'base' });
+    });
 
     const filteredInvoices = normalized.filter(inv =>
         (inv.invoiceNumber || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -843,6 +933,37 @@ const Invoices = () => {
                                                     </button>
                                                 </div>
                                             )}
+                                            {/* E-Way Bill Number Metadata Input / Display */}
+                                            {editingEwayBillId === invoice.id ? (
+                                                <div className="flex items-center gap-1 mt-1 text-slate-800">
+                                                    <input
+                                                        className="border border-gray-200 rounded px-1.5 py-0.5 text-xs w-28 font-normal"
+                                                        value={editEwayBillNo}
+                                                        placeholder="E-Way Bill No"
+                                                        onChange={e => setEditEwayBillNo(e.target.value)}
+                                                        autoFocus
+                                                    />
+                                                    <button onClick={saveEwayBillNo} disabled={saving} className="text-green-600 hover:text-green-800 p-0.5"><Save size={12} /></button>
+                                                    <button onClick={cancelEditingEwayBill} className="text-gray-500 hover:text-gray-700 p-0.5"><X size={12} /></button>
+                                                </div>
+                                            ) : invoice.ewayBillNo ? (
+                                                <div className="text-[10px] text-gray-500 mt-1 flex items-center gap-1 group/ewb font-normal">
+                                                    <span>E-Way Bill: {invoice.ewayBillNo}</span>
+                                                    <button
+                                                        onClick={() => startEditingEwayBill(invoice)}
+                                                        className="opacity-0 group-hover/ewb:opacity-100 text-gray-400 hover:text-blue-600 transition-opacity p-0.5 bg-transparent border-none cursor-pointer"
+                                                    >
+                                                        <Edit size={10} />
+                                                    </button>
+                                                </div>
+                                            ) : (
+                                                <button
+                                                    onClick={() => startEditingEwayBill(invoice)}
+                                                    className="text-[10px] text-blue-500 hover:text-blue-700 mt-1 flex items-center gap-1 underline font-normal cursor-pointer bg-transparent border-none"
+                                                >
+                                                    + Add E-Way Bill No
+                                                </button>
+                                            )}
                                         </td>
                                         <td className="p-4">
                                             <p className="font-bold text-gray-900">{invoice.customerName}</p>
@@ -894,6 +1015,16 @@ const Invoices = () => {
                                                         title="Record Payment"
                                                     >
                                                         Pay
+                                                    </button>
+                                                )}
+
+                                                {isEWayBillRequired(invoice) && (
+                                                    <button
+                                                        onClick={() => handleDownloadEWayBill(invoice)}
+                                                        className="p-1.5 text-blue-600 hover:bg-blue-50 border border-transparent hover:border-blue-100 rounded-md transition-all flex items-center gap-1 text-xs font-semibold"
+                                                        title="Download e-Way Bill JSON"
+                                                    >
+                                                        <Truck size={18} />
                                                     </button>
                                                 )}
 
