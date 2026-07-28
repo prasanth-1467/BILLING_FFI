@@ -1,22 +1,26 @@
 import React, { useEffect, useState, useMemo } from 'react';
 import api from '../services/api';
 import { Plus, Trash2, Save, ShoppingCart, Loader, FileText, ArrowLeft, Calculator, User, FileCheck } from 'lucide-react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useParams } from 'react-router-dom';
 
 const PurchaseOrder = () => {
     const navigate = useNavigate();
+    const { id } = useParams();
+    const isEditMode = !!id;
+
     const [loading, setLoading] = useState(false);
     const [pageLoading, setPageLoading] = useState(true);
     const [suppliers, setSuppliers] = useState([]);
     const [products, setProducts] = useState([]);
 
     // --- Supplier Selector State ---
-    const [supplierMode, setSupplierMode] = useState(() => localStorage.getItem('po_supplierMode') || 'select'); // 'select' | 'manual'
-    const [selectedSupplierId, setSelectedSupplierId] = useState(() => localStorage.getItem('po_supplierId') || '');
+    const [supplierMode, setSupplierMode] = useState(() => (isEditMode ? 'select' : localStorage.getItem('po_supplierMode') || 'select')); // 'select' | 'manual'
+    const [selectedSupplierId, setSelectedSupplierId] = useState(() => (isEditMode ? '' : localStorage.getItem('po_supplierId') || ''));
     const [supplierSearchText, setSupplierSearchText] = useState('');
 
     // Manual Supplier State
     const [manualSupplier, setManualSupplier] = useState(() => {
+        if (isEditMode) return { name: '', phone: '', email: '', gstin: '', address: '' };
         const saved = localStorage.getItem('po_manualSupplier');
         return saved ? JSON.parse(saved) : {
             name: '',
@@ -42,30 +46,34 @@ const PurchaseOrder = () => {
     });
 
     // PO General Metadata State
-    const [poDate, setPoDate] = useState(() => localStorage.getItem('po_date') || new Date().toISOString().split('T')[0]);
-    const [expectedDeliveryDate, setExpectedDeliveryDate] = useState(() => localStorage.getItem('po_expectedDeliveryDate') || '');
-    const [remarks, setRemarks] = useState(() => localStorage.getItem('po_remarks') || '');
-    const [poNumber, setPoNumber] = useState(() => localStorage.getItem('po_number') || `PO-${Date.now()}`);
+    const [poDate, setPoDate] = useState(() => (isEditMode ? new Date().toISOString().split('T')[0] : localStorage.getItem('po_date') || new Date().toISOString().split('T')[0]));
+    const [expectedDeliveryDate, setExpectedDeliveryDate] = useState(() => (isEditMode ? '' : localStorage.getItem('po_expectedDeliveryDate') || ''));
+    const [remarks, setRemarks] = useState(() => (isEditMode ? '' : localStorage.getItem('po_remarks') || ''));
+    const [poNumber, setPoNumber] = useState(() => (isEditMode ? '' : localStorage.getItem('po_number') || `PO-${Date.now()}`));
+    const [status, setStatus] = useState('Draft');
 
     // Items List
     const [items, setItems] = useState(() => {
+        if (isEditMode) return [];
         const saved = localStorage.getItem('po_items');
         return saved ? JSON.parse(saved) : [];
     });
 
     // Persist form state in localStorage
     useEffect(() => {
-        localStorage.setItem('po_supplierMode', supplierMode);
-        localStorage.setItem('po_supplierId', selectedSupplierId);
-        localStorage.setItem('po_manualSupplier', JSON.stringify(manualSupplier));
-        localStorage.setItem('po_date', poDate);
-        localStorage.setItem('po_expectedDeliveryDate', expectedDeliveryDate);
-        localStorage.setItem('po_items', JSON.stringify(items));
-        localStorage.setItem('po_remarks', remarks);
-        localStorage.setItem('po_number', poNumber);
-    }, [supplierMode, selectedSupplierId, manualSupplier, poDate, expectedDeliveryDate, items, remarks, poNumber]);
+        if (!isEditMode) {
+            localStorage.setItem('po_supplierMode', supplierMode);
+            localStorage.setItem('po_supplierId', selectedSupplierId);
+            localStorage.setItem('po_manualSupplier', JSON.stringify(manualSupplier));
+            localStorage.setItem('po_date', poDate);
+            localStorage.setItem('po_expectedDeliveryDate', expectedDeliveryDate);
+            localStorage.setItem('po_items', JSON.stringify(items));
+            localStorage.setItem('po_remarks', remarks);
+            localStorage.setItem('po_number', poNumber);
+        }
+    }, [supplierMode, selectedSupplierId, manualSupplier, poDate, expectedDeliveryDate, items, remarks, poNumber, isEditMode]);
 
-    // Fetch master directories
+    // Fetch master directories and PO details if in edit mode
     useEffect(() => {
         const fetchData = async () => {
             try {
@@ -75,14 +83,50 @@ const PurchaseOrder = () => {
                 ]);
                 setSuppliers(suppRes.data || []);
                 setProducts(prodRes.data || []);
+
+                if (isEditMode) {
+                    const poRes = await api.get(`/purchase-orders/${id}`);
+                    const po = poRes.data;
+                    setPoNumber(po.poNumber || '');
+                    setPoDate(po.date ? new Date(po.date).toISOString().split('T')[0] : '');
+                    setStatus(po.status || 'Draft');
+                    setExpectedDeliveryDate(po.expectedDeliveryDate ? new Date(po.expectedDeliveryDate).toISOString().split('T')[0] : '');
+                    setRemarks(po.remarks || '');
+
+                    // Format items
+                    setItems(po.items.map(item => ({
+                        product: item.product?._id || item.product || null,
+                        productCode: item.productCode || (item.product ? (item.product.productCode || item.product.code) : '-') || 'Custom',
+                        name: item.name,
+                        modelNo: item.modelNo || '',
+                        unit: item.unit || 'Nos',
+                        rate: item.rate || 0,
+                        gstRate: item.gstRate || 0,
+                        qty: item.qty || 1
+                    })));
+
+                    if (po.supplier) {
+                        setSupplierMode('select');
+                        setSelectedSupplierId(po.supplier._id || po.supplier);
+                    } else {
+                        setSupplierMode('manual');
+                        setManualSupplier({
+                            name: po.supplierName || '',
+                            phone: po.supplierPhone || '',
+                            email: po.supplierEmail || '',
+                            gstin: po.supplierGSTIN || '',
+                            address: po.supplierAddress || ''
+                        });
+                    }
+                }
             } catch (error) {
-                console.error("Error loading master lists", error);
+                console.error("Error loading master lists or PO details", error);
             } finally {
                 setPageLoading(false);
             }
         };
         fetchData();
-    }, []);
+    }, [id, isEditMode]);
 
     // Sync supplier search text with selected ID
     useEffect(() => {
@@ -268,6 +312,7 @@ const PurchaseOrder = () => {
             expectedDeliveryDate: expectedDeliveryDate || null,
             items: items.map(item => ({
                 product: item.product,
+                productCode: item.productCode,
                 name: item.name,
                 modelNo: item.modelNo,
                 qty: parseFloat(item.qty),
@@ -276,23 +321,28 @@ const PurchaseOrder = () => {
                 gstRate: parseFloat(item.gstRate)
             })),
             remarks,
-            status: 'Draft'
+            status: status
         };
 
         try {
-            await api.post('/purchase-orders', payload);
-            
-            // Clear local storage on success
-            localStorage.removeItem('po_supplierMode');
-            localStorage.removeItem('po_supplierId');
-            localStorage.removeItem('po_manualSupplier');
-            localStorage.removeItem('po_date');
-            localStorage.removeItem('po_expectedDeliveryDate');
-            localStorage.removeItem('po_items');
-            localStorage.removeItem('po_remarks');
-            localStorage.removeItem('po_number');
+            if (isEditMode) {
+                await api.patch(`/purchase-orders/${id}`, payload);
+                alert("Purchase Order Updated Successfully!");
+            } else {
+                await api.post('/purchase-orders', payload);
 
-            alert("Purchase Order Saved Successfully!");
+                // Clear local storage on success
+                localStorage.removeItem('po_supplierMode');
+                localStorage.removeItem('po_supplierId');
+                localStorage.removeItem('po_manualSupplier');
+                localStorage.removeItem('po_date');
+                localStorage.removeItem('po_expectedDeliveryDate');
+                localStorage.removeItem('po_items');
+                localStorage.removeItem('po_remarks');
+                localStorage.removeItem('po_number');
+
+                alert("Purchase Order Saved Successfully!");
+            }
             navigate('/purchase-orders');
         } catch (error) {
             console.error("Save Purchase Order Failed", error);
@@ -342,9 +392,9 @@ const PurchaseOrder = () => {
             <div className="flex flex-col sm:flex-row justify-between sm:items-center bg-white p-5 rounded-2xl border border-gray-100 shadow-sm gap-4">
                 <div>
                     <h2 className="text-2xl font-bold text-gray-800 flex items-center gap-2">
-                        <ShoppingCart className="text-green-500" /> Create Purchase Order
+                        <ShoppingCart className="text-green-500" /> {isEditMode ? 'Edit Purchase Order' : 'Create Purchase Order'}
                     </h2>
-                    <p className="text-sm text-gray-500">Generate a custom or cataloged supplier purchase order.</p>
+                    <p className="text-sm text-gray-500">{isEditMode ? 'Update this supplier purchase order details.' : 'Generate a custom or cataloged supplier purchase order.'}</p>
                 </div>
                 <div className="flex items-center gap-2 text-sm text-gray-500">
                     <label className="font-semibold text-gray-700">PO Number *:</label>
@@ -833,7 +883,7 @@ const PurchaseOrder = () => {
                             ) : (
                                 <FileCheck size={20} />
                             )}
-                            Save Purchase Order
+                            {isEditMode ? 'Update Purchase Order' : 'Save Purchase Order'}
                         </button>
                     </div>
                 </div>

@@ -46,7 +46,8 @@ const invoiceSchema = new mongoose.Schema({
     state: String,
     city: String,
     phone: String
-  }
+  },
+  ewayBillNo: String
 });
 
 module.exports = mongoose.model("Invoice", invoiceSchema);

@@ -343,9 +343,16 @@ const PurchaseOrders = () => {
                                         <button
                                             className="text-blue-600 hover:text-blue-900 mr-4"
                                             title="View Details"
-                                            onClick={() => alert(`PO Details:\nSupplier: ${po.supplier?.name}\nItems: ${po.items?.length}`)}
+                                            onClick={() => alert(`PO Details:\nSupplier: ${po.supplier?.name || po.supplierName || 'Unknown'}\nItems: ${po.items?.length}`)}
                                         >
                                             <Eye size={18} />
+                                        </button>
+                                        <button
+                                            className="text-amber-600 hover:text-amber-900 mr-4"
+                                            title="Edit PO Details"
+                                            onClick={() => navigate(`/purchase-orders/edit/${po._id || po.id}`)}
+                                        >
+                                            <Edit size={18} />
                                         </button>
                                         <button
                                             onClick={() => handleDelete(po._id || po.id)}

@@ -279,7 +279,9 @@ const Quotations = () => {
     customerName: q.customerId?.name || q.customerName,
     total: q.total ?? q.totalAmount,
     date: q.date
-  }));
+  })).sort((a, b) => {
+    return (a.quoteNumber || '').localeCompare(b.quoteNumber || '', undefined, { numeric: true, sensitivity: 'base' });
+  });
 
   // Metrics
   const totalQuotes = normalized.length;
@@ -560,7 +562,7 @@ const Quotations = () => {
                                   <tbody className="divide-y divide-gray-100 bg-white">
                                     {(q.items || []).map((it, idx) => (
                                       <tr key={idx} className="hover:bg-gray-50">
-                                        <td className="px-4 py-2">{it.productId?.name || it.productId || 'Unknown'}</td>
+                                        <td className="px-4 py-2">{it.name || it.productId?.name || it.productId || 'Unknown'}</td>
                                         <td className="px-4 py-2">{it.qty ?? '-'}</td>
                                         <td className="px-4 py-2">₹{Number(it.rate || 0).toLocaleString('en-IN')}</td>
                                         <td className="px-4 py-2">{Number(it.gstRate || 0)}%</td>

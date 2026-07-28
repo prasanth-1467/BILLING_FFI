@@ -194,7 +194,7 @@ function generatePoPDF(res, po) {
         doc.text("Unit", colX.unit, currY, { width: colW.unit, align: "center" });
         doc.text("Rate", colX.rate, currY, { width: colW.rate, align: "right" });
         doc.text("Amount", colX.amount, currY, { width: colW.amount, align: "right" });
-        
+
         doc.fillColor(theme.primary);
     };
 
@@ -224,17 +224,20 @@ function generatePoPDF(res, po) {
         }
 
         const productName = item.product ? (item.product.name || item.name) : (item.name || "Unknown Item");
+        const productCode = item.product ? (item.product.productCode || item.product.code) : (item.productCode || "");
+        const displayName = productCode ? `${productName}\n(Code: ${productCode})` : productName;
         const modelNo = item.modelNo || "-";
 
         // Dynamic Height
-        const descHeight = doc.heightOfString(productName, { width: colW.prod });
+        const descHeight = doc.heightOfString(displayName, { width: colW.prod });
         const modelHeight = doc.heightOfString(modelNo, { width: colW.model });
         const rowHeight = Math.max(descHeight, modelHeight, 15) + 10;
 
         // Page Break
         if (y + rowHeight > 700) {
             doc.addPage();
-            y = 40;
+            drawPageHeader(doc, po, theme);
+            y = 85;
             drawHeader(y);
             y += 25;
             doc.font("Helvetica").fontSize(9);
@@ -242,7 +245,7 @@ function generatePoPDF(res, po) {
 
         doc.fillColor(theme.primary);
         doc.text(i + 1, colX.sl, y, { width: colW.sl, align: "center" });
-        doc.text(productName, colX.prod, y, { width: colW.prod });
+        doc.text(displayName, colX.prod, y, { width: colW.prod });
         doc.text(modelNo, colX.model, y, { width: colW.model, align: "center" });
         doc.text(`${gstRate}%`, colX.gst, y, { width: colW.gst, align: "center" });
         doc.text(qty, colX.qty, y, { width: colW.qty, align: "center" });
@@ -329,6 +332,7 @@ function generatePoPDF(res, po) {
 
     if (y > bottomY) {
         doc.addPage();
+        drawPageHeader(doc, po, theme);
     }
 
     const footerY = doc.page.height - doc.page.margins.bottom - requiredHeight;
@@ -436,6 +440,21 @@ function numberToRupeesWords(amount) {
     }
 
     return "Rupees " + words.trim().replace(/\s+/g, ' ') + " Only";
+}
+
+function drawPageHeader(doc, po, theme) {
+    const y = 40;
+    // Draw compact top header
+    doc.fontSize(12).font("Helvetica-Bold").fillColor("#1E3A8A").text(company.name, 40, y, { width: 250 });
+    doc.fontSize(8).font("Helvetica").fillColor(theme.secondaryText).text(`GSTIN: ${company.gstin}`, 40, y + 15);
+    
+    doc.fontSize(10).font("Helvetica-Bold").fillColor(theme.primary).text("PURCHASE ORDER", 400, y, { align: "right" });
+    doc.fontSize(8).font("Helvetica").fillColor(theme.secondaryText);
+    doc.text(`PO No: ${po.poNumber}`, 400, y + 13, { align: "right" });
+    doc.text(`Date: ${new Date(po.date).toLocaleDateString("en-IN")}`, 400, y + 23, { align: "right" });
+    
+    // Draw horizontal line separator
+    drawLine(doc, y + 35, theme.accent);
 }
 
 module.exports = { generatePoPDF };

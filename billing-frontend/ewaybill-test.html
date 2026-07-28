@@ -1,0 +1,410 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>E-Way Bill Formatter Sandbox - Fine Flow Irrigation</title>
+  <!-- Google Fonts: Inter -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Fira+Code:wght@400;500&display=swap" rel="stylesheet">
+  <!-- Tailwind CSS CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          fontFamily: {
+            sans: ['Inter', 'sans-serif'],
+            mono: ['Fira Code', 'monospace']
+          }
+        }
+      }
+    }
+  </script>
+  <style>
+    body {
+      background: radial-gradient(circle at top right, #111827, #030712);
+      font-family: 'Inter', sans-serif;
+    }
+    .glass-card {
+      background: rgba(17, 24, 39, 0.7);
+      backdrop-filter: blur(16px);
+      border: 1px solid rgba(255, 255, 255, 0.08);
+    }
+  </style>
+</head>
+<body class="text-gray-100 min-h-screen pb-12">
+  <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-8">
+    <!-- Header -->
+    <div class="flex flex-col md:flex-row md:items-center justify-between border-b border-gray-800 pb-6 mb-8 gap-4">
+      <div>
+        <h1 class="text-3xl font-extrabold tracking-tight text-white flex items-center gap-3">
+          <span class="bg-gradient-to-r from-blue-500 to-indigo-500 text-transparent bg-clip-text">E-Way Bill</span>
+          Formatter Sandbox
+        </h1>
+        <p class="text-sm text-gray-400 mt-1">Standalone interactive dashboard to verify formatting, validation limits, and trigger downloads.</p>
+      </div>
+      <div class="flex items-center gap-3">
+        <a href="/" class="inline-flex items-center px-4 py-2 rounded-xl text-sm font-semibold border border-gray-750 bg-gray-900/50 hover:bg-gray-800 text-gray-300 hover:text-white transition-all duration-300">
+          ← Back to Billing
+        </a>
+        <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
+          Vite Server Active
+        </span>
+        <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-500/10 text-blue-400 border border-blue-500/20">
+          GST Schema v1.0.0621
+        </span>
+      </div>
+    </div>
+
+    <!-- Main Workspace Layout -->
+    <div class="grid grid-cols-1 lg:grid-cols-12 gap-8">
+      <!-- Left Panel: Interactive Inputs Form -->
+      <div class="lg:col-span-5 space-y-6">
+        <div class="glass-card rounded-2xl p-6 shadow-xl">
+          <h2 class="text-lg font-bold text-white border-b border-gray-800 pb-3 mb-4">Invoice & Shipping Data</h2>
+          
+          <div class="space-y-4">
+            <!-- Live Existing Invoices Dropdown -->
+            <div class="border-b border-gray-800 pb-4 mb-2">
+              <label class="block text-xs font-bold text-indigo-400 uppercase tracking-wider mb-2 flex justify-between">
+                <span>Select from Existing Invoices</span>
+                <span id="load-status" class="text-[10px] text-gray-500 font-normal">Loading...</span>
+              </label>
+              <select id="select-invoice" class="w-full bg-gray-950 border border-gray-850 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-indigo-500 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed">
+                <option value="">-- Choose an Invoice --</option>
+              </select>
+            </div>
+
+            <!-- Invoice Details -->
+            <div class="grid grid-cols-2 gap-4">
+              <div>
+                <label class="block text-xs font-semibold text-gray-400 uppercase tracking-wider mb-1">Invoice Number</label>
+                <input type="text" id="inp-invoice-no" class="w-full bg-gray-950 border border-gray-800 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-blue-500" value="FFI/25-26/089">
+              </div>
+              <div>
+                <label class="block text-xs font-semibold text-gray-400 uppercase tracking-wider mb-1">Invoice Date</label>
+                <input type="date" id="inp-invoice-date" class="w-full bg-gray-950 border border-gray-800 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-blue-500" value="2026-07-27">
+              </div>
+            </div>
+
+            <!-- Customer Details -->
+            <div>
+              <label class="block text-xs font-semibold text-gray-400 uppercase tracking-wider mb-1">Customer Name</label>
+              <input type="text" id="inp-customer-name" class="w-full bg-gray-950 border border-gray-800 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-blue-500" value="Green Agri Farms Ltd">
+            </div>
+            
+            <div class="grid grid-cols-2 gap-4">
+              <div>
+                <label class="block text-xs font-semibold text-gray-400 uppercase tracking-wider mb-1">Customer GSTIN</label>
+                <input type="text" id="inp-customer-gstin" class="w-full bg-gray-950 border border-gray-800 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-blue-500" value="33ABCDE1234F1Z5">
+              </div>
+              <div>
+                <label class="block text-xs font-semibold text-gray-400 uppercase tracking-wider mb-1">Customer State</label>
+                <input type="text" id="inp-customer-state" class="w-full bg-gray-950 border border-gray-800 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-blue-500" value="Tamil Nadu">
+              </div>
+            </div>
+
+            <!-- Transport Details -->
+            <div class="border-t border-gray-800 pt-4 mt-4">
+              <h3 class="text-sm font-bold text-white mb-3">Transport & Delivery Parameters</h3>
+              <div class="grid grid-cols-2 gap-4">
+                <div>
+                  <label class="block text-xs font-semibold text-gray-400 uppercase tracking-wider mb-1">Vehicle Registration #</label>
+                  <input type="text" id="inp-vehicle-no" class="w-full bg-gray-950 border border-gray-800 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-blue-500" value="TN38AB1234">
+                </div>
+                <div>
+                  <label class="block text-xs font-semibold text-gray-400 uppercase tracking-wider mb-1">Delivery Pincode</label>
+                  <input type="number" id="inp-to-pincode" class="w-full bg-gray-950 border border-gray-800 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-blue-500" value="641001">
+                </div>
+              </div>
+
+              <div class="grid grid-cols-1 gap-4 mt-3">
+                <div>
+                  <label class="block text-xs font-semibold text-gray-400 uppercase tracking-wider mb-1">Delivery Place / City</label>
+                  <input type="text" id="inp-to-place" class="w-full bg-gray-950 border border-gray-800 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-blue-500" value="Coimbatore">
+                </div>
+              </div>
+            </div>
+
+            <!-- Items Info Summary (Read Only for simple form) -->
+            <div class="border-t border-gray-800 pt-4 mt-4">
+              <div class="flex justify-between items-center mb-2">
+                <h3 class="text-sm font-bold text-white">Line Item Preview</h3>
+                <span class="text-xs text-gray-400">Fixed for Preset demo</span>
+              </div>
+              <div class="bg-gray-950/80 p-3 rounded-lg border border-gray-900 text-xs space-y-1.5" id="items-preview-box">
+                <!-- Will be dynamically populated -->
+              </div>
+            </div>
+
+          </div>
+        </div>
+      </div>
+
+      <!-- Right Panel: Live Validation State & Live JSON Schema Preview -->
+      <div class="lg:col-span-7 space-y-6">
+        <!-- Live Status / Alerts -->
+        <div class="glass-card rounded-2xl p-6 shadow-xl">
+          <h2 class="text-lg font-bold text-white border-b border-gray-800 pb-3 mb-4 flex items-center justify-between">
+            <span>Validation Compliance Status</span>
+            <span id="badge-compliance" class="text-xs font-bold px-3 py-1 rounded-full">--</span>
+          </h2>
+          
+          <div id="status-alert-container" class="rounded-xl p-4 border flex items-start gap-3">
+            <!-- Dynamically populated alert -->
+          </div>
+
+          <div class="flex items-center gap-3 mt-6">
+            <button id="btn-download" class="flex-1 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white font-bold py-3 px-4 rounded-xl shadow-lg hover:shadow-xl transition-all duration-300 flex items-center justify-center gap-2">
+              <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"></path></svg>
+              Download E-Way Bill JSON File
+            </button>
+          </div>
+        </div>
+
+        <!-- JSON Code block -->
+        <div class="glass-card rounded-2xl overflow-hidden border border-gray-800 shadow-xl">
+          <div class="flex items-center justify-between bg-gray-900/60 border-b border-gray-800 px-6 py-3">
+            <span class="text-xs font-bold text-gray-300 font-mono">NIC-SCHEMA-OUTPUT.json</span>
+            <button id="btn-copy" class="text-xs text-blue-400 hover:text-blue-300 font-semibold cursor-pointer">
+              Copy Payload
+            </button>
+          </div>
+          <pre class="p-6 text-xs text-emerald-400 font-mono overflow-x-auto max-h-[420px] bg-gray-950"><code id="json-preview">// Select a preset or customize parameters on the left</code></pre>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script type="module">
+    import { generateEWayBillJSON, downloadEWayBillJSON } from '/src/utils/ewayBillFormatter.js';
+
+    // Mock Presets Data
+    // Current State Variable (Default Empty Template)
+    let currentInvoiceData = {
+      invoiceNumber: "",
+      customerState: "Tamil Nadu",
+      customerGSTIN: "",
+      customerAddress: "",
+      date: new Date().toISOString().substring(0, 10),
+      transDistance: 0,
+      vehicleNo: "",
+      toPincode: 641001,
+      toPlace: "",
+      items: []
+    };
+
+    // List of loaded invoices from backend
+    let existingInvoices = [];
+
+    // Fetch existing invoices from backend API
+    async function fetchExistingInvoices() {
+      const statusText = document.getElementById('load-status');
+      const dropdown = document.getElementById('select-invoice');
+      
+      try {
+        const token = localStorage.getItem("token");
+        if (!token) {
+          statusText.innerText = "Error: Not logged in. Please log in first.";
+          statusText.className = "text-[10px] text-red-400 font-semibold";
+          return;
+        }
+
+        const response = await fetch('http://localhost:5000/api/invoices', {
+          headers: {
+            'Authorization': `Bearer ${token}`
+          }
+        });
+
+        if (!response.ok) {
+          throw new Error(`HTTP error ${response.status}`);
+        }
+
+        existingInvoices = await response.json();
+        
+        // Populate dropdown
+        existingInvoices.forEach(inv => {
+          const opt = document.createElement('option');
+          opt.value = inv._id || inv.id;
+          const custName = inv.customerId?.name || inv.customerName || "Unknown Customer";
+          const invDate = new Date(inv.date).toLocaleDateString('en-IN', { day: '2-digit', month: 'short' });
+          opt.innerText = `${inv.invoiceNumber} - ${custName} (${invDate}) - ₹${inv.total?.toLocaleString('en-IN')}`;
+          dropdown.appendChild(opt);
+        });
+
+        statusText.innerText = `Loaded ${existingInvoices.length} invoices`;
+        statusText.className = "text-[10px] text-emerald-400 font-semibold";
+      } catch (err) {
+        console.error("Failed to load existing invoices:", err);
+        statusText.innerText = "Offline (no database connection)";
+        statusText.className = "text-[10px] text-amber-500 font-semibold";
+      }
+    }
+
+    // Set up change handler for dropdown
+    document.getElementById('select-invoice').addEventListener('change', (e) => {
+      const selectedId = e.target.value;
+      if (!selectedId) return;
+
+      const inv = existingInvoices.find(i => (i._id || i.id) === selectedId);
+      if (!inv) return;
+
+      // Map backend invoice schema to validator expected layout
+      currentInvoiceData = {
+        invoiceNumber: inv.invoiceNumber,
+        customerState: inv.customerState || inv.customerId?.state || "Tamil Nadu",
+        customerGSTIN: inv.customerGSTIN || inv.customerId?.gstNumber || "URP",
+        customerAddress: inv.customerAddress || inv.customerId?.address || "Address",
+        customerName: inv.customerName || inv.customerId?.name || "Customer",
+        date: inv.date ? inv.date.substring(0, 10) : new Date().toISOString().substring(0, 10),
+        discountPercent: inv.discountPercent || 0,
+        transDistance: 0,
+        vehicleNo: document.getElementById('inp-vehicle-no').value || "TN38AB1234",
+        toPincode: Number(document.getElementById('inp-to-pincode').value) || 641001,
+        toPlace: document.getElementById('inp-to-place').value || inv.customerState || "Coimbatore",
+        items: (inv.items || []).map(item => ({
+          name: item.name || item.productId?.name || "Product",
+          hsn: item.hsn || item.productId?.hsn || "8424",
+          qty: item.qty,
+          rate: item.rate,
+          gstRate: item.gstRate,
+          unit: item.unit || item.productId?.unit || "NOS"
+        }))
+      };
+
+      syncStateToUI();
+    });
+
+    // Function to update input elements based on state
+    function syncStateToUI() {
+      document.getElementById('inp-invoice-no').value = currentInvoiceData.invoiceNumber;
+      document.getElementById('inp-invoice-date').value = currentInvoiceData.date;
+      document.getElementById('inp-customer-name').value = currentInvoiceData.customerName || "";
+      document.getElementById('inp-customer-gstin').value = currentInvoiceData.customerGSTIN;
+      document.getElementById('inp-customer-state').value = currentInvoiceData.customerState;
+      document.getElementById('inp-vehicle-no').value = currentInvoiceData.vehicleNo;
+      document.getElementById('inp-to-place').value = currentInvoiceData.toPlace || "";
+      document.getElementById('inp-to-pincode').value = currentInvoiceData.toPincode;
+
+      // Render Item summary
+      const itemsPreviewBox = document.getElementById('items-preview-box');
+      itemsPreviewBox.innerHTML = '';
+      currentInvoiceData.items.forEach(item => {
+        const itemTotal = item.qty * item.rate;
+        const gstVal = (itemTotal * item.gstRate) / 100;
+        const netTotal = itemTotal + gstVal;
+        
+        itemsPreviewBox.innerHTML += `
+          <div class="flex justify-between border-b border-gray-900/60 pb-1 mb-1">
+            <span class="font-semibold text-gray-300">${item.name} (${item.qty} ${item.unit})</span>
+            <span class="text-gray-400">Rate: ₹${item.rate}</span>
+          </div>
+          <div class="flex justify-between text-[11px] text-gray-500">
+            <span>Taxable: ₹${itemTotal.toLocaleString('en-IN')} | GST: ${item.gstRate}% (+₹${gstVal.toLocaleString('en-IN')})</span>
+            <span class="font-bold text-indigo-400">Gross: ₹${netTotal.toLocaleString('en-IN')}</span>
+          </div>
+        `;
+      });
+
+      runValidation();
+    }
+
+    // Function to sync UI input values back to current state
+    function syncUIToState() {
+      currentInvoiceData.invoiceNumber = document.getElementById('inp-invoice-no').value;
+      currentInvoiceData.date = document.getElementById('inp-invoice-date').value;
+      currentInvoiceData.customerName = document.getElementById('inp-customer-name').value;
+      currentInvoiceData.customerGSTIN = document.getElementById('inp-customer-gstin').value;
+      currentInvoiceData.customerState = document.getElementById('inp-customer-state').value;
+      currentInvoiceData.transDistance = 0;
+      currentInvoiceData.vehicleNo = document.getElementById('inp-vehicle-no').value;
+      currentInvoiceData.toPlace = document.getElementById('inp-to-place').value;
+      currentInvoiceData.toPincode = Number(document.getElementById('inp-to-pincode').value);
+
+      runValidation();
+    }
+
+    // Function to run the formatter and update the validation screen
+    function runValidation() {
+      const badge = document.getElementById('badge-compliance');
+      const alertContainer = document.getElementById('status-alert-container');
+      const jsonPreview = document.getElementById('json-preview');
+      const btnDownload = document.getElementById('btn-download');
+
+      try {
+        const generatedJson = generateEWayBillJSON(currentInvoiceData);
+        
+        // Success State
+        badge.innerText = "PASSED";
+        badge.className = "text-xs font-bold px-3 py-1 rounded-full bg-emerald-500/10 text-emerald-400 border border-emerald-500/20";
+        
+        alertContainer.className = "rounded-xl p-4 border bg-emerald-500/10 text-emerald-400 border-emerald-500/20 flex items-start gap-3 mt-4";
+        alertContainer.innerHTML = `
+          <svg class="w-5 h-5 shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+          <div>
+            <h4 class="font-bold text-sm">Validation Successful</h4>
+            <p class="text-xs text-gray-300 mt-1">This transaction complies fully with E-Way Bill regulations. Total Invoice Value is ₹${generatedJson.billLists[0].totInvValue.toLocaleString('en-IN')}, which exceeds the limit.</p>
+          </div>
+        `;
+
+        jsonPreview.innerText = JSON.stringify(generatedJson, null, 2);
+        btnDownload.disabled = false;
+        btnDownload.className = "flex-1 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white font-bold py-3 px-4 rounded-xl shadow-lg hover:shadow-xl transition-all duration-300 flex items-center justify-center gap-2 cursor-pointer";
+
+      } catch (err) {
+        // Error State
+        badge.innerText = "FAILED";
+        badge.className = "text-xs font-bold px-3 py-1 rounded-full bg-red-500/10 text-red-400 border border-red-500/20";
+
+        alertContainer.className = "rounded-xl p-4 border bg-red-500/10 text-red-400 border-red-500/20 flex items-start gap-3 mt-4";
+        alertContainer.innerHTML = `
+          <svg class="w-5 h-5 shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"></path></svg>
+          <div>
+            <h4 class="font-bold text-sm">Regulatory Threshold Validation Failed</h4>
+            <p class="text-xs text-gray-300 mt-1">${err.message}</p>
+          </div>
+        `;
+
+        jsonPreview.innerText = `// E-Way Bill schema cannot be generated.\n// Error: ${err.message}`;
+        btnDownload.disabled = true;
+        btnDownload.className = "flex-1 bg-gray-800 text-gray-500 font-bold py-3 px-4 rounded-xl shadow-lg cursor-not-allowed opacity-50 flex items-center justify-center gap-2";
+      }
+    }
+
+    // Set up Input Sync Listeners
+    const inputs = [
+      'inp-invoice-no', 'inp-invoice-date', 'inp-customer-name', 
+      'inp-customer-gstin', 'inp-customer-state', 
+      'inp-vehicle-no', 'inp-to-place', 'inp-to-pincode'
+    ];
+    inputs.forEach(id => {
+      document.getElementById(id).addEventListener('input', syncUIToState);
+    });
+
+    // Copy Payload Action
+    document.getElementById('btn-copy').addEventListener('click', () => {
+      const code = document.getElementById('json-preview').innerText;
+      navigator.clipboard.writeText(code).then(() => {
+        alert("Payload copied to clipboard!");
+      }).catch(err => {
+        alert("Copy failed: " + err);
+      });
+    });
+
+    // Download Action
+    document.getElementById('btn-download').addEventListener('click', () => {
+      try {
+        downloadEWayBillJSON(currentInvoiceData);
+      } catch (err) {
+        alert("Download failed: " + err.message);
+      }
+    });
+
+    // Initialize UI on startup
+    syncStateToUI();
+    fetchExistingInvoices();
+  </script>
+</body>
+</html>

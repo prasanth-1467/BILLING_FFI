@@ -34,6 +34,7 @@ function App() {
             <Route path="quotations" element={<Quotations />} />
             <Route path="purchase-orders" element={<PurchaseOrders />} />
             <Route path="purchase-orders/new" element={<PurchaseOrder />} />
+            <Route path="purchase-orders/edit/:id" element={<PurchaseOrder />} />
             <Route path="invoices" element={<Invoices />} />
             <Route path="invoices/new" element={<CreateInvoice />} />
             <Route path="insights" element={<AgentInsights />} />

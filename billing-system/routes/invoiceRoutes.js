@@ -132,7 +132,8 @@ router.post("/", async (req, res) => {
       balance,
       status: balance <= 0 ? "Paid" : (calculatedPaidAmount > 0 ? "Partially Paid" : "Pending"),
       theme: req.body.theme || null,
-      shipTo: shipTo || null
+      shipTo: shipTo || null,
+      ewayBillNo: req.body.ewayBillNo || null
     });
 
     await invoice.save();
@@ -245,6 +246,11 @@ router.post("/from-quotation/:quoteId", async (req, res) => {
     const invoice = new Invoice({
       invoiceNumber,
       customerId: quote.customerId,
+      customerName: quote.customerName,
+      customerGSTIN: quote.customerGSTIN,
+      customerAddress: quote.customerAddress,
+      customerState: quote.customerState,
+      customerPhone: quote.customerPhone,
       items: quote.items,
       subtotal: quote.subtotal,
       discountPercent: quote.discountPercent,
@@ -259,7 +265,13 @@ router.post("/from-quotation/:quoteId", async (req, res) => {
       paymentTerms: "Due on Receipt",
       status: balance <= 0 ? "Paid" : (paidAmount > 0 ? "Partially Paid" : "Pending"),
       theme: quote.theme || null,
-      shipTo: quote.shipTo // Copy shipTo from quotation
+      shipTo: quote.shipTo ? {
+        name: quote.shipTo.name,
+        address: quote.shipTo.address,
+        state: quote.shipTo.state,
+        city: quote.shipTo.city,
+        phone: quote.shipTo.phone
+      } : null
     });
 
     console.log("Saving invoice...");
@@ -331,6 +343,7 @@ router.get('/:id/pdf', async (req, res) => {
       number: invoice.invoiceNumber,
       theme,
       date: invoice.date,
+      ewayBillNo: invoice.ewayBillNo,
       paymentTerms: "Immediate", // You can make this dynamic if added to model
       customer: {
         name: invoice.customerName || invoice.customerId?.name || "-",
@@ -416,6 +429,7 @@ router.post("/:id/email-to-me", async (req, res) => {
     const pdfData = {
       number: invoice.invoiceNumber,
       date: invoice.date,
+      ewayBillNo: invoice.ewayBillNo,
       paymentTerms: "Due on Receipt",
       customer: {
         name: invoice.customerName || invoice.customerId?.name || "-",
