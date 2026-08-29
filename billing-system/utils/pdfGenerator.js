@@ -100,8 +100,8 @@ function generatePDF(resOrData, dataOrNone, type = "TAX INVOICE") {
     }
 
     // 3. Invoice Metadata (Right - x:400) - Align Right
-    doc.fontSize(14).font("Helvetica").text(type, 400, headersY, { align: "right" });
-    doc.fontSize(10).text(`No: ${data.number}`, { align: "right" });
+    doc.fontSize(14).font("Helvetica-Bold").fillColor(theme.primary).text(type, 400, headersY, { align: "right" });
+    doc.fontSize(10).font("Helvetica").text(`No: ${data.number}`, { align: "right" });
     doc.text(`Date: ${new Date(data.date).toLocaleDateString("en-IN")}`, { align: "right" });
     if (data.paymentTerms) {
         doc.text(`Terms: ${data.paymentTerms}`, { align: "right" });
@@ -109,6 +109,36 @@ function generatePDF(resOrData, dataOrNone, type = "TAX INVOICE") {
     if (data.ewayBillNo) {
         doc.text(`E-Way Bill No: ${data.ewayBillNo}`, { align: "right" });
     }
+
+    // Render Boxed Copy Badge BELOW Terms / Metadata
+    if (data.copyType && data.copyType !== 'none') {
+        const copyLabels = {
+            original: "ORIGINAL",
+            duplicate: "DUPLICATE",
+            triplicate: "TRIPLICATE",
+            filing: "OFFICE COPY"
+        };
+        const badgeText = copyLabels[data.copyType] || String(data.copyType).toUpperCase();
+
+        const badgeY = doc.y + 5;
+        const boxWidth = 110;
+        const boxHeight = 16;
+        const boxX = 555 - boxWidth; // Right aligned to margin
+
+        // Draw Box Border & Background
+        doc.rect(boxX, badgeY, boxWidth, boxHeight)
+           .lineWidth(0.8)
+           .fillAndStroke("#f8fafc", theme.primary);
+
+        // Draw Centered Bold Text inside the Box
+        doc.fontSize(8.5)
+           .font("Helvetica-Bold")
+           .fillColor(theme.primary)
+           .text(badgeText, boxX, badgeY + 3.5, { width: boxWidth, align: "center" });
+
+        doc.y = badgeY + boxHeight;
+    }
+
     const invoiceEndY = doc.y;
 
     // Vertical Separator Line {Computed dynamically}

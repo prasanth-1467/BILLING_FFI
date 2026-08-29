@@ -1,14 +1,22 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { login } from '../services/authService';
-import { Lock, User, ArrowRight, Loader2 } from 'lucide-react';
+import { Lock, User, ArrowRight, Loader2, Eye, EyeOff } from 'lucide-react';
 
 const Login = () => {
     // Actually, sticking to username/password as per backend
     const [credentials, setCredentials] = useState({ username: '', password: '' });
+    const [showPassword, setShowPassword] = useState(false);
     const [error, setError] = useState('');
     const [loading, setLoading] = useState(false);
     const navigate = useNavigate();
+
+    useEffect(() => {
+        const searchParams = new URLSearchParams(window.location.search);
+        if (searchParams.get('expired') === 'true') {
+            setError('Your session has expired. Please log in again.');
+        }
+    }, []);
 
     const handleChange = (e) => {
         setCredentials({ ...credentials, [e.target.name]: e.target.value });
@@ -59,7 +67,7 @@ const Login = () => {
                                     name="username"
                                     value={credentials.username}
                                     onChange={handleChange}
-                                    className="w-full bg-gray-800/50 border border-gray-700 text-white rounded-xl py-3 pl-16 pr-4 outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 transition-all placeholder:text-gray-500 !bg-gray-800/50 !text-white"
+                                    className="w-full bg-gray-800/50 border border-gray-700 text-white rounded-xl py-3 pl-4 pr-4 outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 transition-all placeholder:text-gray-500 !bg-gray-800/50 !text-white"
                                     placeholder="Enter your username"
                                     required
                                 />
@@ -70,14 +78,22 @@ const Login = () => {
                             <label className="text-sm font-medium text-gray-300 ml-1">Password</label>
                             <div className="relative group">
                                 <input
-                                    type="password"
+                                    type={showPassword ? 'text' : 'password'}
                                     name="password"
                                     value={credentials.password}
                                     onChange={handleChange}
-                                    className="w-full bg-gray-800/50 border border-gray-700 text-white rounded-xl py-3 pl-16 pr-4 outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 transition-all placeholder:text-gray-500 !bg-gray-800/50 !text-white"
-                                    placeholder="Enter your password" // Fixed placeholder
+                                    className="w-full bg-gray-800/50 border border-gray-700 text-white rounded-xl py-3 pl-4 pr-12 outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 transition-all placeholder:text-gray-500 !bg-gray-800/50 !text-white"
+                                    placeholder="Enter your password"
                                     required
                                 />
+                                <button
+                                    type="button"
+                                    onClick={() => setShowPassword(!showPassword)}
+                                    className="absolute right-3.5 top-1/2 -translate-y-1/2 text-gray-400 hover:text-white transition-colors p-1 focus:outline-none"
+                                    title={showPassword ? "Hide password" : "Show password"}
+                                >
+                                    {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+                                </button>
                             </div>
                         </div>
 

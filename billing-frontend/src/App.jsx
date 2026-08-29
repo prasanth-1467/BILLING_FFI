@@ -37,6 +37,7 @@ function App() {
             <Route path="purchase-orders/edit/:id" element={<PurchaseOrder />} />
             <Route path="invoices" element={<Invoices />} />
             <Route path="invoices/new" element={<CreateInvoice />} />
+            <Route path="invoices/edit/:id" element={<CreateInvoice />} />
             <Route path="insights" element={<AgentInsights />} />
             <Route path="profile" element={<Profile />} />
             {/* Redirect unknown routes to Dashboard */}

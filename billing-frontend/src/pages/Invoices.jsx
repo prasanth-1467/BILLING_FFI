@@ -1,7 +1,7 @@
 import React, { useEffect, useState, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import api from '../services/api';
-import { Search, Loader, Download, FileText, CheckCircle, Clock, Eye, Trash2, Edit, Save, X, MoreVertical, IndianRupee, MessageCircle, AlertTriangle, Printer, Mail, Plus, Truck } from 'lucide-react';
+import { Search, Loader, Download, FileText, CheckCircle, Clock, Eye, Trash2, Edit, Save, X, MoreVertical, IndianRupee, MessageCircle, AlertTriangle, Printer, Mail, Plus, Truck, Lock } from 'lucide-react';
 import { downloadEWayBillJSON } from '../utils/ewayBillFormatter';
 import { format, isPast, startOfDay } from 'date-fns';
 
@@ -15,6 +15,7 @@ const Invoices = () => {
     const [includeSignature, setIncludeSignature] = useState(false);
     const [includeSeal, setIncludeSeal] = useState(false);
     const [selectedTheme, setSelectedTheme] = useState('indigo');
+    const [copyType, setCopyType] = useState('none');
 
     const [editingId, setEditingId] = useState(null);
     const [editingDateId, setEditingDateId] = useState(null);
@@ -32,6 +33,40 @@ const Invoices = () => {
     const [paymentInvoice, setPaymentInvoice] = useState(null);
     const [paymentAmount, setPaymentAmount] = useState('');
     const [processingPayment, setProcessingPayment] = useState(false);
+
+    // Admin Security Lock Modal State
+    const [showSecurityModal, setShowSecurityModal] = useState(false);
+    const [targetInvoiceId, setTargetInvoiceId] = useState(null);
+    const [adminPassword, setAdminPassword] = useState('');
+    const [securityError, setSecurityError] = useState('');
+    const [verifyingPassword, setVerifyingPassword] = useState(false);
+
+    const handleInitiateEdit = (invoiceId) => {
+        setTargetInvoiceId(invoiceId);
+        setAdminPassword('');
+        setSecurityError('');
+        setShowSecurityModal(true);
+    };
+
+    const handleVerifyAndProceed = async (e) => {
+        e.preventDefault();
+        if (!adminPassword) {
+            setSecurityError("Please enter your admin password.");
+            return;
+        }
+        setVerifyingPassword(true);
+        setSecurityError('');
+        try {
+            await api.post('/auth/verify-password', { password: adminPassword });
+            setShowSecurityModal(false);
+            navigate(`/invoices/edit/${targetInvoiceId}`);
+        } catch (err) {
+            console.error("Security verification failed", err);
+            setSecurityError(err.response?.data?.error || "Incorrect password. Access denied.");
+        } finally {
+            setVerifyingPassword(false);
+        }
+    };
 
     useEffect(() => {
         fetchInvoices();
@@ -74,7 +109,7 @@ const Invoices = () => {
         try {
             setDownloadingId(id);
             const response = await api.get(`/invoices/${id}/pdf`, {
-                params: { includeSignature, includeSeal, theme: selectedTheme },
+                params: { includeSignature, includeSeal, theme: selectedTheme, copyType },
                 responseType: 'blob',
             });
 
@@ -149,7 +184,7 @@ const Invoices = () => {
         try {
             setSaving(true);
             setDownloadingId(invoice.id);
-            await api.post(`/invoices/${invoice.id}/email-to-me?includeSignature=${includeSignature}&includeSeal=${includeSeal}&theme=${selectedTheme}`);
+            await api.post(`/invoices/${invoice.id}/email-to-me?includeSignature=${includeSignature}&includeSeal=${includeSeal}&theme=${selectedTheme}&copyType=${copyType}`);
             alert("Copy sent to admin email successfully!");
         } catch (error) {
             console.error('Email failed', error);
@@ -694,14 +729,14 @@ const Invoices = () => {
     };
 
     const handleViewPdf = (id) => {
-        window.open(`${import.meta.env.VITE_API_URL}/invoices/${id}/pdf?includeSignature=${includeSignature}&includeSeal=${includeSeal}&theme=${selectedTheme}`, '_blank', 'noopener,noreferrer');
+        window.open(`${import.meta.env.VITE_API_URL}/invoices/${id}/pdf?includeSignature=${includeSignature}&includeSeal=${includeSeal}&theme=${selectedTheme}&copyType=${copyType}`, '_blank', 'noopener,noreferrer');
     };
 
     const handlePrint = async (id) => {
         try {
             setPrintingId(id);
             const response = await api.get(`/invoices/${id}/pdf`, {
-                params: { includeSignature, includeSeal, theme: selectedTheme },
+                params: { includeSignature, includeSeal, theme: selectedTheme, copyType },
                 responseType: 'blob',
             });
 
@@ -889,6 +924,18 @@ const Invoices = () => {
                         <option value="charcoal">Sleek Charcoal</option>
                         <option value="plain">Plain Black & White</option>
                     </select>
+                    <select
+                        value={copyType}
+                        onChange={(e) => setCopyType(e.target.value)}
+                        className="text-sm font-semibold text-indigo-700 bg-indigo-50 border border-indigo-200 px-3 py-2.5 rounded-lg hover:bg-indigo-100 outline-none cursor-pointer"
+                        title="Select GST Document Copy Badge"
+                    >
+                        <option value="none">Standard Invoice (No Badge)</option>
+                        <option value="original">Original</option>
+                        <option value="duplicate">Duplicate</option>
+                        <option value="triplicate">Triplicate</option>
+                        <option value="filing">Office Copy</option>
+                    </select>
                 </div>
             </div>
 
@@ -1037,6 +1084,14 @@ const Invoices = () => {
                                                 </button>
 
                                                 <button
+                                                     onClick={() => handleInitiateEdit(invoice.id)}
+                                                     className="p-1.5 text-amber-600 hover:bg-amber-50 rounded-md transition-colors border border-transparent hover:border-amber-100"
+                                                     title="Edit Invoice Details (Admin Password Required)"
+                                                 >
+                                                     <Edit size={18} />
+                                                 </button>
+
+                                                <button
                                                     onClick={() => handleDownload(invoice.id, invoice.invoiceNumber)}
                                                     disabled={downloadingId === invoice.id}
                                                     className="p-1.5 text-blue-600 hover:bg-blue-50 rounded-md transition-colors border border-transparent"
@@ -1136,7 +1191,74 @@ const Invoices = () => {
                     </form>
                 </div>
             )}
-        </div >
+
+            {/* Admin Security Verification Modal */}
+            {showSecurityModal && (
+                <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+                    <div className="bg-white rounded-2xl max-w-md w-full p-6 shadow-2xl border border-gray-100 animate-fade-in">
+                        <div className="flex items-center justify-between mb-4">
+                            <div className="flex items-center gap-3">
+                                <div className="w-10 h-10 rounded-xl bg-amber-50 border border-amber-200 text-amber-600 flex items-center justify-center">
+                                    <Lock size={20} />
+                                </div>
+                                <div>
+                                    <h3 className="text-lg font-bold text-gray-900">Admin Verification</h3>
+                                    <p className="text-xs text-gray-500">Security password required to edit invoice</p>
+                                </div>
+                            </div>
+                            <button
+                                onClick={() => setShowSecurityModal(false)}
+                                className="text-gray-400 hover:text-gray-600 p-1"
+                            >
+                                <X size={20} />
+                            </button>
+                        </div>
+
+                        <form onSubmit={handleVerifyAndProceed} className="space-y-4">
+                            {securityError && (
+                                <div className="p-3 bg-red-50 border border-red-200 text-red-600 rounded-xl text-xs font-medium flex items-center gap-2">
+                                    <AlertTriangle size={16} />
+                                    {securityError}
+                                </div>
+                            )}
+
+                            <div>
+                                <label className="block text-xs font-bold text-gray-700 uppercase tracking-wider mb-2">
+                                    Admin Account Password
+                                </label>
+                                <input
+                                    type="password"
+                                    value={adminPassword}
+                                    onChange={(e) => { setAdminPassword(e.target.value); setSecurityError(''); }}
+                                    placeholder="Enter your password to unlock"
+                                    className="w-full px-4 py-2.5 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none text-sm"
+                                    autoFocus
+                                    required
+                                />
+                            </div>
+
+                            <div className="flex justify-end gap-3 pt-2">
+                                <button
+                                    type="button"
+                                    onClick={() => setShowSecurityModal(false)}
+                                    className="px-4 py-2 text-sm font-medium text-gray-600 hover:bg-gray-100 rounded-xl transition-colors"
+                                >
+                                    Cancel
+                                </button>
+                                <button
+                                    type="submit"
+                                    disabled={verifyingPassword || !adminPassword}
+                                    className="px-5 py-2 text-sm font-bold text-white bg-blue-600 hover:bg-blue-700 rounded-xl shadow-lg shadow-blue-500/20 disabled:opacity-50 flex items-center gap-2"
+                                >
+                                    {verifyingPassword ? <Loader size={16} className="animate-spin" /> : <Lock size={16} />}
+                                    Unlock & Edit Invoice
+                                </button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            )}
+        </div>
     );
 };
 

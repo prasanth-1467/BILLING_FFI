@@ -145,6 +145,204 @@ router.post("/", async (req, res) => {
   }
 });
 
+// UPDATE INVOICE DETAILS & ITEMS (FULL EDIT)
+router.put("/:id", async (req, res) => {
+  try {
+    const existingInvoice = await Invoice.findById(req.params.id);
+    if (!existingInvoice) {
+      return res.status(404).json({ error: "Invoice not found" });
+    }
+
+    const { 
+      invoiceNumber,
+      customerId, 
+      customerName, 
+      customerGSTIN, 
+      customerAddress, 
+      customerState, 
+      customerPhone,
+      items, 
+      discountPercent, 
+      paymentType, 
+      paidAmount,
+      date,
+      dueDate,
+      shipTo,
+      ewayBillNo,
+      theme
+    } = req.body;
+
+    // Check unique invoice number if modified
+    if (invoiceNumber && invoiceNumber !== existingInvoice.invoiceNumber) {
+      const dup = await Invoice.findOne({ invoiceNumber });
+      if (dup && dup._id.toString() !== req.params.id) {
+        return res.status(400).json({ error: `Invoice number "${invoiceNumber}" already exists` });
+      }
+    }
+
+    // 1. Process Items & Handle Stock Adjustments
+    let enrichedItems = [];
+    if (items && Array.isArray(items)) {
+      // Revert old stock reductions if products existed
+      for (let oldItem of existingInvoice.items) {
+        if (oldItem.productId) {
+          const oldProd = await Product.findById(oldItem.productId);
+          if (oldProd) {
+            oldProd.stockQty = (oldProd.stockQty || 0) + Number(oldItem.qty || 0);
+            await oldProd.save();
+          }
+        }
+      }
+
+      // Apply new stock reductions and build enriched items
+      for (let item of items) {
+        let dbProduct = null;
+        if (item.productId) {
+          dbProduct = await Product.findById(item.productId);
+          if (dbProduct) {
+            dbProduct.stockQty = (dbProduct.stockQty || 0) - Number(item.qty || 0);
+            await dbProduct.save();
+          }
+        }
+
+        enrichedItems.push({
+          productId: item.productId || null,
+          name: item.name || (dbProduct ? dbProduct.name : "Custom Product"),
+          hsn: item.hsn || (dbProduct ? dbProduct.hsn : "-"),
+          unit: item.unit || (dbProduct ? dbProduct.unit : "Nos"),
+          qty: Number(item.qty),
+          rate: Number(item.rate),
+          gstRate: Number(item.gstRate || 0),
+          amount: Number(item.qty) * Number(item.rate)
+        });
+      }
+    } else {
+      enrichedItems = existingInvoice.items;
+    }
+
+    // 2. Tax Splits & Total Calculations
+    const finalState = customerState || existingInvoice.customerState || "Tamil Nadu";
+    const myStateNorm = "tamilnadu";
+    const isIntraState = finalState.toLowerCase().replace(/[\s\-_]/g, '') === myStateNorm;
+
+    let subtotal = 0;
+    let cgstTotal = 0;
+    let sgstTotal = 0;
+    let igstTotal = 0;
+
+    enrichedItems.forEach(item => {
+      subtotal += item.amount;
+      const gstRate = item.gstRate || 0;
+      const itemTax = (item.amount * gstRate) / 100;
+      if (isIntraState) {
+        cgstTotal += itemTax / 2;
+        sgstTotal += itemTax / 2;
+      } else {
+        igstTotal += itemTax;
+      }
+    });
+
+    const discPct = discountPercent !== undefined ? Number(discountPercent) : (existingInvoice.discountPercent || 0);
+    const discountAmount = (subtotal * discPct) / 100;
+    const taxableAmount = subtotal - discountAmount;
+
+    if (discPct > 0 && subtotal > 0) {
+      const factor = (100 - discPct) / 100;
+      cgstTotal = cgstTotal * factor;
+      sgstTotal = sgstTotal * factor;
+      igstTotal = igstTotal * factor;
+    }
+
+    const totalTax = cgstTotal + sgstTotal + igstTotal;
+    const rawTotal = taxableAmount + totalTax;
+    const finalTotal = Math.round(rawTotal);
+    const roundOff = Number((finalTotal - rawTotal).toFixed(2));
+
+    const gstBreakup = {
+      cgst: Number(cgstTotal.toFixed(2)),
+      sgst: Number(sgstTotal.toFixed(2)),
+      igst: Number(igstTotal.toFixed(2)),
+      totalTax: Number(totalTax.toFixed(2))
+    };
+
+    const calculatedPaidAmount = paidAmount !== undefined ? Number(paidAmount) : existingInvoice.paidAmount;
+    const balance = finalTotal - calculatedPaidAmount;
+    const status = balance <= 0 ? "Paid" : (calculatedPaidAmount > 0 ? "Partially Paid" : "Pending");
+
+    // 3. Update Invoice document
+    existingInvoice.invoiceNumber = invoiceNumber || existingInvoice.invoiceNumber;
+    existingInvoice.customerId = customerId !== undefined ? (customerId || null) : existingInvoice.customerId;
+    existingInvoice.customerName = customerName !== undefined ? customerName : existingInvoice.customerName;
+    existingInvoice.customerGSTIN = customerGSTIN !== undefined ? customerGSTIN : existingInvoice.customerGSTIN;
+    existingInvoice.customerAddress = customerAddress !== undefined ? customerAddress : existingInvoice.customerAddress;
+    existingInvoice.customerState = customerState !== undefined ? customerState : existingInvoice.customerState;
+    existingInvoice.customerPhone = customerPhone !== undefined ? customerPhone : existingInvoice.customerPhone;
+    existingInvoice.items = enrichedItems;
+    existingInvoice.subtotal = subtotal;
+    existingInvoice.discountPercent = discPct;
+    existingInvoice.taxableAmount = taxableAmount;
+    existingInvoice.gstBreakup = gstBreakup;
+    existingInvoice.roundOff = roundOff;
+    existingInvoice.total = finalTotal;
+    existingInvoice.paymentType = paymentType || existingInvoice.paymentType;
+    existingInvoice.paidAmount = calculatedPaidAmount;
+    existingInvoice.balance = balance;
+    existingInvoice.status = status;
+    if (date) existingInvoice.date = new Date(date);
+    if (dueDate) existingInvoice.dueDate = new Date(dueDate);
+    if (shipTo !== undefined) existingInvoice.shipTo = shipTo;
+    if (ewayBillNo !== undefined) existingInvoice.ewayBillNo = ewayBillNo;
+    if (theme !== undefined) existingInvoice.theme = theme;
+
+    await existingInvoice.save();
+    res.json(existingInvoice);
+  } catch (err) {
+    console.error("Invoice Update Error:", err);
+    res.status(400).json({ error: err.message });
+  }
+});
+
+// RECORD PAYMENT FOR INVOICE
+router.patch("/:id/payment", async (req, res) => {
+  try {
+    const { amount } = req.body;
+    const paymentAmount = Number(amount || 0);
+
+    const invoice = await Invoice.findById(req.params.id);
+    if (!invoice) return res.status(404).json({ error: "Invoice not found" });
+
+    const newPaidAmount = (invoice.paidAmount || 0) + paymentAmount;
+    const newBalance = Math.max(0, (invoice.total || 0) - newPaidAmount);
+    const newStatus = newBalance <= 0 ? "Paid" : "Partially Paid";
+
+    invoice.paidAmount = newPaidAmount;
+    invoice.balance = newBalance;
+    invoice.status = newStatus;
+
+    await invoice.save();
+    res.json(invoice);
+  } catch (err) {
+    console.error("Record Payment Error:", err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// UPDATE INVOICE STATUS
+router.patch("/:id/status", async (req, res) => {
+  try {
+    const { status } = req.body;
+    const invoice = await Invoice.findByIdAndUpdate(
+      req.params.id,
+      { status },
+      { new: true }
+    );
+    if (!invoice) return res.status(404).json({ error: "Invoice not found" });
+    res.json(invoice);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 // UPDATE INVOICE DETAILS (Number, etc.)
 router.patch("/:id", async (req, res) => {
   try {
@@ -164,22 +362,6 @@ router.patch("/:id", async (req, res) => {
       { new: true }
     );
 
-    if (!invoice) return res.status(404).json({ error: "Invoice not found" });
-    res.json(invoice);
-  } catch (err) {
-    res.status(500).json({ error: err.message });
-  }
-});
-
-// UPDATE INVOICE STATUS
-router.patch("/:id/status", async (req, res) => {
-  try {
-    const { status } = req.body;
-    const invoice = await Invoice.findByIdAndUpdate(
-      req.params.id,
-      { status },
-      { new: true }
-    );
     if (!invoice) return res.status(404).json({ error: "Invoice not found" });
     res.json(invoice);
   } catch (err) {
@@ -370,7 +552,8 @@ router.get('/:id/pdf', async (req, res) => {
       roundOff: invoice.roundOff,
       total: invoice.total,
       includeSignature, // Add to data object
-      includeSeal
+      includeSeal,
+      copyType: req.query.copyType || 'none'
     };
 
 
@@ -456,7 +639,8 @@ router.post("/:id/email-to-me", async (req, res) => {
       roundOff: invoice.roundOff,
       total: invoice.total,
       includeSignature: req.query.includeSignature === "true",
-      includeSeal: req.query.includeSeal === "true"
+      includeSeal: req.query.includeSeal === "true",
+      copyType: req.query.copyType || 'none'
     };
 
     // Resolve theme

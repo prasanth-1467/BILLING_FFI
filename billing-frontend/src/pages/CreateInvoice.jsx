@@ -1,12 +1,14 @@
 import React, { useEffect, useState, useMemo } from 'react';
 import api from '../services/api';
 import { Plus, Trash2, Save, FileCheck, Calculator, User, Loader, FileText, ArrowLeft } from 'lucide-react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useParams } from 'react-router-dom';
 
 const MY_STATE_NORMALIZED = 'tamilnadu';
 
 const CreateInvoice = () => {
     const navigate = useNavigate();
+    const { id } = useParams();
+    const isEditMode = !!id;
     const [loading, setLoading] = useState(false);
     const [pageLoading, setPageLoading] = useState(true);
     const [customers, setCustomers] = useState([]);
@@ -68,7 +70,7 @@ const CreateInvoice = () => {
             setCustomerSearchText('');
         }
     }, [selectedCustomerId, customers]);
-    // Fetch initial master lists
+    // Fetch initial master lists & existing invoice if editing
     useEffect(() => {
         const fetchData = async () => {
             try {
@@ -78,14 +80,62 @@ const CreateInvoice = () => {
                 ]);
                 setCustomers(custRes.data || []);
                 setProducts(prodRes.data || []);
+
+                if (isEditMode && id) {
+                    const invRes = await api.get(`/invoices/${id}`);
+                    const inv = invRes.data;
+                    if (inv) {
+                        setInvoiceNumber(inv.invoiceNumber || '');
+                        if (inv.date) {
+                            setInvoiceDate(new Date(inv.date).toISOString().split('T')[0]);
+                        }
+                        setEwayBillNo(inv.ewayBillNo || '');
+                        setDiscountPercent(inv.discountPercent || 0);
+
+                        if (inv.customerId) {
+                            setCustomerMode('select');
+                            const cId = typeof inv.customerId === 'object' ? inv.customerId._id : inv.customerId;
+                            setSelectedCustomerId(cId);
+                        } else {
+                            setCustomerMode('manual');
+                            setManualCustomer({
+                                name: inv.customerName || '',
+                                phone: inv.customerPhone || '',
+                                gstNumber: inv.customerGSTIN || '',
+                                address: inv.customerAddress || '',
+                                state: inv.customerState || 'Tamil Nadu'
+                            });
+                        }
+
+                        if (inv.shipTo) {
+                            setIsShipSameAsBill(false);
+                            setShipTo(inv.shipTo);
+                        }
+
+                        if (inv.items && Array.isArray(inv.items)) {
+                            setItems(inv.items.map((item, idx) => ({
+                                id: (item.productId && typeof item.productId === 'object' ? item.productId._id : item.productId) || `item-${idx}-${Date.now()}`,
+                                productId: (item.productId && typeof item.productId === 'object' ? item.productId._id : item.productId) || null,
+                                name: item.name || (item.productId && item.productId.name) || 'Custom Product',
+                                productCode: item.hsn || '',
+                                hsn: item.hsn || '',
+                                unit: item.unit || 'Nos',
+                                quantity: item.qty || 1,
+                                rate: item.rate || 0,
+                                gstRate: item.gstRate || 0,
+                                amount: item.amount || ((item.qty || 1) * (item.rate || 0))
+                            })));
+                        }
+                    }
+                }
             } catch (error) {
-                console.error("Error loading master lists", error);
+                console.error("Error loading master lists or invoice data", error);
             } finally {
                 setPageLoading(false);
             }
         };
         fetchData();
-    }, []);
+    }, [id, isEditMode]);
 
     // Get Active Customer properties (Dynamic depending on selection vs manual)
     const activeCustomer = useMemo(() => {
@@ -298,12 +348,17 @@ const CreateInvoice = () => {
         };
 
         try {
-            await api.post('/invoices', payload);
-            alert("Direct Invoice Saved Successfully!");
+            if (isEditMode && id) {
+                await api.put(`/invoices/${id}`, payload);
+                alert("Invoice Updated & PDF Regenerated Successfully!");
+            } else {
+                await api.post('/invoices', payload);
+                alert("Direct Invoice Saved Successfully!");
+            }
             navigate('/invoices');
         } catch (error) {
-            console.error("Direct Invoice Save Failed", error);
-            alert(error.response?.data?.error || "Failed to save direct invoice.");
+            console.error("Direct Invoice Save/Update Failed", error);
+            alert(error.response?.data?.error || "Failed to save invoice.");
         } finally {
             setLoading(false);
         }
@@ -902,7 +957,7 @@ const CreateInvoice = () => {
                             ) : (
                                 <FileCheck size={20} />
                             )}
-                            Save & Generate Direct Tax Invoice
+                            {isEditMode ? "Update & Regenerate PDF" : "Save & Generate Direct Tax Invoice"}
                         </button>
                     </div>
                 </div>
