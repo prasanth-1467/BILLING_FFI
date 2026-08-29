@@ -1,7 +1,7 @@
 import React from 'react';
-import { NavLink, Outlet, useLocation } from 'react-router-dom';
+import { NavLink, Link, Outlet, useLocation } from 'react-router-dom';
 /* eslint-disable no-unused-vars */
-import { logout } from '../services/authService';
+import { logout, getCurrentUser } from '../services/authService';
 import {
     LayoutDashboard,
     Package,
@@ -41,6 +41,10 @@ const SidebarItem = ({ to, icon: Icon, label, reloadDocument = false }) => {
 
 const MainLayout = () => {
     const location = useLocation();
+    const currentUser = getCurrentUser();
+    const userDisplayName = currentUser?.username || 'User';
+    const userRole = currentUser?.role ? currentUser.role.toUpperCase() : 'ADMIN';
+    const initials = userDisplayName.substring(0, 2).toUpperCase();
 
     const getPageTitle = () => {
         const pathMap = {
@@ -105,15 +109,15 @@ const MainLayout = () => {
 
                 {/* Profile Section - Fixed Visibility */}
                 <div className="p-4 mt-auto border-t border-slate-800/50 bg-slate-900/30">
-                    <div className="flex items-center gap-3 p-2 rounded-xl hover:bg-slate-800/50 transition-colors cursor-pointer group">
-                        <div className="w-9 h-9 rounded-full bg-gradient-to-tr from-slate-700 to-slate-600 flex items-center justify-center border border-slate-500/30 group-hover:border-indigo-500/50 transition-colors">
-                            <span className="text-xs font-bold text-white">PT</span>
+                    <Link to="/profile" className="flex items-center gap-3 p-2 rounded-xl hover:bg-slate-800/50 transition-colors cursor-pointer group">
+                        <div className="w-9 h-9 rounded-full bg-gradient-to-tr from-indigo-600 to-purple-600 flex items-center justify-center border border-indigo-500/30 group-hover:border-indigo-400 transition-colors">
+                            <span className="text-xs font-bold text-white">{initials}</span>
                         </div>
                         <div className="flex-1 min-w-0">
-                            <p className="text-sm font-semibold text-slate-100 truncate">Prasanth Thangaraj</p>
-                            <p className="text-[10px] font-medium text-slate-400">System Admin</p>
+                            <p className="text-sm font-semibold text-slate-100 truncate capitalize">{userDisplayName}</p>
+                            <p className="text-[10px] font-semibold text-indigo-400 tracking-wider">{userRole}</p>
                         </div>
-                    </div>
+                    </Link>
                 </div>
             </aside>
 
