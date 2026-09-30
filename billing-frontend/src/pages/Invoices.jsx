@@ -292,7 +292,7 @@ const Invoices = () => {
     const handleDownloadEWayBill = (invoice) => {
         const vehicleNo = window.prompt("Enter Vehicle Registration Number (e.g., TN38AB1234):");
         if (!vehicleNo) return;
-        
+
         const toPincodeInput = window.prompt("Enter Delivery Pincode (6-digit number):");
         if (!toPincodeInput) return;
         const toPincode = parseInt(toPincodeInput, 10);
@@ -300,10 +300,10 @@ const Invoices = () => {
             alert("Invalid pincode. Must be a 6-digit number.");
             return;
         }
-        
+
         const toPlace = window.prompt("Enter Delivery Place / City (e.g., Coimbatore):", invoice.customerId?.city || "Coimbatore");
         if (toPlace === null) return;
-        
+
         const formattedInvoiceData = {
             invoiceNumber: invoice.invoiceNumber,
             date: invoice.date,
@@ -324,7 +324,7 @@ const Invoices = () => {
                 unit: item.unit || item.productId?.unit || "NOS"
             }))
         };
-        
+
         try {
             downloadEWayBillJSON(formattedInvoiceData);
         } catch (error) {
@@ -361,7 +361,7 @@ const Invoices = () => {
         // 2. Map row data
         const rows = filteredInvoices.map(inv => {
             const formattedDate = inv.date ? format(new Date(inv.date), 'dd-MM-yyyy') : '';
-            
+
             // Extract state code from GSTIN or state mapping
             let stateSupply = "-";
             const gst = inv.customerId?.gstNumber || "";
@@ -765,7 +765,7 @@ const Invoices = () => {
                         iframe.contentWindow.focus();
                         iframe.contentWindow.print();
                     }
-                    
+
                     // Cleanup after a delay
                     setTimeout(() => {
                         window.URL.revokeObjectURL(url);
@@ -1028,7 +1028,7 @@ const Invoices = () => {
                                                 </div>
                                             ) : (
                                                 <div className="text-[11px] text-gray-500 flex items-center gap-1 mt-0.5 group/date">
-                                                    <Clock size={10} /> 
+                                                    <Clock size={10} />
                                                     {invoice.date ? format(new Date(invoice.date), 'dd MMM yyyy') : 'N/A'}
                                                     <button
                                                         onClick={() => startEditingDate(invoice)}
@@ -1084,12 +1084,12 @@ const Invoices = () => {
                                                 </button>
 
                                                 <button
-                                                     onClick={() => handleInitiateEdit(invoice.id)}
-                                                     className="p-1.5 text-amber-600 hover:bg-amber-50 rounded-md transition-colors border border-transparent hover:border-amber-100"
-                                                     title="Edit Invoice Details (Admin Password Required)"
-                                                 >
-                                                     <Edit size={18} />
-                                                 </button>
+                                                    onClick={() => handleInitiateEdit(invoice.id)}
+                                                    className="p-1.5 text-amber-600 hover:bg-amber-50 rounded-md transition-colors border border-transparent hover:border-amber-100"
+                                                    title="Edit Invoice Details (Admin Password Required)"
+                                                >
+                                                    <Edit size={18} />
+                                                </button>
 
                                                 <button
                                                     onClick={() => handleDownload(invoice.id, invoice.invoiceNumber)}

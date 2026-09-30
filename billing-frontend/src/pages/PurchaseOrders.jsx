@@ -107,7 +107,7 @@ const PurchaseOrders = () => {
                         iframe.contentWindow.focus();
                         iframe.contentWindow.print();
                     }
-                    
+
                     // Cleanup
                     setTimeout(() => {
                         window.URL.revokeObjectURL(url);

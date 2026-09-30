@@ -1,8 +1,9 @@
 import React, { useEffect, useState, useMemo } from 'react';
 import api from '../services/api';
-import { Plus, Trash2, Save, FileCheck, Calculator, User, Loader, FileText } from 'lucide-react';
-import { useNavigate } from 'react-router-dom';
+import { Plus, Trash2, Save, FileCheck, Calculator, User, Loader, FileText, ArrowLeft } from 'lucide-react';
+import { useNavigate, useParams } from 'react-router-dom';
 import usePersistentState from '../hooks/usePersistentState';
+import IrrigationLoader from '../components/IrrigationLoader';
 
 // Treat Tamil Nadu as the home/intra state.
 // We normalize by removing spaces and comparing case-insensitively.
@@ -10,13 +11,16 @@ const MY_STATE_NORMALIZED = 'tamilnadu';
 
 const Quotation = () => {
     const navigate = useNavigate();
+    const { id } = useParams();
+    const isEditMode = !!id;
     const [loading, setLoading] = useState(false);
+    const [pageLoading, setPageLoading] = useState(isEditMode);
     const [customers, setCustomers] = useState([]);
     const [products, setProducts] = useState([]);
 
     // --- Direct Quotation Creator State ---
     const [customerMode, setCustomerMode] = useState('select'); // 'select' | 'manual'
-    const [selectedCustomerId, setSelectedCustomerId] = usePersistentState('quotation_v3.selectedCustomerId', '');
+    const [selectedCustomerId, setSelectedCustomerId] = useState('');
     const [customerSearchText, setCustomerSearchText] = useState('');
     
     // Manual Customer State
@@ -99,12 +103,64 @@ const Quotation = () => {
                 ]);
                 setCustomers(custRes.data || []);
                 setProducts(prodRes.data || []);
+
+                if (isEditMode && id) {
+                    const quoteRes = await api.get(`/quotations/${id}`);
+                    const q = quoteRes.data;
+                    if (q) {
+                        setQuoteNumber(q.quoteNumber || '');
+                        setDiscountPercent(q.discountPercent || 0);
+
+                        if (q.customerId) {
+                            setCustomerMode('select');
+                            const cId = typeof q.customerId === 'object' ? q.customerId._id : q.customerId;
+                            setSelectedCustomerId(cId);
+                        } else {
+                            setCustomerMode('manual');
+                            setManualCustomer({
+                                name: q.customerName || '',
+                                phone: q.customerPhone || '',
+                                gstNumber: q.customerGSTIN || '',
+                                address: q.customerAddress || '',
+                                state: q.customerState || 'Tamil Nadu'
+                            });
+                        }
+
+                        if (q.shipTo) {
+                            setIsShipSameAsBill(false);
+                            setShipTo({
+                                name: q.shipTo.name || '',
+                                address: q.shipTo.address || '',
+                                state: q.shipTo.state || '',
+                                city: q.shipTo.city || '',
+                                phone: q.shipTo.phone || ''
+                            });
+                        }
+
+                        if (Array.isArray(q.items)) {
+                            const formattedItems = q.items.map((item) => ({
+                                productId: item.productId?._id || item.productId || null,
+                                productCode: item.productCode || item.productId?.productCode || item.productId?.code || 'Custom',
+                                name: item.name || '',
+                                hsn: item.hsn || '',
+                                unit: item.unit || 'Nos',
+                                rate: item.rate || 0,
+                                gstRate: item.gstRate || 0,
+                                quantity: item.qty || 1,
+                                stock: item.productId?.stockQty || 9999
+                            }));
+                            setItems(formattedItems);
+                        }
+                    }
+                }
             } catch (error) {
-                console.error("Error loading data", error);
+                console.error("Error loading data or quotation", error);
+            } finally {
+                setPageLoading(false);
             }
         };
         fetchData();
-    }, []);
+    }, [id, isEditMode]);
 
     // Sync ShipTo with Active billing details
     useEffect(() => {
@@ -287,21 +343,28 @@ const Quotation = () => {
         };
 
         try {
-            const res = await api.post('/quotations', payload);
-            const quoteId = res?.data?._id || res?.data?.id;
-            if (quoteId) setLastSavedQuoteId(quoteId);
+            if (isEditMode && id) {
+                await api.put(`/quotations/${id}`, payload);
+                alert('Quotation updated successfully!');
+                navigate('/quotations');
+            } else {
+                const res = await api.post('/quotations', payload);
+                const quoteId = res?.data?._id || res?.data?.id;
+                if (quoteId) setLastSavedQuoteId(quoteId);
 
-            // Clear form on success
-            setItems([]);
-            setSelectedCustomerId('');
-            setCustomerSearchText('');
-            setManualCustomer({ name: '', phone: '', gstNumber: '', address: '', state: 'Tamil Nadu' });
-            setDiscountPercent(0);
-            setQuoteNumber('');
-            setIsShipSameAsBill(true);
-            setShipTo({ name: '', address: '', state: '', city: '', phone: '' });
+                // Clear form on success
+                setItems([]);
+                setSelectedCustomerId('');
+                setCustomerSearchText('');
+                setManualCustomer({ name: '', phone: '', gstNumber: '', address: '', state: 'Tamil Nadu' });
+                setDiscountPercent(0);
+                setQuoteNumber('');
+                setIsShipSameAsBill(true);
+                setShipTo({ name: '', address: '', state: '', city: '', phone: '' });
 
-            alert('Quotation Saved Successfully!');
+                alert('Quotation Saved Successfully!');
+                navigate('/quotations');
+            }
         } catch (error) {
             console.error('Save failed', error);
             alert(error.response?.data?.error || 'Failed to save quotation.');
@@ -346,22 +409,35 @@ const Quotation = () => {
         }
     };
 
+    if (pageLoading) {
+        return (
+            <div className="flex items-center justify-center min-h-[70vh]">
+                <IrrigationLoader message="Loading quotation details..." />
+            </div>
+        );
+    }
+
     return (
         <div className="space-y-6 pb-20 max-w-7xl mx-auto">
             {/* Top Actions */}
             <div className="flex justify-between items-center no-print">
                 <button
-                    className="btn btn-outline bg-white flex items-center gap-2"
+                    className="btn btn-outline bg-white flex items-center gap-2 text-xs font-bold rounded-xl"
                     onClick={() => navigate('/quotations')}
                 >
-                    <FileText size={18} /> View Saved Quotations
+                    <ArrowLeft size={16} /> Back to Quotations List
                 </button>
-                <button
-                    className="btn btn-outline border-red-200 text-red-600 hover:bg-red-50"
-                    onClick={handleReset}
-                >
-                    Reset Form
-                </button>
+                <div className="flex items-center gap-2">
+                    <span className="badge badge-info text-xs font-bold">
+                        {isEditMode ? `Editing Quotation: ${quoteNumber}` : 'New Quotation Creator'}
+                    </span>
+                    <button
+                        className="btn btn-outline border-red-200 text-red-600 hover:bg-red-50 text-xs rounded-xl"
+                        onClick={handleReset}
+                    >
+                        Reset Form
+                    </button>
+                </div>
             </div>
 
             {/* Split Grid: Customer & Catalog/Product Selection */}
@@ -888,7 +964,7 @@ const Quotation = () => {
                             className="btn btn-primary w-full py-4 text-base font-bold shadow-lg shadow-blue-500/10 flex justify-center items-center gap-2"
                         >
                             {loading ? <Loader size={20} className="animate-spin" /> : <Save size={20} />}
-                            Save Quotation
+                            {isEditMode ? 'Update Quotation' : 'Save Quotation'}
                         </button>
                         <button
                             onClick={handleConvertToInvoice}

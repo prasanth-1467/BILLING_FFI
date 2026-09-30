@@ -30,7 +30,7 @@ const AgentInsights = () => {
         pendingQuotesCount: 0,
         lowStockProducts: []
     });
-    
+
     const [chartData, setChartData] = useState([]);
 
     const fetchDashboardData = async () => {
@@ -51,42 +51,42 @@ const AgentInsights = () => {
             // --- 1. Top Selling Product (All time approximation) ---
             const productSales = {};
             invoices.forEach(inv => {
-               (inv.items || []).forEach(item => {
-                   const pId = typeof item.productId === 'object' ? item.productId?._id : item.productId;
-                   let name = item.name || item.productId?.name;
-                   if (!name && pId) {
-                       const foundProduct = products.find(p => p._id === pId || p.id === pId);
-                       if (foundProduct) name = foundProduct.name;
-                   }
-                   name = name || 'Unknown';
-                   if (!productSales[name]) productSales[name] = 0;
-                   productSales[name] += item.qty || 0;
-               });
+                (inv.items || []).forEach(item => {
+                    const pId = typeof item.productId === 'object' ? item.productId?._id : item.productId;
+                    let name = item.name || item.productId?.name;
+                    if (!name && pId) {
+                        const foundProduct = products.find(p => p._id === pId || p.id === pId);
+                        if (foundProduct) name = foundProduct.name;
+                    }
+                    name = name || 'Unknown';
+                    if (!productSales[name]) productSales[name] = 0;
+                    productSales[name] += item.qty || 0;
+                });
             });
             let topProduct = null;
             let maxSales = 0;
             Object.entries(productSales).forEach(([name, qty]) => {
-                if(qty > maxSales) { maxSales = qty; topProduct = name; }
+                if (qty > maxSales) { maxSales = qty; topProduct = name; }
             });
 
             // --- 2. Low Stock Count ---
             const lowStockProducts = products.filter(p => (p.stockQty || 0) <= (p.reorderLevel || 5));
-            
+
             // --- 3. Monthly Revenue ---
             const currentMonthInvoices = invoices.filter(inv => inv.date && isSameMonth(new Date(inv.date), now));
             const monthlyRevenue = currentMonthInvoices.reduce((sum, inv) => sum + (inv.total || inv.totalAmount || 0), 0);
 
             // --- 4. Pending Invoices ---
             const pendingInvoicesAmount = invoices.reduce((sum, inv) => {
-                 const bal = inv.balance ?? (inv.total - (inv.paidAmount || 0));
-                 return sum + (bal > 0 ? bal : 0);
+                const bal = inv.balance ?? (inv.total - (inv.paidAmount || 0));
+                return sum + (bal > 0 ? bal : 0);
             }, 0);
 
             // --- 5. Alerts Data ---
             let overdueCount = 0;
             invoices.forEach(inv => {
                 const bal = inv.balance ?? (inv.total - (inv.paidAmount || 0));
-                if(bal > 0 && inv.dueDate && isPast(startOfDay(new Date(inv.dueDate)))) {
+                if (bal > 0 && inv.dueDate && isPast(startOfDay(new Date(inv.dueDate)))) {
                     overdueCount++;
                 }
             });
@@ -108,9 +108,9 @@ const AgentInsights = () => {
             for (let i = 5; i >= 0; i--) {
                 const targetMonth = subMonths(now, i);
                 const monthName = format(targetMonth, 'MMM yyyy');
-                
+
                 const monthInvoices = invoices.filter(inv => inv.date && isSameMonth(new Date(inv.date), targetMonth));
-                
+
                 const monthRevenue = monthInvoices.reduce((sum, inv) => sum + (inv.total || inv.totalAmount || 0), 0);
                 const monthCollection = monthInvoices.reduce((sum, inv) => sum + (inv.paidAmount || 0), 0);
 
@@ -164,7 +164,7 @@ const AgentInsights = () => {
             <div className="flex justify-between items-end">
                 <div>
                     <h1 className="text-3xl font-bold text-gray-900 mb-2 flex items-center gap-3">
-                       <Activity className="text-blue-500" /> Business Insights
+                        <Activity className="text-blue-500" /> Business Insights
                     </h1>
                     <p className="text-gray-500">Live analytics and actionable recommendations based on your billing workflow.</p>
                 </div>
@@ -186,33 +186,33 @@ const AgentInsights = () => {
                 <>
                     {/* Insights Grid */}
                     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-                        <MetricCard 
-                           title="Monthly Revenue" 
-                           value={`₹ ${metrics.monthlyRevenue.toLocaleString('en-IN', {minimumFractionDigits:0, maximumFractionDigits:0})}`} 
-                           subtitle="Total billed in current month"
-                           icon={<TrendingUp size={24} />} 
-                           type="emerald"
+                        <MetricCard
+                            title="Monthly Revenue"
+                            value={`₹ ${metrics.monthlyRevenue.toLocaleString('en-IN', { minimumFractionDigits: 0, maximumFractionDigits: 0 })}`}
+                            subtitle="Total billed in current month"
+                            icon={<TrendingUp size={24} />}
+                            type="emerald"
                         />
-                        <MetricCard 
-                           title="Pending Receivables" 
-                           value={`₹ ${metrics.pendingInvoicesAmount.toLocaleString('en-IN', {minimumFractionDigits:0, maximumFractionDigits:0})}`} 
-                           subtitle="Outstanding balance across all invoices"
-                           icon={<IndianRupee size={24} />} 
-                           type="orange"
+                        <MetricCard
+                            title="Pending Receivables"
+                            value={`₹ ${metrics.pendingInvoicesAmount.toLocaleString('en-IN', { minimumFractionDigits: 0, maximumFractionDigits: 0 })}`}
+                            subtitle="Outstanding balance across all invoices"
+                            icon={<IndianRupee size={24} />}
+                            type="orange"
                         />
-                        <MetricCard 
-                           title="Top Selling Product" 
-                           value={metrics.topProduct || 'N/A'} 
-                           subtitle="Highest volume item in invoices"
-                           icon={<ShoppingBag size={24} />} 
-                           type="purple"
+                        <MetricCard
+                            title="Top Selling Product"
+                            value={metrics.topProduct || 'N/A'}
+                            subtitle="Highest volume item in invoices"
+                            icon={<ShoppingBag size={24} />}
+                            type="purple"
                         />
-                        <MetricCard 
-                           title="Low Stock Warning" 
-                           value={`${metrics.lowStockCount} Products`} 
-                           subtitle="Inventory below reorder thresholds"
-                           icon={<TrendingDown size={24} />} 
-                           type="blue"
+                        <MetricCard
+                            title="Low Stock Warning"
+                            value={`${metrics.lowStockCount} Products`}
+                            subtitle="Inventory below reorder thresholds"
+                            icon={<TrendingDown size={24} />}
+                            type="blue"
                         />
                     </div>
 
@@ -221,16 +221,16 @@ const AgentInsights = () => {
                         <div className="xl:col-span-2 space-y-6">
                             <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100">
                                 <h3 className="text-lg font-bold text-gray-800 mb-6 flex items-center gap-2">
-                                   <BarChart3 size={20} className="text-gray-400" /> Revenue vs Collected (6 Months)
+                                    <BarChart3 size={20} className="text-gray-400" /> Revenue vs Collected (6 Months)
                                 </h3>
                                 <div className="h-[300px] w-full">
                                     <ResponsiveContainer width="100%" height="100%">
                                         <BarChart data={chartData} margin={{ top: 5, right: 20, bottom: 5, left: 0 }}>
                                             <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#E5E7EB" />
-                                            <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{fill: '#6B7280', fontSize: 12}} dy={10} />
-                                            <YAxis axisLine={false} tickLine={false} tick={{fill: '#6B7280', fontSize: 12}} tickFormatter={(val) => `₹${val/1000}k`} />
-                                            <RechartsTooltip cursor={{fill: '#F3F4F6'}} contentStyle={{borderRadius: '8px', border: 'none', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)'}} formatter={(val) => `₹ ${val.toLocaleString('en-IN')}`} />
-                                            <Legend iconType="circle" wrapperStyle={{paddingTop: '20px'}}/>
+                                            <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{ fill: '#6B7280', fontSize: 12 }} dy={10} />
+                                            <YAxis axisLine={false} tickLine={false} tick={{ fill: '#6B7280', fontSize: 12 }} tickFormatter={(val) => `₹${val / 1000}k`} />
+                                            <RechartsTooltip cursor={{ fill: '#F3F4F6' }} contentStyle={{ borderRadius: '8px', border: 'none', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)' }} formatter={(val) => `₹ ${val.toLocaleString('en-IN')}`} />
+                                            <Legend iconType="circle" wrapperStyle={{ paddingTop: '20px' }} />
                                             <Bar dataKey="Revenue" fill="#93C5FD" radius={[4, 4, 0, 0]} name="Total Billed" />
                                             <Bar dataKey="Collected" fill="#3B82F6" radius={[4, 4, 0, 0]} name="Actually Collected" />
                                         </BarChart>
@@ -240,21 +240,21 @@ const AgentInsights = () => {
 
                             <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100">
                                 <h3 className="text-lg font-bold text-gray-800 mb-6 flex items-center gap-2">
-                                   <Activity size={20} className="text-gray-400" /> Invoice Volume Trend
+                                    <Activity size={20} className="text-gray-400" /> Invoice Volume Trend
                                 </h3>
                                 <div className="h-[250px] w-full">
                                     <ResponsiveContainer width="100%" height="100%">
                                         <AreaChart data={chartData} margin={{ top: 5, right: 20, bottom: 5, left: 0 }}>
                                             <defs>
                                                 <linearGradient id="colorSales" x1="0" y1="0" x2="0" y2="1">
-                                                    <stop offset="5%" stopColor="#10B981" stopOpacity={0.3}/>
-                                                    <stop offset="95%" stopColor="#10B981" stopOpacity={0}/>
+                                                    <stop offset="5%" stopColor="#10B981" stopOpacity={0.3} />
+                                                    <stop offset="95%" stopColor="#10B981" stopOpacity={0} />
                                                 </linearGradient>
                                             </defs>
                                             <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#E5E7EB" />
-                                            <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{fill: '#6B7280', fontSize: 12}} dy={10} />
-                                            <YAxis axisLine={false} tickLine={false} tick={{fill: '#6B7280', fontSize: 12}} allowDecimals={false} />
-                                            <RechartsTooltip contentStyle={{borderRadius: '8px', border: 'none', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)'}} />
+                                            <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{ fill: '#6B7280', fontSize: 12 }} dy={10} />
+                                            <YAxis axisLine={false} tickLine={false} tick={{ fill: '#6B7280', fontSize: 12 }} allowDecimals={false} />
+                                            <RechartsTooltip contentStyle={{ borderRadius: '8px', border: 'none', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)' }} />
                                             <Area type="monotone" dataKey="SalesCount" stroke="#10B981" strokeWidth={3} fillOpacity={1} fill="url(#colorSales)" name="Invoices Generated" />
                                         </AreaChart>
                                     </ResponsiveContainer>
@@ -268,7 +268,7 @@ const AgentInsights = () => {
                                 <h3 className="text-lg font-bold text-gray-800 mb-4 flex items-center gap-2">
                                     <AlertCircle size={20} className="text-gray-400" /> Action Required
                                 </h3>
-                                
+
                                 <div className="space-y-3">
                                     {metrics.overdueCount > 0 ? (
                                         <div className="p-3 bg-red-50 border border-red-100 rounded-lg flex gap-3 items-start">
@@ -293,7 +293,7 @@ const AgentInsights = () => {
                                             <div>
                                                 <p className="text-sm font-semibold text-orange-800">{metrics.lowStockCount} products are low on stock</p>
                                                 <p className="text-xs text-orange-600 mt-1">
-                                                    Consider restocking: {metrics.lowStockProducts.map(p => p.name).join(', ')} 
+                                                    Consider restocking: {metrics.lowStockProducts.map(p => p.name).join(', ')}
                                                     {metrics.lowStockCount > 3 ? '...' : ''}
                                                 </p>
                                             </div>
@@ -351,37 +351,37 @@ const AgentInsights = () => {
 };
 
 class ErrorBoundary extends React.Component {
-  constructor(props) {
-    super(props);
-    this.state = { hasError: false, error: null, info: null };
-  }
-
-  static getDerivedStateFromError(error) {
-    return { hasError: true, error };
-  }
-
-  componentDidCatch(error, info) {
-    console.error("ErrorBoundary caught an error:", error, info);
-  }
-
-  render() {
-    if (this.state.hasError) {
-      return (
-        <div className="p-10 text-red-600 font-mono whitespace-pre-wrap">
-          <h1 className="text-2xl font-bold mb-4">React Render Crash</h1>
-          <p>{this.state.error && this.state.error.toString()}</p>
-          <pre className="text-xs mt-4">{this.state.error && this.state.error.stack}</pre>
-        </div>
-      );
+    constructor(props) {
+        super(props);
+        this.state = { hasError: false, error: null, info: null };
     }
-    return this.props.children;
-  }
+
+    static getDerivedStateFromError(error) {
+        return { hasError: true, error };
+    }
+
+    componentDidCatch(error, info) {
+        console.error("ErrorBoundary caught an error:", error, info);
+    }
+
+    render() {
+        if (this.state.hasError) {
+            return (
+                <div className="p-10 text-red-600 font-mono whitespace-pre-wrap">
+                    <h1 className="text-2xl font-bold mb-4">React Render Crash</h1>
+                    <p>{this.state.error && this.state.error.toString()}</p>
+                    <pre className="text-xs mt-4">{this.state.error && this.state.error.stack}</pre>
+                </div>
+            );
+        }
+        return this.props.children;
+    }
 }
 
 export default function AgentInsightsWrapper() {
-  return (
-    <ErrorBoundary>
-      <AgentInsights />
-    </ErrorBoundary>
-  );
+    return (
+        <ErrorBoundary>
+            <AgentInsights />
+        </ErrorBoundary>
+    );
 }
