@@ -137,6 +137,20 @@ router.post("/", async (req, res) => {
     });
 
     await invoice.save();
+
+    // Sync Counter
+    const numMatch = finalInvoiceNumber.match(/(\d+)$/);
+    if (numMatch) {
+      const seqNum = parseInt(numMatch[1], 10);
+      if (!isNaN(seqNum)) {
+        await Counter.findOneAndUpdate(
+          { id: "invoiceNumber" },
+          { $max: { seq: seqNum } },
+          { upsert: true }
+        );
+      }
+    }
+
     res.json(invoice);
 
   } catch (err) {
@@ -374,6 +388,29 @@ router.delete("/:id", async (req, res) => {
   try {
     const invoice = await Invoice.findByIdAndDelete(req.params.id);
     if (!invoice) return res.status(404).json({ error: "Invoice not found" });
+
+    // Recalculate max sequence from remaining active invoices
+    const remainingInvoices = await Invoice.find({}, { invoiceNumber: 1 });
+    let maxSeq = 0;
+    remainingInvoices.forEach(inv => {
+      if (inv.invoiceNumber) {
+        const match = inv.invoiceNumber.match(/(\d+)$/);
+        if (match) {
+          const num = parseInt(match[1], 10);
+          if (!isNaN(num) && num > maxSeq) {
+            maxSeq = num;
+          }
+        }
+      }
+    });
+
+    // Update Counter sequence to highest remaining
+    await Counter.findOneAndUpdate(
+      { id: "invoiceNumber" },
+      { seq: maxSeq },
+      { upsert: true }
+    );
+
     res.json({ message: "Invoice deleted successfully" });
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -470,6 +507,48 @@ router.post("/from-quotation/:quoteId", async (req, res) => {
     res.status(400).json({ error: err.message, stack: err.stack });
   }
 });
+// GET NEXT INVOICE NUMBER
+router.get("/next-number", async (req, res) => {
+  try {
+    const date = new Date();
+    const year = date.getFullYear();
+    const month = date.getMonth(); // 0-11
+    const startYear = month >= 3 ? year : year - 1;
+    const fyString = `${String(startYear).slice(-2)}-${String(startYear + 1).slice(-2)}`;
+
+    // Find all active invoices to determine actual highest sequence number
+    const invoices = await Invoice.find({}, { invoiceNumber: 1 });
+    let maxSeq = 0;
+
+    invoices.forEach(inv => {
+      if (inv.invoiceNumber) {
+        const match = inv.invoiceNumber.match(/(\d+)$/);
+        if (match) {
+          const num = parseInt(match[1], 10);
+          if (!isNaN(num) && num > maxSeq) {
+            maxSeq = num;
+          }
+        }
+      }
+    });
+
+    // Resync Counter sequence to match actual highest existing invoice
+    await Counter.findOneAndUpdate(
+      { id: "invoiceNumber" },
+      { seq: maxSeq },
+      { upsert: true }
+    );
+
+    const nextSeq = maxSeq + 1;
+    const nextInvoiceNumber = `FFI/${fyString}/${String(nextSeq).padStart(3, '0')}`;
+
+    res.json({ nextInvoiceNumber });
+  } catch (err) {
+    console.error("Error generating next invoice number:", err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
 // Get single invoice
 router.get("/:id", async (req, res) => {
   try {

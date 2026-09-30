@@ -130,7 +130,123 @@ router.get("/", async (req, res) => {
   res.json(quotes);
 });
 
-// Generate Proforma PDF
+// Get single quotation by ID
+router.get("/:id", async (req, res) => {
+  try {
+    const quote = await Quotation.findOne({
+      $or: [{ _id: req.params.id }, { id: req.params.id }]
+    })
+      .populate("customerId")
+      .populate("items.productId");
+
+    if (!quote) return res.status(404).json({ error: "Quotation not found" });
+    res.json(quote);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// UPDATE QUOTATION DETAILS & ITEMS (FULL EDIT)
+router.put("/:id", async (req, res) => {
+  try {
+    const existingQuote = await Quotation.findOne({
+      $or: [{ _id: req.params.id }, { id: req.params.id }]
+    });
+    if (!existingQuote) {
+      return res.status(404).json({ error: "Quotation not found" });
+    }
+
+    const { 
+      quoteNumber,
+      customerId, 
+      customerName, 
+      customerGSTIN, 
+      customerAddress, 
+      customerState, 
+      customerPhone,
+      items, 
+      discountPercent, 
+      date,
+      expiryDate,
+      shipTo,
+      theme
+    } = req.body;
+
+    // Check unique quotation number if modified
+    if (quoteNumber && quoteNumber !== existingQuote.quoteNumber) {
+      const dup = await Quotation.findOne({ quoteNumber });
+      if (dup && dup._id.toString() !== existingQuote._id.toString()) {
+        return res.status(400).json({ error: `Quotation number "${quoteNumber}" already exists` });
+      }
+    }
+
+    // Process Items
+    let enrichedItems = [];
+    if (items && Array.isArray(items)) {
+      for (let item of items) {
+        let dbProduct = null;
+        if (item.productId) {
+          dbProduct = await Product.findById(item.productId);
+        }
+
+        enrichedItems.push({
+          productId: item.productId || null,
+          productCode: item.productCode || (dbProduct ? (dbProduct.productCode || dbProduct.code) : "Custom"),
+          name: item.name || (dbProduct ? dbProduct.name : "Custom Product"),
+          hsn: item.hsn || (dbProduct ? dbProduct.hsn : "-"),
+          unit: item.unit || (dbProduct ? dbProduct.unit : "Nos"),
+          qty: Number(item.qty || item.quantity || 1),
+          rate: Number(item.rate || 0),
+          gstRate: Number(item.gstRate || 0),
+          amount: Number(item.qty || item.quantity || 1) * Number(item.rate || 0)
+        });
+      }
+    } else {
+      enrichedItems = existingQuote.items;
+    }
+
+    // Determine state for tax calculations
+    const finalState = customerState || existingQuote.customerState || "Tamil Nadu";
+    const normalize = (str) => (str || "").toLowerCase().replace(/\s+/g, "");
+    const isIntraState = normalize(finalState) === "tamilnadu";
+
+    const { calculateGST, calculateFinal } = require("../utils/taxCalculator");
+    const calcInitial = calculateGST(enrichedItems, finalState);
+    const discPct = discountPercent !== undefined ? Number(discountPercent) : (existingQuote.discountPercent || 0);
+    const results = calculateFinal(calcInitial.subtotal, discPct, enrichedItems, isIntraState);
+
+    const { subtotal, taxableAmount, gstBreakup, roundOff, total } = results;
+
+    // Update quote properties
+    existingQuote.quoteNumber = quoteNumber || existingQuote.quoteNumber;
+    existingQuote.customerId = customerId !== undefined ? (customerId || null) : existingQuote.customerId;
+    existingQuote.customerName = customerName !== undefined ? customerName : existingQuote.customerName;
+    existingQuote.customerGSTIN = customerGSTIN !== undefined ? customerGSTIN : existingQuote.customerGSTIN;
+    existingQuote.customerAddress = customerAddress !== undefined ? customerAddress : existingQuote.customerAddress;
+    existingQuote.customerState = customerState !== undefined ? customerState : existingQuote.customerState;
+    existingQuote.customerPhone = customerPhone !== undefined ? customerPhone : existingQuote.customerPhone;
+    existingQuote.items = enrichedItems;
+    existingQuote.subtotal = subtotal;
+    existingQuote.discountPercent = discPct;
+    existingQuote.taxableAmount = taxableAmount;
+    existingQuote.gstBreakup = gstBreakup;
+    existingQuote.roundOff = roundOff;
+    existingQuote.total = total;
+    if (date) existingQuote.date = new Date(date);
+    if (expiryDate) existingQuote.expiryDate = new Date(expiryDate);
+    if (shipTo !== undefined) existingQuote.shipTo = shipTo;
+    if (theme !== undefined) existingQuote.theme = theme;
+
+    await existingQuote.save();
+    res.json(existingQuote);
+
+  } catch (err) {
+    console.error("Quotation Update Error:", err);
+    res.status(400).json({ error: err.message });
+  }
+});
+
+// Generate PDF (Quotation or Proforma Invoice)
 router.get("/:id/pdf", async (req, res) => {
   try {
     const quote = await Quotation.findById(req.params.id)
@@ -141,6 +257,12 @@ router.get("/:id/pdf", async (req, res) => {
 
     const includeSignature = req.query.includeSignature === 'true';
     const includeSeal = req.query.includeSeal === 'true';
+
+    // Resolve docType / heading title: 'QUOTATION' or 'PROFORMA INVOICE'
+    const docType = (req.query.docType || req.query.documentTitle || 'quotation').toLowerCase();
+    const documentTitle = (docType === 'proforma' || docType === 'proformainvoice')
+      ? 'PROFORMA INVOICE'
+      : 'QUOTATION';
 
     // Resolve theme
     const BusinessSettings = require("../models/BusinessSettings");
@@ -182,7 +304,6 @@ router.get("/:id/pdf", async (req, res) => {
       discount: (quote.subtotal * (quote.discountPercent || 0)) / 100,
       discountPercent: quote.discountPercent,
       taxableAmount: quote.taxableAmount,
-      taxableAmount: quote.taxableAmount,
       gst: quote.gstBreakup,
       roundOff: quote.roundOff,
       total: quote.total,
@@ -190,11 +311,11 @@ router.get("/:id/pdf", async (req, res) => {
       includeSeal
     };
 
-
+    const filenamePrefix = documentTitle === 'PROFORMA INVOICE' ? 'Proforma' : 'Quotation';
     res.setHeader('Content-Type', 'application/pdf');
-    res.setHeader('Content-Disposition', `attachment; filename=Quotation-${quote.quoteNumber}.pdf`);
+    res.setHeader('Content-Disposition', `attachment; filename=${filenamePrefix}-${quote.quoteNumber}.pdf`);
 
-    generatePDF(res, pdfData, "PROFORMA INVOICE");
+    generatePDF(res, pdfData, documentTitle);
 
   } catch (error) {
     console.error("PDF Error:", error);
@@ -358,15 +479,19 @@ router.post("/:id/email-to-me", async (req, res) => {
       const settings = await BusinessSettings.findOne();
       resolvedThemeNameForEmail = settings?.defaultTheme || "indigo";
     }
-    pdfData.theme = themeConfig[resolvedThemeNameForEmail] || themeConfig.indigo;
+    const docType = (req.query.docType || req.query.documentTitle || 'quotation').toLowerCase();
+    const documentTitle = (docType === 'proforma' || docType === 'proformainvoice')
+      ? 'PROFORMA INVOICE'
+      : 'QUOTATION';
 
-    const pdfBuffer = await generatePDF(pdfData);
+    const pdfBuffer = await generatePDF(pdfData, documentTitle);
 
+    const filenamePrefix = documentTitle === 'PROFORMA INVOICE' ? 'Proforma' : 'Quotation';
     await sendEmailWithAttachment({
       to: process.env.ADMIN_EMAIL,
-      subject: `Proforma/Quotation Copy: ${quote.quoteNumber}`,
-      text: `Please find the attached PDF copy of Quotation ${quote.quoteNumber}.`,
-      filename: `Quotation-${quote.quoteNumber}.pdf`,
+      subject: `${documentTitle} Copy: ${quote.quoteNumber}`,
+      text: `Please find the attached PDF copy of ${documentTitle} ${quote.quoteNumber}.`,
+      filename: `${filenamePrefix}-${quote.quoteNumber}.pdf`,
       content: pdfBuffer,
     });
 
