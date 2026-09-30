@@ -165,7 +165,7 @@ const Profile = () => {
                             Role: {user?.role || 'admin'}
                         </span>
                     </div>
-                    
+
                     <form onSubmit={handleSubmit} className="space-y-6">
                         {error && (
                             <div className="p-4 bg-red-50 text-red-600 rounded-lg flex items-center gap-2">
@@ -408,12 +408,11 @@ const Profile = () => {
                                                     <tr key={u._id || u.id} className="hover:bg-gray-50/50">
                                                         <td className="p-3 font-semibold text-gray-900">{u.username}</td>
                                                         <td className="p-3">
-                                                            <span className={`px-2.5 py-1 rounded-full text-xs font-bold uppercase tracking-wider ${
-                                                                u.role === 'admin' ? 'bg-purple-100 text-purple-700' :
-                                                                u.role === 'manager' ? 'bg-blue-100 text-blue-700' :
-                                                                u.role === 'viewer' ? 'bg-slate-100 text-slate-700' :
-                                                                'bg-emerald-100 text-emerald-700'
-                                                            }`}>
+                                                            <span className={`px-2.5 py-1 rounded-full text-xs font-bold uppercase tracking-wider ${u.role === 'admin' ? 'bg-purple-100 text-purple-700' :
+                                                                    u.role === 'manager' ? 'bg-blue-100 text-blue-700' :
+                                                                        u.role === 'viewer' ? 'bg-slate-100 text-slate-700' :
+                                                                            'bg-emerald-100 text-emerald-700'
+                                                                }`}>
                                                                 {u.role}
                                                             </span>
                                                         </td>
@@ -427,9 +426,8 @@ const Profile = () => {
                                                             <div className="flex items-center justify-end gap-2">
                                                                 <button
                                                                     onClick={() => handleToggleStatus(u._id || u.id)}
-                                                                    className={`px-2 py-1 rounded text-xs font-medium border ${
-                                                                        u.isActive !== false ? 'border-amber-200 text-amber-700 hover:bg-amber-50' : 'border-green-200 text-green-700 hover:bg-green-50'
-                                                                    }`}
+                                                                    className={`px-2 py-1 rounded text-xs font-medium border ${u.isActive !== false ? 'border-amber-200 text-amber-700 hover:bg-amber-50' : 'border-green-200 text-green-700 hover:bg-green-50'
+                                                                        }`}
                                                                     title={u.isActive !== false ? "Disable Account" : "Enable Account"}
                                                                 >
                                                                     {u.isActive !== false ? 'Disable' : 'Enable'}

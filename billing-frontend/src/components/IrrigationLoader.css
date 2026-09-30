@@ -1,0 +1,131 @@
+/* Tech Hashing / Data Processing Loader CSS */
+
+@keyframes glowPulse {
+  0%, 100% {
+    opacity: 0.25;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 0.45;
+    transform: scale(1.08);
+  }
+}
+
+@keyframes cursorBlink {
+  0%, 100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0;
+  }
+}
+
+@keyframes scanline {
+  0% {
+    transform: translateY(-100%);
+  }
+  100% {
+    transform: translateY(100%);
+  }
+}
+
+@keyframes chipFloat1 {
+  0%, 100% {
+    transform: translate(0, 0);
+  }
+  50% {
+    transform: translate(-6px, -8px);
+  }
+}
+
+@keyframes chipFloat2 {
+  0%, 100% {
+    transform: translate(0, 0);
+  }
+  50% {
+    transform: translate(6px, -10px);
+  }
+}
+
+@keyframes chipFloat3 {
+  0%, 100% {
+    transform: translate(0, 0);
+  }
+  50% {
+    transform: translate(-8px, 6px);
+  }
+}
+
+@keyframes chipFloat4 {
+  0%, 100% {
+    transform: translate(0, 0);
+  }
+  50% {
+    transform: translate(8px, 8px);
+  }
+}
+
+@keyframes progressGlow {
+  0%, 100% {
+    box-shadow: 0 0 10px rgba(16, 185, 129, 0.4);
+  }
+  50% {
+    box-shadow: 0 0 18px rgba(14, 165, 233, 0.7);
+  }
+}
+
+.tech-loader-container {
+  font-family: 'JetBrains Mono', 'Fira Code', 'Courier New', monospace, system-ui;
+}
+
+.tech-glow-bg {
+  animation: glowPulse 4s ease-in-out infinite;
+}
+
+.terminal-cursor {
+  animation: cursorBlink 0.9s infinite;
+}
+
+.scanline-overlay {
+  animation: scanline 3s linear infinite;
+  background: linear-gradient(
+    to bottom,
+    transparent 0%,
+    rgba(14, 165, 233, 0.08) 50%,
+    transparent 100%
+  );
+}
+
+.chip-1 {
+  animation: chipFloat1 5s ease-in-out infinite;
+}
+
+.chip-2 {
+  animation: chipFloat2 6s ease-in-out infinite;
+}
+
+.chip-3 {
+  animation: chipFloat3 5.5s ease-in-out infinite;
+}
+
+.chip-4 {
+  animation: chipFloat4 6.5s ease-in-out infinite;
+}
+
+.progress-bar-fill {
+  animation: progressGlow 2s ease-in-out infinite;
+}
+
+/* Reduced Motion Fallback */
+@media (prefers-reduced-motion: reduce) {
+  .tech-glow-bg,
+  .scanline-overlay,
+  .chip-1,
+  .chip-2,
+  .chip-3,
+  .chip-4,
+  .progress-bar-fill,
+  .terminal-cursor {
+    animation: none !important;
+  }
+}

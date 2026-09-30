@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { login } from '../services/authService';
 import { Lock, User, ArrowRight, Loader2, Eye, EyeOff } from 'lucide-react';
+import IrrigationLoader from '../components/IrrigationLoader';
 
 const Login = () => {
     // Actually, sticking to username/password as per backend
