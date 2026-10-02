@@ -37,6 +37,7 @@ const quotationSchema = new mongoose.Schema({
   status: { type: String, default: "Draft" },
   expiryDate: Date,
   theme: String,
+  includeShippingAddress: { type: Boolean, default: true },
   shipTo: {
     name: String,
     address: String,

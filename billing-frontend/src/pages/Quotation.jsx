@@ -53,6 +53,7 @@ const Quotation = () => {
 
     // Ship To State
     const [isShipSameAsBill, setIsShipSameAsBill] = usePersistentState('quotation_v3.isShipSameAsBill', true);
+    const [includeShippingAddress, setIncludeShippingAddress] = usePersistentState('quotation_v3.includeShippingAddress', true);
     const [shipTo, setShipTo] = usePersistentState('quotation_v3.shipTo', {
         name: '',
         address: '',
@@ -124,6 +125,10 @@ const Quotation = () => {
                                 address: q.customerAddress || '',
                                 state: q.customerState || 'Tamil Nadu'
                             });
+                        }
+
+                        if (q.includeShippingAddress !== undefined) {
+                            setIncludeShippingAddress(q.includeShippingAddress);
                         }
 
                         if (q.shipTo) {
@@ -339,6 +344,7 @@ const Quotation = () => {
                 amount: item.quantity * item.rate
             })),
             discountPercent: parseFloat(discountPercent) || 0,
+            includeShippingAddress,
             shipTo
         };
 
@@ -574,21 +580,46 @@ const Quotation = () => {
                     </div>
 
                     {/* Ship To Segment */}
-                    <div className="mt-6 pt-4 border-t border-gray-100">
-                        <div className="flex justify-between items-center mb-3">
-                            <h4 className="font-bold text-gray-700 text-sm">Shipping Information</h4>
-                            <label className="flex items-center gap-1.5 text-xs text-gray-500 cursor-pointer select-none">
-                                <input
-                                    type="checkbox"
-                                    className="rounded border-gray-300 w-3 h-3 text-blue-600"
-                                    checked={isShipSameAsBill}
-                                    onChange={e => setIsShipSameAsBill(e.target.checked)}
+                    <div className="mt-6 pt-4 border-t border-gray-100 space-y-3">
+                        {/* Include Shipping Address Toggle Switch */}
+                        <div className="flex items-center justify-between p-3 rounded-xl bg-slate-50 border border-slate-200">
+                            <div>
+                                <span className="text-xs font-bold text-slate-800 block">Include Shipping Address</span>
+                                <span className="text-[10px] text-slate-500 block">Controls whether Ship To appears in PDF</span>
+                            </div>
+                            <button
+                                type="button"
+                                onClick={() => setIncludeShippingAddress(!includeShippingAddress)}
+                                className={`relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none ${
+                                    includeShippingAddress ? 'bg-indigo-600' : 'bg-slate-300'
+                                }`}
+                                role="switch"
+                                aria-checked={includeShippingAddress}
+                            >
+                                <span
+                                    className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow-md ring-0 transition duration-200 ease-in-out ${
+                                        includeShippingAddress ? 'translate-x-5' : 'translate-x-0'
+                                    }`}
                                 />
-                                Same as Billing Address
-                            </label>
+                            </button>
                         </div>
 
-                        {!isShipSameAsBill && (
+                        {includeShippingAddress && (
+                            <div className="flex justify-between items-center mb-3">
+                                <h4 className="font-bold text-gray-700 text-sm">Shipping Details</h4>
+                                <label className="flex items-center gap-1.5 text-xs text-gray-500 cursor-pointer select-none">
+                                    <input
+                                        type="checkbox"
+                                        className="rounded border-gray-300 w-3 h-3 text-blue-600"
+                                        checked={isShipSameAsBill}
+                                        onChange={e => setIsShipSameAsBill(e.target.checked)}
+                                    />
+                                    Same as Billing Address
+                                </label>
+                            </div>
+                        )}
+
+                        {includeShippingAddress && !isShipSameAsBill && (
                             <div className="space-y-2.5">
                                 <div>
                                     <label className="block text-[10px] font-semibold text-gray-500 uppercase mb-0.5">Receiver Name</label>

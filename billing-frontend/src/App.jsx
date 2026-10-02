@@ -16,6 +16,8 @@ import PurchaseOrders from './pages/PurchaseOrders';
 import { isAuthenticated } from './services/authService';
 import IrrigationLoader from './components/IrrigationLoader';
 
+import EWayBillSandbox from './pages/EWayBillSandbox';
+
 const ProtectedRoute = () => {
   return isAuthenticated() ? <Outlet /> : <Navigate to="/login" replace />;
 };
@@ -65,6 +67,8 @@ function App() {
             <Route path="invoices" element={<Invoices />} />
             <Route path="invoices/new" element={<CreateInvoice />} />
             <Route path="invoices/edit/:id" element={<CreateInvoice />} />
+            <Route path="ewaybill-sandbox" element={<EWayBillSandbox />} />
+            <Route path="ewaybill-test.html" element={<EWayBillSandbox />} />
             <Route path="insights" element={<AgentInsights />} />
             <Route path="profile" element={<Profile />} />
             {/* Redirect unknown routes to Dashboard */}

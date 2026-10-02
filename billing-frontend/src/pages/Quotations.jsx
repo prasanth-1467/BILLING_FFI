@@ -12,6 +12,7 @@ const Quotations = () => {
   const [printingId, setPrintingId] = useState(null);
   const [includeSignature, setIncludeSignature] = useState(false);
   const [includeSeal, setIncludeSeal] = useState(false);
+  const [includeShippingAddress, setIncludeShippingAddress] = useState(true);
   const [expandedId, setExpandedId] = useState(null);
   const [selectedTheme, setSelectedTheme] = useState('indigo');
   const [pdfDocType, setPdfDocType] = useState('quotation'); // 'quotation' | 'proforma'
@@ -86,7 +87,7 @@ const Quotations = () => {
   const handleDownload = async (id, quoteNumber) => {
     try {
       const response = await api.get(`/quotations/${id}/pdf`, {
-        params: { includeSignature, includeSeal, theme: selectedTheme, docType: pdfDocType },
+        params: { includeSignature, includeSeal, includeShippingAddress, theme: selectedTheme, docType: pdfDocType },
         responseType: 'blob',
       });
       const prefix = pdfDocType === 'proforma' ? 'Proforma' : 'Quotation';
@@ -107,7 +108,7 @@ const Quotations = () => {
     try {
       setPrintingId(id);
       const response = await api.get(`/quotations/${id}/pdf`, {
-        params: { includeSignature, includeSeal, theme: selectedTheme, docType: pdfDocType },
+        params: { includeSignature, includeSeal, includeShippingAddress, theme: selectedTheme, docType: pdfDocType },
         responseType: 'blob',
       });
 
@@ -193,7 +194,7 @@ const Quotations = () => {
   const handleEmailToMe = async (quote) => {
     try {
       setSaving(true);
-      await api.post(`/quotations/${quote.id}/email-to-me?includeSignature=${includeSignature}&includeSeal=${includeSeal}&theme=${selectedTheme}&docType=${pdfDocType}`);
+      await api.post(`/quotations/${quote.id}/email-to-me?includeSignature=${includeSignature}&includeSeal=${includeSeal}&includeShippingAddress=${includeShippingAddress}&theme=${selectedTheme}&docType=${pdfDocType}`);
       alert('Email sent successfully to your admin email!');
     } catch (error) {
       console.error('Email failed', error);
@@ -345,27 +346,34 @@ const Quotations = () => {
             <button
               type="button"
               onClick={() => setPdfDocType('quotation')}
-              className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${
-                pdfDocType === 'quotation'
-                  ? 'bg-indigo-600 text-white shadow-sm'
-                  : 'text-slate-600 hover:text-slate-900 hover:bg-slate-200/60'
-              }`}
+              className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${pdfDocType === 'quotation'
+                ? 'bg-indigo-600 text-white shadow-sm'
+                : 'text-slate-600 hover:text-slate-900 hover:bg-slate-200/60'
+                }`}
             >
-              1. Quotation
+              Quotation
             </button>
             <button
               type="button"
               onClick={() => setPdfDocType('proforma')}
-              className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${
-                pdfDocType === 'proforma'
-                  ? 'bg-indigo-600 text-white shadow-sm'
-                  : 'text-slate-600 hover:text-slate-900 hover:bg-slate-200/60'
-              }`}
+              className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${pdfDocType === 'proforma'
+                ? 'bg-indigo-600 text-white shadow-sm'
+                : 'text-slate-600 hover:text-slate-900 hover:bg-slate-200/60'
+                }`}
             >
-              2. Proforma Invoice
+              Proforma Invoice
             </button>
           </div>
 
+          <label className="flex items-center gap-2 text-sm font-medium text-gray-700 bg-gray-50 px-3 py-2.5 rounded-lg cursor-pointer border hover:bg-gray-100">
+            <input
+              type="checkbox"
+              className="w-4 h-4 text-blue-600 rounded focus:ring-blue-500 border-gray-300"
+              checked={includeShippingAddress}
+              onChange={e => setIncludeShippingAddress(e.target.checked)}
+            />
+            Include Shipping Address
+          </label>
           <label className="flex items-center gap-2 text-sm font-medium text-gray-700 bg-gray-50 px-3 py-2.5 rounded-lg cursor-pointer border hover:bg-gray-100">
             <input
               type="checkbox"
