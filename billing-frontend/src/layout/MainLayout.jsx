@@ -19,23 +19,28 @@ import {
 import NotificationBell from '../components/NotificationBell';
 import '../index.css';
 
-const SidebarItem = ({ to, icon: Icon, label, reloadDocument = false }) => {
+const SidebarItem = ({ to, icon: Icon, label, reloadDocument = false, alsoActiveFor = [] }) => {
+    const location = useLocation();
+    const isCurrentPath = location.pathname === to || (to !== '/' && location.pathname.startsWith(to + '/'));
+    const isAlsoActive = alsoActiveFor.some(path => location.pathname === path || location.pathname.startsWith(path));
+    const isActive = isCurrentPath || isAlsoActive;
+
     return (
-        <NavLink
+        <Link
             to={to}
             reloadDocument={reloadDocument}
-            className={({ isActive }) =>
-                `flex items-center gap-3 px-4 py-3 mx-2 rounded-lg transition-all duration-300 group ${isActive
-                    ? 'bg-indigo-600/10 text-indigo-400 shadow-[inset_0_0_0_1px_rgba(99,102,241,0.2)]'
-                    : 'text-slate-400 hover:bg-slate-800/50 hover:text-slate-200'
-                }`
-            }
+            className={`flex items-center gap-3 px-4 py-3 mx-2 rounded-lg transition-all duration-300 group ${isActive
+                ? 'bg-indigo-600/10 text-indigo-400 shadow-[inset_0_0_0_1px_rgba(99,102,241,0.2)]'
+                : 'text-slate-400 hover:bg-slate-800/50 hover:text-slate-200'
+            }`}
         >
             <Icon size={18} className="transition-transform duration-300 group-hover:scale-110" />
             <span className="font-medium text-sm">{label}</span>
             {/* Active Indicator Dot */}
-            <NavLink to={to} className={({ isActive }) => isActive ? "ml-auto w-1.5 h-1.5 rounded-full bg-indigo-500 shadow-[0_0_8px_rgba(99,102,241,0.6)]" : "hidden"} />
-        </NavLink>
+            {isActive && (
+                <span className="ml-auto w-1.5 h-1.5 rounded-full bg-indigo-500 shadow-[0_0_8px_rgba(99,102,241,0.6)]" />
+            )}
+        </Link>
     );
 };
 
@@ -89,13 +94,13 @@ const MainLayout = () => {
                     <SidebarItem to="/" icon={LayoutDashboard} label="Dashboard" />
                     <SidebarItem to="/products" icon={Package} label="Products" />
                     <SidebarItem to="/customers" icon={Users} label="Customers" />
-                    <SidebarItem to="/quotations" icon={FileText} label="Quotations" />
-                    <SidebarItem to="/quotation" icon={FileText} label="Create Quotation" />
-                    <SidebarItem to="/purchase-orders" icon={ShoppingBag} label="Purchase Orders" />
+                    <SidebarItem to="/quotations" icon={FileText} label="Quotations" alsoActiveFor={['/quotation']} />
+                    <SidebarItem to="/quotation" icon={FileText} label="Create Quotation" alsoActiveFor={['/quotations/new']} />
+                    <SidebarItem to="/purchase-orders" icon={ShoppingBag} label="Purchase Orders" alsoActiveFor={['/purchase-orders/new']} />
                     <SidebarItem to="/purchase-orders/new" icon={ShoppingBag} label="Create PO" />
-                    <SidebarItem to="/invoices" icon={Receipt} label="Invoices" />
+                    <SidebarItem to="/invoices" icon={Receipt} label="Invoices" alsoActiveFor={['/invoices/new']} />
                     <SidebarItem to="/invoices/new" icon={Receipt} label="Create Invoice" />
-                    <SidebarItem to="/ewaybill-test.html" icon={Truck} label="E-Way Bill Sandbox" reloadDocument />
+                    <SidebarItem to="/ewaybill-test.html" icon={Truck} label="E-Way Bill Sandbox" />
 
                     <div className="mt-8 mb-2 px-6">
                         <p className="text-[10px] font-bold text-slate-500 uppercase tracking-widest border-b border-slate-800 pb-2">AI Insights</p>

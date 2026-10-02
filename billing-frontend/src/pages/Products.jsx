@@ -413,11 +413,10 @@ const Products = () => {
             setStockFilter('All');
             setCategoryFilter('All');
           }}
-          className={`bg-white p-5 rounded-2xl shadow-sm border flex items-center gap-4 cursor-pointer transition-all duration-200 hover:-translate-y-0.5 hover:shadow-md active:translate-y-0 ${
-            stockFilter === 'All' && categoryFilter === 'All'
+          className={`bg-white p-5 rounded-2xl shadow-sm border flex items-center gap-4 cursor-pointer transition-all duration-200 hover:-translate-y-0.5 hover:shadow-md active:translate-y-0 ${stockFilter === 'All' && categoryFilter === 'All'
               ? 'border-indigo-500 ring-2 ring-indigo-100'
               : 'border-slate-100'
-          }`}
+            }`}
         >
           <div className="w-12 h-12 rounded-2xl bg-indigo-50 flex items-center justify-center text-indigo-600">
             <Package size={24} />
@@ -431,9 +430,8 @@ const Products = () => {
 
         <div
           onClick={() => setStockFilter('Low Stock')}
-          className={`bg-white p-5 rounded-2xl shadow-sm border flex items-center gap-4 cursor-pointer transition-all duration-200 hover:-translate-y-0.5 hover:shadow-md active:translate-y-0 ${
-            stockFilter === 'Low Stock' ? 'border-amber-500 ring-2 ring-amber-100' : 'border-slate-100'
-          }`}
+          className={`bg-white p-5 rounded-2xl shadow-sm border flex items-center gap-4 cursor-pointer transition-all duration-200 hover:-translate-y-0.5 hover:shadow-md active:translate-y-0 ${stockFilter === 'Low Stock' ? 'border-amber-500 ring-2 ring-amber-100' : 'border-slate-100'
+            }`}
         >
           <div className="w-12 h-12 rounded-2xl bg-amber-50 flex items-center justify-center text-amber-600">
             <AlertTriangle size={24} />
@@ -447,9 +445,8 @@ const Products = () => {
 
         <div
           onClick={() => setStockFilter('Out of Stock')}
-          className={`bg-white p-5 rounded-2xl shadow-sm border flex items-center gap-4 cursor-pointer transition-all duration-200 hover:-translate-y-0.5 hover:shadow-md active:translate-y-0 ${
-            stockFilter === 'Out of Stock' ? 'border-rose-500 ring-2 ring-rose-100' : 'border-slate-100'
-          }`}
+          className={`bg-white p-5 rounded-2xl shadow-sm border flex items-center gap-4 cursor-pointer transition-all duration-200 hover:-translate-y-0.5 hover:shadow-md active:translate-y-0 ${stockFilter === 'Out of Stock' ? 'border-rose-500 ring-2 ring-rose-100' : 'border-slate-100'
+            }`}
         >
           <div className="w-12 h-12 rounded-2xl bg-rose-50 flex items-center justify-center text-rose-600">
             <AlertCircle size={24} />
@@ -481,17 +478,15 @@ const Products = () => {
           {/* ALL Tab */}
           <button
             onClick={() => setCategoryFilter('All')}
-            className={`px-4 py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-2 ${
-              categoryFilter === 'All'
+            className={`px-4 py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-2 ${categoryFilter === 'All'
                 ? 'bg-slate-900 text-white shadow-md shadow-slate-900/20 ring-2 ring-slate-900/30'
                 : 'bg-slate-100 text-slate-600 hover:bg-slate-200 hover:text-slate-900'
-            }`}
+              }`}
           >
             <span>All Products</span>
             <span
-              className={`px-1.5 py-0.5 rounded-full text-[10px] font-extrabold ${
-                categoryFilter === 'All' ? 'bg-slate-700 text-white' : 'bg-slate-200 text-slate-700'
-              }`}
+              className={`px-1.5 py-0.5 rounded-full text-[10px] font-extrabold ${categoryFilter === 'All' ? 'bg-slate-700 text-white' : 'bg-slate-200 text-slate-700'
+                }`}
             >
               {products.length}
             </span>
@@ -508,17 +503,15 @@ const Products = () => {
               <button
                 key={cat.name}
                 onClick={() => setCategoryFilter(cat.name)}
-                className={`px-4 py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-2 ${
-                  isSelected
+                className={`px-4 py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-2 ${isSelected
                     ? 'bg-indigo-600 text-white shadow-md shadow-indigo-600/25 ring-2 ring-indigo-500/30'
                     : 'bg-slate-100 text-slate-600 hover:bg-slate-200 hover:text-slate-900'
-                }`}
+                  }`}
               >
                 <span>{cat.name}</span>
                 <span
-                  className={`px-1.5 py-0.5 rounded-full text-[10px] font-extrabold ${
-                    isSelected ? 'bg-indigo-700 text-white' : 'bg-slate-200 text-slate-700'
-                  }`}
+                  className={`px-1.5 py-0.5 rounded-full text-[10px] font-extrabold ${isSelected ? 'bg-indigo-700 text-white' : 'bg-slate-200 text-slate-700'
+                    }`}
                 >
                   {count}
                 </span>
@@ -533,8 +526,7 @@ const Products = () => {
       <div className="bg-white p-4 rounded-2xl shadow-sm border border-slate-100 flex flex-col md:flex-row gap-3 justify-between items-center">
         <div className="flex flex-1 flex-col sm:flex-row gap-3 items-center w-full">
           {/* Search Box */}
-          <div className="relative flex-1 w-full">
-            <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
+          <div className="relative flex-1 min-w-0 w-full">
             <input
               type="text"
               placeholder={`Search ${categoryFilter === 'All' ? 'all products' : categoryFilter} by name, code...`}
@@ -553,16 +545,18 @@ const Products = () => {
           </div>
 
           {/* Stock Filter Dropdown */}
-          <select
-            className="h-10 border-slate-200 rounded-xl text-xs font-semibold px-3 bg-slate-50 cursor-pointer hover:bg-slate-100 text-slate-700 outline-none w-full sm:w-48"
-            value={stockFilter}
-            onChange={(e) => setStockFilter(e.target.value)}
-          >
-            <option value="All">All Stock Levels</option>
-            <option value="In Stock">In Stock Only</option>
-            <option value="Low Stock">Low Stock Alert</option>
-            <option value="Out of Stock">Out of Stock</option>
-          </select>
+          <div className="w-full sm:w-52 shrink-0">
+            <select
+              className="h-10 border border-slate-200 rounded-xl text-xs font-semibold px-3 bg-slate-50 cursor-pointer hover:bg-slate-100 text-slate-700 outline-none w-full"
+              value={stockFilter}
+              onChange={(e) => setStockFilter(e.target.value)}
+            >
+              <option value="All">All Stock Levels</option>
+              <option value="In Stock">In Stock Only</option>
+              <option value="Low Stock">Low Stock Alert</option>
+              <option value="Out of Stock">Out of Stock</option>
+            </select>
+          </div>
         </div>
       </div>
 
@@ -841,9 +835,8 @@ const Products = () => {
                   return (
                     <tr
                       key={product._id}
-                      className={`hover:bg-indigo-50/30 transition-colors group ${
-                        isChecked ? 'bg-indigo-50/20' : ''
-                      }`}
+                      className={`hover:bg-indigo-50/30 transition-colors group ${isChecked ? 'bg-indigo-50/20' : ''
+                        }`}
                     >
                       <td className="p-4">
                         <input
@@ -934,13 +927,12 @@ const Products = () => {
                               handleInlineEdit(product._id, 'stockQty', Number(e.target.value))
                             }
                             onKeyDown={(e) => e.key === 'Enter' && e.target.blur()}
-                            className={`w-16 px-2 py-1 border border-transparent hover:border-slate-300 focus:border-indigo-500 rounded-lg bg-transparent focus:bg-white transition-all font-bold text-xs ${
-                              outOfStock
+                            className={`w-16 px-2 py-1 border border-transparent hover:border-slate-300 focus:border-indigo-500 rounded-lg bg-transparent focus:bg-white transition-all font-bold text-xs ${outOfStock
                                 ? 'text-rose-600'
                                 : lowStock
-                                ? 'text-amber-600'
-                                : 'text-slate-900'
-                            }`}
+                                  ? 'text-amber-600'
+                                  : 'text-slate-900'
+                              }`}
                             type="number"
                           />
                         </div>
@@ -1039,11 +1031,10 @@ const Products = () => {
                 <label
                   key={cat.name}
                   onClick={() => setTargetCategoryForAssign(cat.name)}
-                  className={`flex items-center justify-between p-3 rounded-xl border cursor-pointer transition-all ${
-                    targetCategoryForAssign === cat.name
+                  className={`flex items-center justify-between p-3 rounded-xl border cursor-pointer transition-all ${targetCategoryForAssign === cat.name
                       ? 'border-indigo-600 bg-indigo-50/50 ring-2 ring-indigo-100'
                       : 'border-slate-200 hover:bg-slate-50'
-                  }`}
+                    }`}
                 >
                   <div className="flex items-center gap-3">
                     <input

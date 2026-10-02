@@ -166,7 +166,9 @@ function generatePDF(resOrData, dataOrNone, type = "TAX INVOICE") {
         + 10;
 
     let shipToHeight = 0;
-    if (data.customer.shipTo) {
+    const shouldIncludeShipping = data?.includeShippingAddress !== false && data?.includeShippingAddress !== 'false' && Boolean(data.customer?.shipTo && (data.customer.shipTo.name || data.customer.shipTo.address || data.customer.shipTo.city || data.customer.shipTo.state));
+
+    if (shouldIncludeShipping) {
         shipToHeight = 15
             + doc.heightOfString(data.customer.shipTo.name || data.customer.name || "-", { width: colWidth })
             + doc.heightOfString(data.customer.shipTo.address || data.customer.address || "-", { width: colWidth })
@@ -178,7 +180,7 @@ function generatePDF(resOrData, dataOrNone, type = "TAX INVOICE") {
 
     // Draw cards first
     doc.roundedRect(38, addressY - 5, 235, blockHeight, 6).fill(theme.tableHeaderBg);
-    if (data.customer.shipTo) {
+    if (shouldIncludeShipping) {
         doc.roundedRect(298, addressY - 5, 235, blockHeight, 6).fill(theme.tableHeaderBg);
     }
 
@@ -195,7 +197,7 @@ function generatePDF(resOrData, dataOrNone, type = "TAX INVOICE") {
     let shipToEndY = addressY; // Default if no ship to
 
     // Ship To (Right)
-    if (data.customer.shipTo) {
+    if (shouldIncludeShipping) {
         doc.fillColor(theme.primary).fontSize(10).font("Helvetica-Bold").text("Ship To:", 305, addressY);
         doc.font("Helvetica-Bold").text(data.customer.shipTo.name || data.customer.name, 305, doc.y, { width: colWidth - 10 });
         doc.font("Helvetica").fillColor(theme.secondaryText).text(data.customer.shipTo.address || data.customer.address, { width: colWidth - 10 });

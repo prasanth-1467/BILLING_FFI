@@ -21,7 +21,8 @@ router.post("/", async (req, res) => {
       items, 
       discountPercent, 
       expiryDate, 
-      shipTo 
+      shipTo,
+      includeShippingAddress
     } = req.body;
 
     const date = new Date();
@@ -111,6 +112,7 @@ router.post("/", async (req, res) => {
       total,
       expiryDate,
       theme: req.body.theme || null,
+      includeShippingAddress: includeShippingAddress !== undefined ? Boolean(includeShippingAddress) : true,
       shipTo
     });
 
@@ -169,6 +171,7 @@ router.put("/:id", async (req, res) => {
       date,
       expiryDate,
       shipTo,
+      includeShippingAddress,
       theme
     } = req.body;
 
@@ -235,6 +238,7 @@ router.put("/:id", async (req, res) => {
     if (date) existingQuote.date = new Date(date);
     if (expiryDate) existingQuote.expiryDate = new Date(expiryDate);
     if (shipTo !== undefined) existingQuote.shipTo = shipTo;
+    if (includeShippingAddress !== undefined) existingQuote.includeShippingAddress = Boolean(includeShippingAddress);
     if (theme !== undefined) existingQuote.theme = theme;
 
     await existingQuote.save();
@@ -257,6 +261,9 @@ router.get("/:id/pdf", async (req, res) => {
 
     const includeSignature = req.query.includeSignature === 'true';
     const includeSeal = req.query.includeSeal === 'true';
+    const includeShippingAddress = req.query.includeShippingAddress !== undefined
+      ? req.query.includeShippingAddress === 'true'
+      : (quote.includeShippingAddress !== false);
 
     // Resolve docType / heading title: 'QUOTATION' or 'PROFORMA INVOICE'
     const docType = (req.query.docType || req.query.documentTitle || 'quotation').toLowerCase();
@@ -308,7 +315,8 @@ router.get("/:id/pdf", async (req, res) => {
       roundOff: quote.roundOff,
       total: quote.total,
       includeSignature, // Add to data object
-      includeSeal
+      includeSeal,
+      includeShippingAddress
     };
 
     const filenamePrefix = documentTitle === 'PROFORMA INVOICE' ? 'Proforma' : 'Quotation';
@@ -468,7 +476,10 @@ router.post("/:id/email-to-me", async (req, res) => {
       roundOff: quote.roundOff,
       total: quote.total,
       includeSignature: req.query.includeSignature === "true",
-      includeSeal: req.query.includeSeal === "true"
+      includeSeal: req.query.includeSeal === "true",
+      includeShippingAddress: req.query.includeShippingAddress !== undefined
+        ? req.query.includeShippingAddress === "true"
+        : (quote.includeShippingAddress !== false)
     };
 
     // Resolve theme
