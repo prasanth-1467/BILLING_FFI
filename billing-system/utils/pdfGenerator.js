@@ -214,38 +214,43 @@ function generatePDF(resOrData, dataOrNone, type = "TAX INVOICE") {
     const sectionEndY = addressY + blockHeight + 10;
     drawLine(doc, sectionEndY, theme.accent);
 
+    // ==========================================
+    // --- DYNAMIC PAGINATION & SIZING SETUP ---
+    // ==========================================
+    const pageBottomLimit = doc.page.height - doc.page.margins.bottom; // 801.89 pt on A4
+
+    const signaturePath = path.join(__dirname, '../assets/Signature.png');
+    const sealPathDefault = path.join(__dirname, '../assets/Seal.png');
+    const sealPathFFI = path.join(__dirname, '../assets/Seal_FFI.png');
+    const sealPath = fs.existsSync(sealPathFFI) ? sealPathFFI : sealPathDefault;
+
+    const hasSignature = includeSignature && fs.existsSync(signaturePath);
+    const hasSeal = includeSeal && fs.existsSync(sealPath);
+
+    // Dynamic height required by Terms & Conditions and Authorized Signatory
+    const footerRequiredHeight = (hasSignature || hasSeal) ? 95 : 75;
+    const targetFooterY = pageBottomLimit - footerRequiredHeight;
+
     // --- ITEMS TABLE ---
     let y = sectionEndY + 20; // Start table below address section
+    y = renderTableHeader(doc, y, theme);
 
-    // Table Header
-    doc.rect(40, y - 5, 510, 20).fill(theme.tableHeaderBg);
-    doc.fillColor(theme.tableHeaderText);
-    drawTableRow(doc, y, "Sl", "Description", "HSN", "GST %", "Qty", "Unit", "Rate", "Amount", true);
-    doc.fillColor(theme.primary);
-    drawLine(doc, y + 20, theme.accent);
-    y += 30;
+    const tableBottomLimit = pageBottomLimit - 25;
 
-    // Items
+    // Items Loop with Dynamic Row Height & Smart Pagination
     data.items.forEach((item, i) => {
-        // Dynamic Height Calculation
+        // Dynamic Height Calculation for Wrapped Description
         const descWidth = 150;
-        const descHeight = doc.heightOfString(item.name, { width: descWidth });
-        const rowHeight = Math.max(descHeight, 20); // Minimum height 20
+        const descHeight = doc.heightOfString(item.name || "", { width: descWidth });
+        const rowHeight = Math.max(descHeight, 20); // Minimum row height
         const padding = 10;
         const totalRowHeight = rowHeight + padding;
 
-        // Page break check (Reduced to 600 to leave space for Bank & Footer)
-        if (y + totalRowHeight > 600) {
+        // Break to new page only if row physically exceeds printable page bottom
+        if (y + totalRowHeight > tableBottomLimit) {
             doc.addPage();
             drawPageHeader(doc, type, data, theme);
-            y = 85;
-            // Redraw Header
-            doc.rect(40, y - 5, 510, 20).fill(theme.tableHeaderBg);
-            doc.fillColor(theme.tableHeaderText);
-            drawTableRow(doc, y, "Sl", "Description", "HSN", "GST %", "Qty", "Unit", "Rate", "Amount", true);
-            doc.fillColor(theme.primary);
-            drawLine(doc, y + 20, theme.accent);
-            y += 30;
+            y = renderTableHeader(doc, 85, theme);
         }
 
         drawTableRow(
@@ -266,6 +271,28 @@ function generatePDF(resOrData, dataOrNone, type = "TAX INVOICE") {
 
     drawLine(doc, y, theme.accent);
     y += 10;
+
+    // --- TOTALS & FOOTER ACCOMMODATION ---
+    const isInterState = Boolean(data.gst && data.gst.IGST > 0);
+    const totalsHeight = calculateTotalsHeight(doc, data, isInterState);
+    const minContentGap = 15;
+
+    const canFitTotalsAndFooter = (y + totalsHeight + minContentGap <= targetFooterY);
+    const canFitTotalsAlone = (y + totalsHeight <= pageBottomLimit);
+
+    if (!canFitTotalsAndFooter && !canFitTotalsAlone) {
+        // Totals cannot fit on the current page at all
+        doc.addPage();
+        drawPageHeader(doc, type, data, theme);
+        y = 85;
+    } else if (!canFitTotalsAndFooter && y > 560) {
+        // If totals alone could barely squeeze into the very bottom margin, leaving
+        // the footer stranded on a new page, move totals over so financial figures
+        // and legal authorizations remain together.
+        doc.addPage();
+        drawPageHeader(doc, type, data, theme);
+        y = 85;
+    }
 
     // --- TOTALS SECTION ---
     const totalsX = 350;
@@ -303,8 +330,6 @@ function generatePDF(resOrData, dataOrNone, type = "TAX INVOICE") {
             taxSlabs[rate].tax += taxAmount;
         }
     });
-
-    const isInterState = data.gst.IGST > 0;
 
     // Render Slabs Sorted by Rate
     Object.keys(taxSlabs)
@@ -352,45 +377,41 @@ function generatePDF(resOrData, dataOrNone, type = "TAX INVOICE") {
 
     drawLine(doc, y + 15, theme.accent);
     y += 25;
+
     const wordsRepresentation = numberToRupeesWords(data.total);
-    doc.fillColor(theme.secondaryText).font("Helvetica-Oblique").fontSize(9).text(`Amount in Words: ${wordsRepresentation}`, 40, y);
-    y += 15;
+    const wordsText = `Amount in Words: ${wordsRepresentation}`;
+    doc.fillColor(theme.secondaryText).font("Helvetica-Oblique").fontSize(9).text(wordsText, 40, y, { width: 510 });
+    y += doc.heightOfString(wordsText, { width: 510 }) + 10;
 
-    // --- TERMS & FOOTER ---
-    const footerStart = 610;
-
-    // Check if we need a new page for footer
-    if (y > footerStart - 20) {
+    // --- DYNAMIC BOTTOM-ALIGNED FOOTER (TERMS & SIGNATORY) ---
+    const minFooterGap = 15;
+    let footerY;
+    if (y + minFooterGap <= targetFooterY) {
+        // Content finishes with room to spare: align footer to bottom content boundary
+        footerY = targetFooterY;
+    } else {
+        // Content extends into footer zone; break to new page and bottom-align there
         doc.addPage();
         drawPageHeader(doc, type, data, theme);
+        footerY = targetFooterY;
     }
 
-    // Terms & Conditions (Below Bank Details)
-    const termsY = 700;
-    doc.fillColor(theme.primary).font("Helvetica-Bold").fontSize(10);
-    doc.text("Terms & Conditions:", 40, termsY);
+    // Terms & Conditions (Left Column - 60% Width)
+    doc.fillColor(theme.primary).font("Helvetica-Bold").fontSize(10).text("Terms & Conditions:", 40, footerY);
     doc.fillColor(theme.secondaryText).font("Helvetica").fontSize(8);
-    doc.text("1. Goods once sold will not be taken back.");
-    doc.text("2. 100% payment in advance.");
-    doc.text("3. Materials will be supplied within 20 days from the date of receipt of payment.");
-    doc.text("4. Transportation and installation shall be arranged by the customer.");
-    doc.text("5. Subject to local jurisdiction.");
+    doc.text("1. Goods once sold will not be taken back.", 40, footerY + 14);
+    doc.text("2. 100% payment in advance.", 40, footerY + 25);
+    doc.text("3. Materials will be supplied within 20 days from the date of receipt of payment.", 40, footerY + 36);
+    doc.text("4. Transportation and installation shall be arranged by the customer.", 40, footerY + 47);
+    doc.text("5. Subject to local jurisdiction.", 40, footerY + 58);
 
-    // Signatory (Right Aligned - same Y as Terms)
-    doc.fillColor(theme.primary).font("Helvetica-Bold").fontSize(10).text(`For ${company.name}`, 350, termsY, { align: "right" });
-
-    const signaturePath = path.join(__dirname, '../assets/Signature.png');
-    const sealPathDefault = path.join(__dirname, '../assets/Seal.png');
-    const sealPathFFI = path.join(__dirname, '../assets/Seal_FFI.png');
-    const sealPath = fs.existsSync(sealPathFFI) ? sealPathFFI : sealPathDefault;
-
-    const hasSignature = includeSignature && fs.existsSync(signaturePath);
-    const hasSeal = includeSeal && fs.existsSync(sealPath);
+    // Signatory (Right Column - 40% Width)
+    doc.fillColor(theme.primary).font("Helvetica-Bold").fontSize(10).text(`For ${company.name}`, 350, footerY, { align: "right" });
 
     if (hasSeal) {
         try {
             // Place seal image (positioned to the left of the signature)
-            doc.image(sealPath, 340, termsY + 10, { width: 75 });
+            doc.image(sealPath, 340, footerY + 10, { width: 75 });
         } catch (err) {
             console.error("Error loading seal image:", err);
         }
@@ -399,19 +420,14 @@ function generatePDF(resOrData, dataOrNone, type = "TAX INVOICE") {
     if (hasSignature) {
         try {
             // Place signature image
-            doc.image(signaturePath, 450, termsY + 15, { width: 80 });
+            doc.image(signaturePath, 450, footerY + 15, { width: 80 });
         } catch (err) {
             console.error("Error loading signature image:", err);
         }
     }
 
-    if (hasSignature || hasSeal) {
-        doc.moveDown(6);
-    } else {
-        doc.moveDown(3);
-    }
-
-    doc.text("Authorized Signatory", 350, doc.y, { align: "right" });
+    const authSignatoryY = (hasSignature || hasSeal) ? footerY + 75 : footerY + 45;
+    doc.fillColor(theme.primary).font("Helvetica-Bold").fontSize(10).text("Authorized Signatory", 350, authSignatoryY, { align: "right" });
 
     if (isBufferMode) {
         const pdfPromise = new Promise((resolve, reject) => {
@@ -518,6 +534,44 @@ function drawPageHeader(doc, type, data, theme) {
     
     // Draw horizontal line separator
     drawLine(doc, y + 35, theme.accent);
+}
+
+// Helper: Render Table Header with background, titles, and separator
+function renderTableHeader(doc, y, theme) {
+    doc.rect(40, y - 5, 510, 20).fill(theme.tableHeaderBg);
+    doc.fillColor(theme.tableHeaderText);
+    drawTableRow(doc, y, "Sl", "Description", "HSN", "GST %", "Qty", "Unit", "Rate", "Amount", true);
+    doc.fillColor(theme.primary);
+    drawLine(doc, y + 20, theme.accent);
+    return y + 30;
+}
+
+// Helper: Calculate exact vertical height required by the totals section
+function calculateTotalsHeight(doc, data, isInterState) {
+    let height = 10; // gap after table bottom line
+    height += 15;    // Subtotal
+    if (data.discountPercent > 0) height += 15;
+    height += 15;    // Taxable Amount
+
+    const rates = new Set();
+    if (Array.isArray(data.items)) {
+        data.items.forEach(item => {
+            const r = Number(item.gstRate || 0);
+            if (r > 0) rates.add(r);
+        });
+    }
+    const slabCount = rates.size;
+    height += slabCount * (isInterState ? 15 : 30);
+    height += 5;     // slab bottom padding
+
+    if (data.roundOff && Math.abs(data.roundOff) > 0) height += 15;
+    height += 10;    // separator line gap
+    height += 40;    // Total Payable + underline + padding
+
+    const wordsText = `Amount in Words: ${numberToRupeesWords(data.total)}`;
+    height += doc.heightOfString(wordsText, { width: 510 }) + 10;
+
+    return height;
 }
 
 module.exports = { generatePDF };

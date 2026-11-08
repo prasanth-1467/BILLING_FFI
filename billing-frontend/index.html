@@ -6,6 +6,15 @@
   <link rel="icon" type="image/svg+xml" href="/batman.svg" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Fine Flow Irrigation</title>
+  <script>
+    (function() {
+      try {
+        var theme = localStorage.getItem('ffi_theme') || 'dark';
+        document.documentElement.setAttribute('data-theme', theme);
+        document.documentElement.classList.add(theme);
+      } catch(e) {}
+    })();
+  </script>
 </head>
 
 <body>

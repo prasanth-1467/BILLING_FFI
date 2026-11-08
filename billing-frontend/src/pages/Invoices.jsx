@@ -1,12 +1,18 @@
 import React, { useEffect, useState, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import api from '../services/api';
-import { Search, Loader, Download, FileText, CheckCircle, Clock, Eye, Trash2, Edit, Save, X, MoreVertical, IndianRupee, MessageCircle, AlertTriangle, Printer, Mail, Plus, Truck, Lock } from 'lucide-react';
+import { Search, Loader, Download, FileText, CheckCircle, Clock, Eye, Trash2, Edit, Save, X, MoreVertical, IndianRupee, MessageCircle, AlertTriangle, Printer, Mail, Plus, Truck, Lock, Send, User } from 'lucide-react';
 import { downloadEWayBillJSON } from '../utils/ewayBillFormatter';
 import { format, isPast, startOfDay } from 'date-fns';
+import PageHeader from '../components/common/PageHeader';
+import TableSkeleton from '../components/common/TableSkeleton';
+import EmptyState from '../components/common/EmptyState';
+import StatusBadge from '../components/common/StatusBadge';
+import { useToast } from '../context/ToastContext';
 
 const Invoices = () => {
     const navigate = useNavigate();
+    const { showToast } = useToast();
     const [invoices, setInvoices] = useState([]);
     const [loading, setLoading] = useState(true);
     const [searchTerm, setSearchTerm] = useState('');
@@ -16,6 +22,16 @@ const Invoices = () => {
     const [includeSeal, setIncludeSeal] = useState(false);
     const [selectedTheme, setSelectedTheme] = useState('indigo');
     const [copyType, setCopyType] = useState('none');
+
+    // Email Dispatch States
+    const [sendingEmailId, setSendingEmailId] = useState(null);
+    const [customerEmailModal, setCustomerEmailModal] = useState({
+        isOpen: false,
+        invoice: null,
+        email: '',
+        saveToCustomer: true,
+        error: ''
+    });
 
     const [editingId, setEditingId] = useState(null);
     const [editingDateId, setEditingDateId] = useState(null);
@@ -169,29 +185,113 @@ const Invoices = () => {
 
     const handleShareWhatsApp = (invoice, toAdmin = false) => {
         const adminPhone = import.meta.env.VITE_ADMIN_PHONE;
-        const customerPhone = invoice.customerId?.phone;
+        const customerPhone = invoice.customerId?.phone || invoice.customerPhone;
         const targetPhone = toAdmin ? adminPhone : customerPhone;
         if (!targetPhone) {
-            alert(toAdmin ? 'Admin phone number is not configured in .env file.' : 'Customer does not have a phone number saved.');
+            showToast({
+                title: 'Phone Number Missing',
+                description: toAdmin ? 'Admin phone number is not configured in environment variables.' : 'This customer does not have a contact phone number saved.',
+                type: 'warning'
+            });
             return;
         }
-        const text = `Hello ${toAdmin ? 'Admin' : invoice.customerName},\n\n${toAdmin ? '*Admin Copy* of ' : ''}Invoice *${invoice.invoiceNumber}* for *₹${Number(invoice.totalAmount).toLocaleString('en-IN')}* has been generated.\nPending Balance: *₹${Number(invoice.balance).toLocaleString('en-IN')}*.\nDue Date: ${invoice.dueDate ? format(new Date(invoice.dueDate), 'dd MMM yyyy') : 'Immediate'}.\n\nThank you!`;
-        const wsUrl = `https://wa.me/${targetPhone.startsWith('91') ? targetPhone : '91' + targetPhone}?text=${encodeURIComponent(text)}`;
+        const custName = invoice.customerName || invoice.customerId?.name || 'Customer';
+        const invoiceTotal = Number(invoice.total || 0).toLocaleString('en-IN');
+        const balanceTotal = Number(invoice.balance || 0).toLocaleString('en-IN');
+        const dueDateFormatted = invoice.dueDate ? format(new Date(invoice.dueDate), 'dd MMM yyyy') : 'Immediate';
+
+        const text = `Hello ${toAdmin ? 'Admin' : custName},\n\n${toAdmin ? '*Admin Copy* of ' : ''}Tax Invoice *#${invoice.invoiceNumber}* for *₹${invoiceTotal}* has been generated.\nPending Balance: *₹${balanceTotal}*.\nDue Date: ${dueDateFormatted}.\n\nThank you!`;
+        const cleanDigits = String(targetPhone).replace(/\D/g, '');
+        const normalizedPhone = cleanDigits.length === 10 ? `91${cleanDigits}` : cleanDigits;
+        const wsUrl = `https://wa.me/${normalizedPhone}?text=${encodeURIComponent(text)}`;
         window.open(wsUrl, '_blank');
     };
 
-    const handleEmailToMe = async (invoice) => {
+    const handleOpenEmailCustomerModal = (invoice) => {
+        const initialEmail = invoice.customerId?.email || invoice.customerEmail || '';
+        setCustomerEmailModal({
+            isOpen: true,
+            invoice,
+            email: initialEmail,
+            saveToCustomer: Boolean(invoice.customerId?._id),
+            error: ''
+        });
+    };
+
+    const handleSendCustomerEmail = async (e) => {
+        e?.preventDefault();
+        const { invoice, email, saveToCustomer } = customerEmailModal;
+        if (!invoice) return;
+
+        const cleanEmail = email.trim();
+        if (!cleanEmail || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(cleanEmail)) {
+            setCustomerEmailModal(prev => ({ ...prev, error: 'Please enter a valid email address.' }));
+            return;
+        }
+
+        const invId = invoice.id || invoice._id;
+        setSendingEmailId(invId);
+
         try {
-            setSaving(true);
-            setDownloadingId(invoice.id);
-            await api.post(`/invoices/${invoice.id}/email-to-me?includeSignature=${includeSignature}&includeSeal=${includeSeal}&theme=${selectedTheme}&copyType=${copyType}`);
-            alert("Copy sent to admin email successfully!");
-        } catch (error) {
-            console.error('Email failed', error);
-            alert(error.response?.data?.error || 'Failed to send email. Check .env configuration.');
+            const res = await api.post(`/invoices/${invId}/email-customer?includeSignature=${includeSignature}&includeSeal=${includeSeal}&theme=${selectedTheme}&copyType=${copyType}`, {
+                email: cleanEmail,
+                saveToCustomer
+            });
+
+            showToast({
+                title: 'Invoice Emailed Successfully',
+                description: res.data?.message || `Tax Invoice #${invoice.invoiceNumber} PDF sent to ${cleanEmail}.`,
+                type: 'success'
+            });
+
+            // Update local state so customer email is saved and shown in table immediately
+            setInvoices(prev => prev.map(inv => {
+                if (inv.id === invId || inv._id === invId) {
+                    return {
+                        ...inv,
+                        customerEmail: cleanEmail,
+                        customerId: inv.customerId ? { ...inv.customerId, email: cleanEmail } : inv.customerId
+                    };
+                }
+                return inv;
+            }));
+
+            setCustomerEmailModal({ isOpen: false, invoice: null, email: '', saveToCustomer: true, error: '' });
+        } catch (err) {
+            console.error('Customer email failed:', err);
+            const errMsg = err.response?.data?.error || 'Failed to dispatch email via Resend.';
+            setCustomerEmailModal(prev => ({ ...prev, error: errMsg }));
+            showToast({
+                title: 'Email Delivery Failed',
+                description: errMsg,
+                type: 'alert'
+            });
         } finally {
-            setSaving(false);
-            setDownloadingId(null);
+            setSendingEmailId(null);
+        }
+    };
+
+    const handleEmailToMe = async (invoice) => {
+        const invId = invoice.id || invoice._id;
+        if (sendingEmailId === invId) return;
+
+        setSendingEmailId(invId);
+        try {
+            const res = await api.post(`/invoices/${invId}/email-to-me?includeSignature=${includeSignature}&includeSeal=${includeSeal}&theme=${selectedTheme}&copyType=${copyType}`);
+            showToast({
+                title: 'Business Copy Emailed',
+                description: res.data?.message || `Invoice #${invoice.invoiceNumber} PDF copy sent to your business email.`,
+                type: 'success'
+            });
+        } catch (error) {
+            console.error('Email to myself failed:', error);
+            showToast({
+                title: 'Email Delivery Failed',
+                description: error.response?.data?.error || 'Failed to dispatch email copy via Resend.',
+                type: 'alert'
+            });
+        } finally {
+            setSendingEmailId(null);
         }
     };
 
@@ -816,71 +916,88 @@ const Invoices = () => {
 
     const getStatusBadge = (status) => {
         switch (status) {
-            case 'Paid': return <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-bold border border-green-200 bg-green-50 text-green-700">Paid</span>;
-            case 'Partially Paid': return <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-bold border border-blue-200 bg-blue-50 text-blue-700">Partially Paid</span>;
-            case 'Overdue': return <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-bold border border-red-200 bg-red-50 text-red-700">Overdue</span>;
-            default: return <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-bold border border-orange-200 bg-orange-50 text-orange-700">Pending</span>;
+            case 'Paid': return <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-bold border border-[#22C55E]/30 bg-[#22C55E]/15 text-[#22C55E]">Paid</span>;
+            case 'Partially Paid': return <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-bold border border-[#38BDF8]/30 bg-[#38BDF8]/15 text-[#38BDF8]">Partially Paid</span>;
+            case 'Overdue': return <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-bold border border-[#EF4444]/30 bg-[#EF4444]/15 text-[#EF4444]">Overdue</span>;
+            default: return <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-bold border border-[#FF7A18]/30 bg-[#FF7A18]/15 text-[#FF7A18]">Pending</span>;
         }
     };
 
     if (loading) {
         return (
-            <div className="flex items-center justify-center h-full text-gray-500">
-                <Loader className="animate-spin mr-2" /> Loading Invoices Workflow...
+            <div className="space-y-6 animate-fadeIn">
+                <PageHeader
+                    title="Tax Invoices and Billing"
+                    subtitle="Manage GST compliance, incoming payments, and printable invoices"
+                />
+                <TableSkeleton rows={6} cols={6} />
             </div>
         );
     }
 
     return (
         <div className="space-y-6 animate-fadeIn">
+            <PageHeader
+                title="Tax Invoices & Billing"
+                subtitle="Manage GST invoices, record incoming payments, and download compliance PDFs"
+                badge={`${invoices.length} Invoices`}
+                actions={
+                    <button
+                        onClick={() => navigate('/invoices/new')}
+                        className="inline-flex items-center gap-2 px-4 py-2.5 text-sm font-bold text-white bg-[#FF7A18] hover:bg-[#FF923D] rounded-xl shadow-md shadow-[#FF7A18]/25 hover:shadow-[#FF7A18]/35 transition-all duration-150 cursor-pointer"
+                    >
+                        <Plus size={18} /> Direct Invoice
+                    </button>
+                }
+            />
             {/* Dashboard Summary Cards */}
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                <div className="bg-white p-5 rounded-xl shadow-sm border border-gray-100 flex items-center gap-4 hover:shadow-md transition-shadow">
-                    <div className="w-12 h-12 rounded-full bg-blue-50 flex items-center justify-center text-blue-600">
+                <div className="bg-[#111726] p-5 rounded-2xl shadow-sm border border-[#1F2B45] flex items-center gap-4 hover:border-[#FF7A18]/40 transition-all">
+                    <div className="w-12 h-12 rounded-xl bg-[#FF7A18]/15 border border-[#FF7A18]/30 flex items-center justify-center text-[#FF7A18]">
                         <IndianRupee size={24} />
                     </div>
                     <div>
-                        <p className="text-sm font-medium text-gray-500 uppercase tracking-wider">Total Billed Revenue</p>
-                        <h3 className="text-2xl font-bold text-gray-900">₹ {totalRevenue.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</h3>
+                        <p className="text-xs font-semibold text-[#94A3B8] uppercase tracking-wider">Total Billed Revenue</p>
+                        <h3 className="text-2xl font-black text-[#F8FAFC]">₹ {totalRevenue.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</h3>
                     </div>
                 </div>
 
-                <div className="bg-white p-5 rounded-xl shadow-sm border border-gray-100 flex items-center gap-4 hover:shadow-md transition-shadow">
-                    <div className="w-12 h-12 rounded-full bg-orange-50 flex items-center justify-center text-orange-600">
+                <div className="bg-[#111726] p-5 rounded-2xl shadow-sm border border-[#1F2B45] flex items-center gap-4 hover:border-[#FF7A18]/40 transition-all">
+                    <div className="w-12 h-12 rounded-xl bg-[#F59E0B]/15 border border-[#F59E0B]/30 flex items-center justify-center text-[#F59E0B]">
                         <Clock size={24} />
                     </div>
                     <div>
-                        <p className="text-sm font-medium text-gray-500 uppercase tracking-wider">Pending Balance</p>
-                        <h3 className="text-2xl font-bold text-gray-900">₹ {pendingBalance.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</h3>
+                        <p className="text-xs font-semibold text-[#94A3B8] uppercase tracking-wider">Pending Balance</p>
+                        <h3 className="text-2xl font-black text-[#F8FAFC]">₹ {pendingBalance.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</h3>
                     </div>
                 </div>
 
-                <div className="bg-white p-5 rounded-xl shadow-sm border border-red-100 flex items-center gap-4 hover:shadow-md transition-shadow">
-                    <div className="w-12 h-12 rounded-full bg-red-50 flex items-center justify-center text-red-600">
+                <div className="bg-[#111726] p-5 rounded-2xl shadow-sm border border-[#1F2B45] flex items-center gap-4 hover:border-[#EF4444]/50 transition-all">
+                    <div className="w-12 h-12 rounded-xl bg-[#EF4444]/15 border border-[#EF4444]/30 flex items-center justify-center text-[#EF4444]">
                         <AlertTriangle size={24} />
                     </div>
                     <div>
-                        <p className="text-sm font-medium text-gray-500 uppercase tracking-wider">Overdue Balance</p>
-                        <h3 className="text-2xl font-bold text-red-600">₹ {overdueBalance.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</h3>
+                        <p className="text-xs font-semibold text-[#94A3B8] uppercase tracking-wider">Overdue Balance</p>
+                        <h3 className="text-2xl font-black text-[#EF4444]">₹ {overdueBalance.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</h3>
                     </div>
                 </div>
             </div>
 
-            <div className="flex justify-between items-center bg-white p-4 rounded-xl shadow-sm border border-gray-100 mt-2">
-                <div className="relative w-full md:w-96">
+            <div className="flex flex-col lg:flex-row justify-between items-stretch lg:items-center gap-4 bg-[#111726] p-4 rounded-2xl shadow-sm border border-[#1F2B45] mt-2">
+                <div className="relative w-full lg:w-96">
                     <input
                         type="text"
                         placeholder="Search invoice number or customer..."
-                        className="pl-10 w-full h-10 border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 bg-gray-50/50 outline-none"
+                        className="pl-10 w-full h-10 border border-[#1F2B45] rounded-xl focus:border-[#FF7A18] bg-[#172033] text-[#F8FAFC] outline-none"
                         value={searchTerm}
                         onChange={(e) => setSearchTerm(e.target.value)}
                     />
                 </div>
 
-                <div className="flex items-center gap-2">
+                <div className="flex items-center gap-2 flex-wrap">
                     <button
                         onClick={() => navigate('/invoices/new')}
-                        className="flex items-center gap-2 text-sm font-medium text-white bg-blue-600 px-4 py-2.5 rounded-lg border border-blue-700 hover:bg-blue-700 shadow-sm transition-all hover:shadow-md cursor-pointer"
+                        className="flex items-center gap-2 text-xs font-bold text-white bg-[#FF7A18] px-3.5 py-2.5 rounded-xl border border-[#FF7A18] hover:bg-[#FF923D] shadow-sm transition-all cursor-pointer"
                         title="Create a Direct Custom Invoice"
                     >
                         <Plus size={16} />
@@ -888,34 +1005,34 @@ const Invoices = () => {
                     </button>
                     <button
                         onClick={handleExportToExcel}
-                        className="flex items-center gap-2 text-sm font-medium text-white bg-green-600 px-4 py-2.5 rounded-lg border border-green-700 hover:bg-green-700 shadow-sm transition-all hover:shadow-md cursor-pointer"
+                        className="flex items-center gap-2 text-xs font-bold text-[#22C55E] bg-[#22C55E]/15 px-3.5 py-2.5 rounded-xl border border-[#22C55E]/30 hover:bg-[#22C55E]/25 transition-all cursor-pointer"
                         title="Export Invoices to Excel Sheet"
                     >
                         <Download size={16} />
                         Export to Excel
                     </button>
-                    <label className="flex items-center gap-2 text-sm font-medium text-gray-700 bg-gray-50 px-3 py-2.5 rounded-lg cursor-pointer border hover:bg-gray-100">
+                    <label className="flex items-center gap-2 text-xs font-semibold text-[#94A3B8] bg-[#172033] px-3 py-2.5 rounded-xl cursor-pointer border border-[#1F2B45] hover:text-[#FF7A18] hover:border-[#FF7A18]/40 transition-colors">
                         <input
                             type="checkbox"
-                            className="w-4 h-4 text-blue-600 rounded focus:ring-blue-500 border-gray-300"
+                            className="w-4 h-4 rounded border-[#1F2B45] accent-[#FF7A18]"
                             checked={includeSignature}
                             onChange={e => setIncludeSignature(e.target.checked)}
                         />
-                        Include Signature on PDFs
+                        Include Signature
                     </label>
-                    <label className="flex items-center gap-2 text-sm font-medium text-gray-700 bg-gray-50 px-3 py-2.5 rounded-lg cursor-pointer border hover:bg-gray-100">
+                    <label className="flex items-center gap-2 text-xs font-semibold text-[#94A3B8] bg-[#172033] px-3 py-2.5 rounded-xl cursor-pointer border border-[#1F2B45] hover:text-[#FF7A18] hover:border-[#FF7A18]/40 transition-colors">
                         <input
                             type="checkbox"
-                            className="w-4 h-4 text-blue-600 rounded focus:ring-blue-500 border-gray-300"
+                            className="w-4 h-4 rounded border-[#1F2B45] accent-[#FF7A18]"
                             checked={includeSeal}
                             onChange={e => setIncludeSeal(e.target.checked)}
                         />
-                        Include Seal on PDFs
+                        Include Seal
                     </label>
                     <select
                         value={selectedTheme}
                         onChange={(e) => setSelectedTheme(e.target.value)}
-                        className="text-sm font-medium text-gray-700 bg-gray-50 px-3 py-2.5 rounded-lg border hover:bg-gray-100 outline-none cursor-pointer"
+                        className="text-xs font-semibold text-[#F8FAFC] bg-[#172033] px-3 py-2.5 rounded-xl border border-[#1F2B45] outline-none cursor-pointer"
                         title="Select PDF Theme"
                     >
                         <option value="indigo">Classic Indigo</option>
@@ -927,7 +1044,7 @@ const Invoices = () => {
                     <select
                         value={copyType}
                         onChange={(e) => setCopyType(e.target.value)}
-                        className="text-sm font-semibold text-indigo-700 bg-indigo-50 border border-indigo-200 px-3 py-2.5 rounded-lg hover:bg-indigo-100 outline-none cursor-pointer"
+                        className="text-xs font-bold text-[#FF7A18] bg-[#FF7A18]/15 border border-[#FF7A18]/30 px-3 py-2.5 rounded-xl hover:bg-[#FF7A18]/25 outline-none cursor-pointer"
                         title="Select GST Document Copy Badge"
                     >
                         <option value="none">Standard Invoice (No Badge)</option>
@@ -939,11 +1056,11 @@ const Invoices = () => {
                 </div>
             </div>
 
-            <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden min-h-[400px]">
-                <div className="table-container">
+            <div className="bg-[#111726] rounded-2xl shadow-sm border border-[#1F2B45] overflow-hidden min-h-[400px]">
+                <div className="table-container !border-0 !rounded-none">
                     <table className="w-full text-left border-collapse">
                         <thead>
-                            <tr className="bg-gray-50/80 border-b border-gray-200 text-xs uppercase tracking-wider text-gray-500">
+                            <tr className="bg-[#172033] border-b border-[#1F2B45] text-xs uppercase tracking-wider text-[#94A3B8]">
                                 <th className="p-4 font-semibold">Invoice #</th>
                                 <th className="p-4 font-semibold">Customer</th>
                                 <th className="p-4 font-semibold">Billed</th>
@@ -952,29 +1069,29 @@ const Invoices = () => {
                                 <th className="p-4 font-semibold text-right">Actions</th>
                             </tr>
                         </thead>
-                        <tbody className="divide-y divide-gray-100">
+                        <tbody className="divide-y divide-[#1F2B45]">
                             {filteredInvoices.length > 0 ? (
                                 filteredInvoices.map((invoice) => (
-                                    <tr key={invoice.id} className="hover:bg-blue-50/20 transition-colors group">
-                                        <td className="p-4 font-medium text-blue-600">
+                                    <tr key={invoice.id} className="table-record-row hover:bg-[#FFF0E5] dark:hover:bg-[#172033]/60 transition-colors group cursor-pointer">
+                                        <td className="p-4 font-bold text-[#FF7A18]">
                                             {editingId === invoice.id ? (
                                                 <div className="flex items-center gap-2">
                                                     <input
-                                                        className="border border-gray-200 rounded px-2 py-1 w-32 text-sm"
+                                                        className="border border-[#1F2B45] rounded-lg px-2 py-1 w-32 text-sm bg-[#172033] text-[#F8FAFC]"
                                                         value={editNumber}
                                                         onChange={e => setEditNumber(e.target.value)}
                                                         autoFocus
                                                     />
-                                                    <button onClick={saveInvoiceNumber} disabled={saving} className="text-green-600 hover:text-green-800"><Save size={16} /></button>
-                                                    <button onClick={cancelEditing} className="text-gray-500 hover:text-gray-700"><X size={16} /></button>
+                                                    <button onClick={saveInvoiceNumber} disabled={saving} className="text-[#22C55E] hover:text-[#22C55E]/80 cursor-pointer"><Save size={16} /></button>
+                                                    <button onClick={cancelEditing} className="text-[#94A3B8] hover:text-[#F8FAFC] cursor-pointer"><X size={16} /></button>
                                                 </div>
                                             ) : (
                                                 <div className="flex items-center gap-2 group">
-                                                    <FileText size={16} className="text-blue-400" />
+                                                    <FileText size={16} className="text-[#FF7A18]" />
                                                     {invoice.invoiceNumber}
                                                     <button
                                                         onClick={() => startEditing(invoice)}
-                                                        className="opacity-0 group-hover:opacity-100 text-gray-400 hover:text-blue-600 transition-opacity p-1"
+                                                        className="opacity-0 group-hover:opacity-100 text-[#64748B] hover:text-[#FF7A18] transition-opacity p-1 cursor-pointer"
                                                     >
                                                         <Edit size={14} />
                                                     </button>
@@ -982,23 +1099,23 @@ const Invoices = () => {
                                             )}
                                             {/* E-Way Bill Number Metadata Input / Display */}
                                             {editingEwayBillId === invoice.id ? (
-                                                <div className="flex items-center gap-1 mt-1 text-slate-800">
+                                                <div className="flex items-center gap-1 mt-1 text-[#F8FAFC]">
                                                     <input
-                                                        className="border border-gray-200 rounded px-1.5 py-0.5 text-xs w-28 font-normal"
+                                                        className="border border-[#1F2B45] rounded px-1.5 py-0.5 text-xs w-28 font-normal bg-[#172033]"
                                                         value={editEwayBillNo}
                                                         placeholder="E-Way Bill No"
                                                         onChange={e => setEditEwayBillNo(e.target.value)}
                                                         autoFocus
                                                     />
-                                                    <button onClick={saveEwayBillNo} disabled={saving} className="text-green-600 hover:text-green-800 p-0.5"><Save size={12} /></button>
-                                                    <button onClick={cancelEditingEwayBill} className="text-gray-500 hover:text-gray-700 p-0.5"><X size={12} /></button>
+                                                    <button onClick={saveEwayBillNo} disabled={saving} className="text-[#22C55E] hover:text-[#22C55E]/80 p-0.5 cursor-pointer"><Save size={12} /></button>
+                                                    <button onClick={cancelEditingEwayBill} className="text-[#94A3B8] hover:text-[#F8FAFC] p-0.5 cursor-pointer"><X size={12} /></button>
                                                 </div>
                                             ) : invoice.ewayBillNo ? (
-                                                <div className="text-[10px] text-gray-500 mt-1 flex items-center gap-1 group/ewb font-normal">
+                                                <div className="text-[10px] text-[#94A3B8] mt-1 flex items-center gap-1 group/ewb font-normal">
                                                     <span>E-Way Bill: {invoice.ewayBillNo}</span>
                                                     <button
                                                         onClick={() => startEditingEwayBill(invoice)}
-                                                        className="opacity-0 group-hover/ewb:opacity-100 text-gray-400 hover:text-blue-600 transition-opacity p-0.5 bg-transparent border-none cursor-pointer"
+                                                        className="opacity-0 group-hover/ewb:opacity-100 text-[#64748B] hover:text-[#FF7A18] transition-opacity p-0.5 bg-transparent border-none cursor-pointer"
                                                     >
                                                         <Edit size={10} />
                                                     </button>
@@ -1006,48 +1123,48 @@ const Invoices = () => {
                                             ) : (
                                                 <button
                                                     onClick={() => startEditingEwayBill(invoice)}
-                                                    className="text-[10px] text-blue-500 hover:text-blue-700 mt-1 flex items-center gap-1 underline font-normal cursor-pointer bg-transparent border-none"
+                                                    className="text-[10px] text-[#FF7A18] hover:text-[#FF923D] mt-1 flex items-center gap-1 underline font-normal cursor-pointer bg-transparent border-none"
                                                 >
                                                     + Add E-Way Bill No
                                                 </button>
                                             )}
                                         </td>
                                         <td className="p-4">
-                                            <p className="font-bold text-gray-900">{invoice.customerName}</p>
+                                            <p className="font-bold text-[#F8FAFC]">{invoice.customerName}</p>
                                             {editingDateId === invoice.id ? (
                                                 <div className="flex items-center gap-2 mt-1">
                                                     <input
                                                         type="date"
-                                                        className="border border-gray-200 rounded px-2 py-0.5 text-[11px]"
+                                                        className="border border-[#1F2B45] rounded px-2 py-0.5 text-[11px] bg-[#172033] text-[#F8FAFC]"
                                                         value={editDate}
                                                         onChange={e => setEditDate(e.target.value)}
                                                         autoFocus
                                                     />
-                                                    <button onClick={saveInvoiceDate} disabled={saving} className="text-green-600 hover:text-green-800"><Save size={14} /></button>
-                                                    <button onClick={cancelEditingDate} className="text-gray-500 hover:text-gray-700"><X size={14} /></button>
+                                                    <button onClick={saveInvoiceDate} disabled={saving} className="text-[#22C55E] hover:text-[#22C55E]/80 cursor-pointer"><Save size={14} /></button>
+                                                    <button onClick={cancelEditingDate} className="text-[#94A3B8] hover:text-[#F8FAFC] cursor-pointer"><X size={14} /></button>
                                                 </div>
                                             ) : (
-                                                <div className="text-[11px] text-gray-500 flex items-center gap-1 mt-0.5 group/date">
+                                                <div className="text-[11px] text-[#94A3B8] flex items-center gap-1 mt-0.5 group/date">
                                                     <Clock size={10} />
                                                     {invoice.date ? format(new Date(invoice.date), 'dd MMM yyyy') : 'N/A'}
                                                     <button
                                                         onClick={() => startEditingDate(invoice)}
-                                                        className="opacity-0 group-hover/date:opacity-100 text-gray-400 hover:text-blue-600 transition-opacity p-0.5"
+                                                        className="opacity-0 group-hover/date:opacity-100 text-[#64748B] hover:text-[#FF7A18] transition-opacity p-0.5 cursor-pointer"
                                                     >
                                                         <Edit size={12} />
                                                     </button>
                                                 </div>
                                             )}
                                         </td>
-                                        <td className="p-4 font-medium text-gray-900">₹ {invoice.totalAmount?.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</td>
+                                        <td className="p-4 font-semibold text-[#F8FAFC]">₹ {invoice.totalAmount?.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</td>
                                         <td className="p-4">
                                             {invoice.balance > 0 ? (
-                                                <span className="font-bold text-red-600">₹ {invoice.balance.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</span>
+                                                <span className="font-bold text-[#EF4444]">₹ {invoice.balance.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</span>
                                             ) : (
-                                                <span className="font-medium text-green-600">₹ 0.00</span>
+                                                <span className="font-semibold text-[#22C55E]">₹ 0.00</span>
                                             )}
                                             {invoice.dueDate && invoice.balance > 0 && (
-                                                <div className="text-[10px] text-gray-400 mt-0.5">Due: {format(new Date(invoice.dueDate), 'dd MMM yyyy')}</div>
+                                                <div className="text-[10px] text-[#64748B] mt-0.5">Due: {format(new Date(invoice.dueDate), 'dd MMM yyyy')}</div>
                                             )}
                                         </td>
                                         <td className="p-4">
@@ -1058,7 +1175,7 @@ const Invoices = () => {
                                                 {invoice.balance > 0 && (
                                                     <button
                                                         onClick={() => { setPaymentInvoice(invoice); setPaymentAmount(invoice.balance); setShowPaymentModal(true); }}
-                                                        className="flex items-center gap-1 px-3 py-1.5 rounded-md text-sm font-medium transition-colors bg-green-50 text-green-700 hover:bg-green-100 border border-green-200"
+                                                        className="flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-bold transition-colors bg-[#FF7A18]/15 text-[#FF7A18] hover:bg-[#FF7A18]/25 border border-[#FF7A18]/30 cursor-pointer"
                                                         title="Record Payment"
                                                     >
                                                         Pay
@@ -1068,7 +1185,7 @@ const Invoices = () => {
                                                 {isEWayBillRequired(invoice) && (
                                                     <button
                                                         onClick={() => handleDownloadEWayBill(invoice)}
-                                                        className="p-1.5 text-blue-600 hover:bg-blue-50 border border-transparent hover:border-blue-100 rounded-md transition-all flex items-center gap-1 text-xs font-semibold"
+                                                        className="p-1.5 text-[#38BDF8] hover:bg-[#38BDF8]/15 border border-[#1F2B45] rounded-lg transition-all flex items-center gap-1 text-xs font-semibold cursor-pointer"
                                                         title="Download e-Way Bill JSON"
                                                     >
                                                         <Truck size={18} />
@@ -1077,7 +1194,7 @@ const Invoices = () => {
 
                                                 <button
                                                     onClick={() => handleShareWhatsApp(invoice)}
-                                                    className="p-1.5 text-green-600 hover:bg-green-50 border border-transparent hover:border-green-100 rounded-md transition-all flex items-center gap-1 text-xs font-medium"
+                                                    className="p-1.5 text-[#22C55E] hover:bg-[#22C55E]/15 border border-[#1F2B45] rounded-lg transition-all flex items-center gap-1 text-xs font-medium cursor-pointer"
                                                     title="Share via WhatsApp"
                                                 >
                                                     <MessageCircle size={18} />
@@ -1085,7 +1202,7 @@ const Invoices = () => {
 
                                                 <button
                                                     onClick={() => handleInitiateEdit(invoice.id)}
-                                                    className="p-1.5 text-amber-600 hover:bg-amber-50 rounded-md transition-colors border border-transparent hover:border-amber-100"
+                                                    className="p-1.5 text-[#F59E0B] hover:bg-[#F59E0B]/15 rounded-lg transition-colors border border-[#1F2B45] cursor-pointer"
                                                     title="Edit Invoice Details (Admin Password Required)"
                                                 >
                                                     <Edit size={18} />
@@ -1094,7 +1211,7 @@ const Invoices = () => {
                                                 <button
                                                     onClick={() => handleDownload(invoice.id, invoice.invoiceNumber)}
                                                     disabled={downloadingId === invoice.id}
-                                                    className="p-1.5 text-blue-600 hover:bg-blue-50 rounded-md transition-colors border border-transparent"
+                                                    className="p-1.5 text-[#FF7A18] hover:bg-[#FF7A18]/15 rounded-lg transition-colors border border-[#1F2B45] cursor-pointer"
                                                     title="Download PDF"
                                                 >
                                                     {downloadingId === invoice.id ? <Loader size={18} className="animate-spin" /> : <Download size={18} />}
@@ -1103,7 +1220,7 @@ const Invoices = () => {
                                                 <button
                                                     onClick={() => handlePrint(invoice.id)}
                                                     disabled={printingId === invoice.id}
-                                                    className="p-1.5 text-slate-600 hover:bg-slate-50 rounded-md transition-colors border border-transparent"
+                                                    className="p-1.5 text-[#94A3B8] hover:text-[#FF7A18] hover:bg-[#FF7A18]/15 hover:border-[#FF7A18]/30 rounded-lg transition-colors border border-[#1F2B45] cursor-pointer"
                                                     title="Quick Print"
                                                 >
                                                     {printingId === invoice.id ? <Loader size={18} className="animate-spin" /> : <Printer size={18} />}
@@ -1111,24 +1228,37 @@ const Invoices = () => {
 
                                                 <div className="relative" ref={activeDropdown === invoice.id ? dropdownRef : null}>
                                                     <button
-                                                        className="p-1.5 text-gray-500 hover:bg-gray-100 rounded-md transition-colors"
+                                                        className="p-1.5 text-[#64748B] hover:text-[#FF7A18] hover:bg-[#FF7A18]/15 rounded-lg transition-colors cursor-pointer"
                                                         onClick={() => setActiveDropdown(activeDropdown === invoice.id ? null : invoice.id)}
                                                     >
                                                         <MoreVertical size={18} />
                                                     </button>
 
                                                     {activeDropdown === invoice.id && (
-                                                        <div className="absolute right-0 mt-1 w-40 bg-white border border-gray-100 rounded-lg shadow-xl z-50 py-1 text-sm text-left">
-                                                            <button onClick={() => { handleViewPdf(invoice.id); setActiveDropdown(null); }} className="w-full text-left px-4 py-2 text-gray-700 hover:bg-gray-50 flex items-center gap-2">
-                                                                <Eye size={14} /> View Open PDF
+                                                        <div className="absolute right-0 mt-1 w-48 bg-[#111726] border border-[#1F2B45] rounded-xl shadow-2xl z-50 py-1.5 text-xs text-left">
+                                                            <button 
+                                                                onClick={() => { handleOpenEmailCustomerModal(invoice); setActiveDropdown(null); }} 
+                                                                disabled={sendingEmailId === invoice.id}
+                                                                className="w-full text-left px-4 py-2 text-[#38BDF8] hover:bg-[#38BDF8]/15 flex items-center gap-2 cursor-pointer transition-colors disabled:opacity-50"
+                                                            >
+                                                                {sendingEmailId === invoice.id ? <Loader size={14} className="animate-spin text-[#38BDF8]" /> : <Mail size={14} className="text-[#38BDF8]" />}
+                                                                <span>Email to Customer</span>
                                                             </button>
-                                                            <button onClick={() => { handleShareWhatsApp(invoice, true); setActiveDropdown(null); }} className="w-full text-left px-4 py-2 text-green-600 hover:bg-green-50 flex items-center gap-2">
-                                                                <MessageCircle size={14} /> Share to Me
+                                                            <button 
+                                                                onClick={() => { handleEmailToMe(invoice); setActiveDropdown(null); }} 
+                                                                disabled={sendingEmailId === invoice.id}
+                                                                className="w-full text-left px-4 py-2 text-[#FF7A18] hover:bg-[#FF7A18]/15 flex items-center gap-2 cursor-pointer transition-colors disabled:opacity-50"
+                                                            >
+                                                                {sendingEmailId === invoice.id ? <Loader size={14} className="animate-spin text-[#FF7A18]" /> : <Mail size={14} className="text-[#FF7A18]" />}
+                                                                <span>Email to Myself</span>
                                                             </button>
-                                                            <button onClick={() => { handleEmailToMe(invoice); setActiveDropdown(null); }} className="w-full text-left px-4 py-2 text-blue-600 hover:bg-blue-50 flex items-center gap-2">
-                                                                <Mail size={14} /> Email to Me
+                                                            <button onClick={() => { handleViewPdf(invoice.id); setActiveDropdown(null); }} className="w-full text-left px-4 py-2 text-[#F8FAFC] hover:bg-[#FFF0E5] hover:text-[#FF7A18] flex items-center gap-2 cursor-pointer transition-colors">
+                                                                <Eye size={14} className="text-[#94A3B8]" /> View Open PDF
                                                             </button>
-                                                            <button onClick={() => { handleDelete(invoice.id); setActiveDropdown(null); }} className="w-full text-left px-4 py-2 text-red-600 hover:bg-red-50 flex items-center gap-2">
+                                                            <button onClick={() => { handleShareWhatsApp(invoice, true); setActiveDropdown(null); }} className="w-full text-left px-4 py-2 text-[#22C55E] hover:bg-[#FFF0E5] hover:text-[#16A34A] flex items-center gap-2 cursor-pointer transition-colors">
+                                                                <MessageCircle size={14} /> WhatsApp to Admin
+                                                            </button>
+                                                            <button onClick={() => { handleDelete(invoice.id); setActiveDropdown(null); }} className="w-full text-left px-4 py-2 text-[#EF4444] hover:bg-[#FEE2E2] hover:text-[#DC2626] flex items-center gap-2 cursor-pointer border-t border-[#1F2B45] mt-1 pt-2 transition-colors">
                                                                 <Trash2 size={14} /> Delete
                                                             </button>
                                                         </div>
@@ -1140,12 +1270,14 @@ const Invoices = () => {
                                 ))
                             ) : (
                                 <tr>
-                                    <td colSpan="6" className="text-center py-16">
-                                        <div className="flex flex-col items-center text-gray-400">
-                                            <FileText size={48} className="mb-4 opacity-20" />
-                                            <p className="text-lg font-medium text-gray-500">No invoices found</p>
-                                            <p className="text-sm mt-1">Convert a quotation to create your first invoice.</p>
-                                        </div>
+                                    <td colSpan="6" className="py-8">
+                                        <EmptyState
+                                            icon={FileText}
+                                            title="No invoices found"
+                                            description={searchTerm ? "No invoices match your search query." : "Convert an approved quotation or create your first direct invoice."}
+                                            actionText="Create Direct Invoice"
+                                            actionLink="/invoices/new"
+                                        />
                                     </td>
                                 </tr>
                             )}
@@ -1156,36 +1288,36 @@ const Invoices = () => {
 
             {/* Payment Modal */}
             {showPaymentModal && paymentInvoice && (
-                <div className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4">
-                    <form onSubmit={handleRecordPayment} className="bg-white rounded-xl shadow-2xl max-w-sm w-full p-6 animate-slideDown">
-                        <div className="flex justify-between items-center mb-4">
-                            <h3 className="text-lg font-bold text-gray-900">Record Payment</h3>
-                            <button type="button" onClick={() => setShowPaymentModal(false)} className="text-gray-400 hover:text-gray-600"><X size={20} /></button>
+                <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+                    <form onSubmit={handleRecordPayment} className="bg-[#111726] rounded-2xl shadow-2xl max-w-sm w-full p-6 animate-slideDown border border-[#1F2B45]">
+                        <div className="flex justify-between items-center mb-3">
+                            <h3 className="text-base font-bold text-[#F8FAFC]">Record Payment</h3>
+                            <button type="button" onClick={() => setShowPaymentModal(false)} className="text-[#94A3B8] hover:text-[#F8FAFC] cursor-pointer"><X size={18} /></button>
                         </div>
-                        <p className="text-sm text-gray-500 mb-6">Enter payment amount for invoice <strong className="text-gray-800">{paymentInvoice.invoiceNumber}</strong>.</p>
+                        <p className="text-xs text-[#94A3B8] mb-5">Enter payment amount for invoice <strong className="text-[#F8FAFC]">{paymentInvoice.invoiceNumber}</strong>.</p>
 
-                        <div className="bg-gray-50 rounded-lg p-3 mb-4 space-y-1 text-sm">
-                            <div className="flex justify-between"><span className="text-gray-500">Total Billed:</span> <strong className="text-gray-900">₹ {paymentInvoice.totalAmount.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</strong></div>
-                            <div className="flex justify-between"><span className="text-gray-500">Previously Paid:</span> <strong className="text-green-600">₹ {paymentInvoice.paidAmount.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</strong></div>
-                            <div className="border-t border-gray-200 my-1 pt-1 flex justify-between"><span className="font-bold text-gray-700">Remaining Balance:</span> <strong className="text-red-600">₹ {paymentInvoice.balance.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</strong></div>
+                        <div className="bg-[#172033] rounded-xl p-3 mb-4 space-y-1.5 text-xs border border-[#1F2B45]">
+                            <div className="flex justify-between"><span className="text-[#94A3B8]">Total Billed:</span> <strong className="text-[#F8FAFC]">₹ {paymentInvoice.totalAmount.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</strong></div>
+                            <div className="flex justify-between"><span className="text-[#94A3B8]">Previously Paid:</span> <strong className="text-[#22C55E]">₹ {paymentInvoice.paidAmount.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</strong></div>
+                            <div className="border-t border-[#1F2B45] my-1 pt-1 flex justify-between"><span className="font-bold text-[#F8FAFC]">Remaining Balance:</span> <strong className="text-[#EF4444]">₹ {paymentInvoice.balance.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</strong></div>
                         </div>
 
                         <div className="mb-5">
-                            <label className="block text-xs font-bold text-gray-500 uppercase mb-2">Payment Amount</label>
+                            <label className="block text-xs font-bold text-[#94A3B8] uppercase tracking-wider mb-2">Payment Amount</label>
                             <div className="relative">
                                 <input
                                     type="number"
                                     step="0.01"
                                     required
                                     max={paymentInvoice.balance}
-                                    className="w-full pl-9 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"
+                                    className="w-full px-3 py-2 border border-[#1F2B45] rounded-xl focus:border-[#FF7A18] bg-[#172033] text-[#F8FAFC] outline-none"
                                     value={paymentAmount}
                                     onChange={e => setPaymentAmount(e.target.value)}
                                 />
                             </div>
                         </div>
 
-                        <button type="submit" disabled={processingPayment} className="w-full btn btn-primary flex justify-center py-2.5 shadow-sm">
+                        <button type="submit" disabled={processingPayment} className="w-full btn btn-primary flex justify-center py-2.5 shadow-md shadow-[#FF7A18]/25">
                             {processingPayment ? 'Processing...' : 'Apply Payment'}
                         </button>
                     </form>
@@ -1194,21 +1326,21 @@ const Invoices = () => {
 
             {/* Admin Security Verification Modal */}
             {showSecurityModal && (
-                <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-                    <div className="bg-white rounded-2xl max-w-md w-full p-6 shadow-2xl border border-gray-100 animate-fade-in">
+                <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+                    <div className="bg-[#111726] rounded-2xl max-w-md w-full p-6 shadow-2xl border border-[#1F2B45] animate-fade-in">
                         <div className="flex items-center justify-between mb-4">
                             <div className="flex items-center gap-3">
-                                <div className="w-10 h-10 rounded-xl bg-amber-50 border border-amber-200 text-amber-600 flex items-center justify-center">
+                                <div className="w-10 h-10 rounded-xl bg-[#F59E0B]/15 border border-[#F59E0B]/30 text-[#F59E0B] flex items-center justify-center">
                                     <Lock size={20} />
                                 </div>
                                 <div>
-                                    <h3 className="text-lg font-bold text-gray-900">Admin Verification</h3>
-                                    <p className="text-xs text-gray-500">Security password required to edit invoice</p>
+                                    <h3 className="text-base font-bold text-[#F8FAFC]">Admin Verification</h3>
+                                    <p className="text-xs text-[#94A3B8]">Security password required to edit invoice</p>
                                 </div>
                             </div>
                             <button
                                 onClick={() => setShowSecurityModal(false)}
-                                className="text-gray-400 hover:text-gray-600 p-1"
+                                className="text-[#94A3B8] hover:text-[#F8FAFC] p-1 cursor-pointer"
                             >
                                 <X size={20} />
                             </button>
@@ -1216,14 +1348,14 @@ const Invoices = () => {
 
                         <form onSubmit={handleVerifyAndProceed} className="space-y-4">
                             {securityError && (
-                                <div className="p-3 bg-red-50 border border-red-200 text-red-600 rounded-xl text-xs font-medium flex items-center gap-2">
+                                <div className="p-3 bg-[#EF4444]/15 border border-[#EF4444]/30 text-[#EF4444] rounded-xl text-xs font-semibold flex items-center gap-2">
                                     <AlertTriangle size={16} />
                                     {securityError}
                                 </div>
                             )}
 
                             <div>
-                                <label className="block text-xs font-bold text-gray-700 uppercase tracking-wider mb-2">
+                                <label className="block text-xs font-bold text-[#94A3B8] uppercase tracking-wider mb-2">
                                     Admin Account Password
                                 </label>
                                 <input
@@ -1231,7 +1363,7 @@ const Invoices = () => {
                                     value={adminPassword}
                                     onChange={(e) => { setAdminPassword(e.target.value); setSecurityError(''); }}
                                     placeholder="Enter your password to unlock"
-                                    className="w-full px-4 py-2.5 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none text-sm"
+                                    className="w-full px-4 py-2.5 border border-[#1F2B45] rounded-xl focus:border-[#FF7A18] bg-[#172033] text-[#F8FAFC] outline-none text-sm"
                                     autoFocus
                                     required
                                 />
@@ -1241,17 +1373,120 @@ const Invoices = () => {
                                 <button
                                     type="button"
                                     onClick={() => setShowSecurityModal(false)}
-                                    className="px-4 py-2 text-sm font-medium text-gray-600 hover:bg-gray-100 rounded-xl transition-colors"
+                                    className="px-4 py-2 text-xs font-semibold text-[#94A3B8] hover:text-[#F8FAFC] hover:bg-[#172033] rounded-xl transition-colors cursor-pointer"
                                 >
                                     Cancel
                                 </button>
                                 <button
                                     type="submit"
                                     disabled={verifyingPassword || !adminPassword}
-                                    className="px-5 py-2 text-sm font-bold text-white bg-blue-600 hover:bg-blue-700 rounded-xl shadow-lg shadow-blue-500/20 disabled:opacity-50 flex items-center gap-2"
+                                    className="px-5 py-2.5 text-xs font-bold text-white bg-[#FF7A18] hover:bg-[#FF923D] rounded-xl shadow-md shadow-[#FF7A18]/25 disabled:opacity-50 flex items-center gap-2 cursor-pointer"
                                 >
                                     {verifyingPassword ? <Loader size={16} className="animate-spin" /> : <Lock size={16} />}
                                     Unlock & Edit Invoice
+                                </button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            )}
+
+            {/* Email Invoice to Customer Modal */}
+            {customerEmailModal.isOpen && (
+                <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4 animate-fadeIn">
+                    <div className="bg-[#111726] rounded-2xl max-w-md w-full p-6 shadow-2xl border border-[#1F2B45] animate-scaleUp">
+                        <div className="flex items-center justify-between mb-4">
+                            <div className="flex items-center gap-3">
+                                <div className="w-10 h-10 rounded-xl bg-[#38BDF8]/15 border border-[#38BDF8]/30 text-[#38BDF8] flex items-center justify-center">
+                                    <Mail size={20} />
+                                </div>
+                                <div>
+                                    <h3 className="text-base font-bold text-[#F8FAFC]">Email Invoice to Customer</h3>
+                                    <p className="text-xs text-[#94A3B8]">Sends official PDF attachment via Resend</p>
+                                </div>
+                            </div>
+                            <button
+                                onClick={() => setCustomerEmailModal({ isOpen: false, invoice: null, email: '', saveToCustomer: true, error: '' })}
+                                className="text-[#94A3B8] hover:text-[#F8FAFC] p-1 cursor-pointer transition-colors"
+                            >
+                                <X size={20} />
+                            </button>
+                        </div>
+
+                        <div className="p-3 bg-[#172033] border border-[#1F2B45] rounded-xl mb-4 text-xs space-y-1.5">
+                            <div className="flex justify-between">
+                                <span className="text-[#94A3B8]">Invoice Number:</span>
+                                <span className="font-bold text-[#F8FAFC]">{customerEmailModal.invoice?.invoiceNumber}</span>
+                            </div>
+                            <div className="flex justify-between">
+                                <span className="text-[#94A3B8]">Customer:</span>
+                                <span className="font-semibold text-[#F8FAFC]">{customerEmailModal.invoice?.customerName || customerEmailModal.invoice?.customerId?.name || 'Customer'}</span>
+                            </div>
+                            <div className="flex justify-between">
+                                <span className="text-[#94A3B8]">Invoice Total:</span>
+                                <span className="font-bold text-[#FF7A18]">₹{Number(customerEmailModal.invoice?.total || 0).toLocaleString('en-IN')}</span>
+                            </div>
+                        </div>
+
+                        <form onSubmit={handleSendCustomerEmail} className="space-y-4">
+                            {customerEmailModal.error && (
+                                <div className="p-3 bg-[#EF4444]/15 border border-[#EF4444]/30 text-[#EF4444] rounded-xl text-xs font-semibold flex items-center gap-2">
+                                    <AlertTriangle size={16} />
+                                    <span>{customerEmailModal.error}</span>
+                                </div>
+                            )}
+
+                            <div>
+                                <label className="block text-xs font-bold text-[#94A3B8] uppercase tracking-wider mb-2">
+                                    Customer Email Address *
+                                </label>
+                                <input
+                                    type="email"
+                                    value={customerEmailModal.email}
+                                    onChange={(e) => setCustomerEmailModal(prev => ({ ...prev, email: e.target.value, error: '' }))}
+                                    placeholder="e.g. client@example.com"
+                                    className="w-full px-4 py-2.5 border border-[#1F2B45] rounded-xl focus:border-[#38BDF8] bg-[#172033] text-[#F8FAFC] outline-none text-sm placeholder-[#64748B]"
+                                    autoFocus
+                                    required
+                                />
+                            </div>
+
+                            {customerEmailModal.invoice?.customerId?._id && (
+                                <label className="flex items-center gap-2.5 text-xs text-[#94A3B8] hover:text-[#F8FAFC] cursor-pointer select-none">
+                                    <input
+                                        type="checkbox"
+                                        checked={customerEmailModal.saveToCustomer}
+                                        onChange={(e) => setCustomerEmailModal(prev => ({ ...prev, saveToCustomer: e.target.checked }))}
+                                        className="w-4 h-4 rounded border-[#1F2B45] text-[#FF7A18] focus:ring-[#FF7A18] bg-[#172033] cursor-pointer"
+                                    />
+                                    <span>Save this email to customer profile for future invoices</span>
+                                </label>
+                            )}
+
+                            <div className="flex justify-end gap-3 pt-2">
+                                <button
+                                    type="button"
+                                    onClick={() => setCustomerEmailModal({ isOpen: false, invoice: null, email: '', saveToCustomer: true, error: '' })}
+                                    className="px-4 py-2 text-xs font-semibold text-[#94A3B8] hover:text-[#F8FAFC] hover:bg-[#172033] rounded-xl transition-colors cursor-pointer"
+                                >
+                                    Cancel
+                                </button>
+                                <button
+                                    type="submit"
+                                    disabled={sendingEmailId === (customerEmailModal.invoice?.id || customerEmailModal.invoice?._id) || !customerEmailModal.email}
+                                    className="px-5 py-2.5 text-xs font-bold text-white bg-[#0284C7] hover:bg-[#0369A1] rounded-xl shadow-md shadow-[#0284C7]/25 disabled:opacity-50 flex items-center gap-2 cursor-pointer transition-all"
+                                >
+                                    {sendingEmailId === (customerEmailModal.invoice?.id || customerEmailModal.invoice?._id) ? (
+                                        <>
+                                            <Loader size={16} className="animate-spin" />
+                                            <span>Sending via Resend...</span>
+                                        </>
+                                    ) : (
+                                        <>
+                                            <Send size={16} />
+                                            <span>Send Invoice PDF</span>
+                                        </>
+                                    )}
                                 </button>
                             </div>
                         </form>

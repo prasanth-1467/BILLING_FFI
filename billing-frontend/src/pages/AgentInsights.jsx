@@ -135,25 +135,26 @@ const AgentInsights = () => {
         fetchDashboardData();
     }, []);
 
-    const MetricCard = ({ title, value, subtitle, icon, type = "blue" }) => {
+    const MetricCard = ({ title, value, subtitle, icon, type = "orange" }) => {
         const colors = {
-            blue: "bg-blue-50 text-blue-600 border-blue-100",
-            emerald: "bg-emerald-50 text-emerald-600 border-emerald-100",
-            orange: "bg-orange-50 text-orange-600 border-orange-100",
-            purple: "bg-purple-50 text-purple-600 border-purple-100",
+            emerald: "bg-[#22C55E]/10 text-[#22C55E] border-[#22C55E]/30",
+            orange: "bg-[#FF7A18]/10 text-[#FF7A18] border-[#FF7A18]/30",
+            blue: "bg-[#38BDF8]/10 text-[#38BDF8] border-[#38BDF8]/30",
+            amber: "bg-[#F59E0B]/10 text-[#F59E0B] border-[#F59E0B]/30",
+            purple: "bg-[#FF7A18]/10 text-[#FF7A18] border-[#FF7A18]/30",
         };
 
         return (
-            <div className={`p-5 rounded-2xl border transition-shadow hover:shadow-md bg-white flex flex-col justify-between`}>
+            <div className="p-5 rounded-2xl border border-[#1F2B45] bg-[#111726] transition-all hover:border-[#FF7A18]/50 hover:shadow-lg hover:shadow-black/40 flex flex-col justify-between">
                 <div className="flex justify-between items-start mb-4">
-                    <div className={`w-12 h-12 rounded-full flex items-center justify-center ${colors[type]}`}>
+                    <div className={`w-12 h-12 rounded-2xl border flex items-center justify-center ${colors[type] || colors.orange}`}>
                         {icon}
                     </div>
                 </div>
                 <div>
-                    <h3 className="text-gray-500 text-sm font-medium uppercase tracking-wider mb-1">{title}</h3>
-                    <p className="text-2xl font-bold text-gray-900 leading-none">{value}</p>
-                    {subtitle && <p className="text-xs text-gray-400 mt-2">{subtitle}</p>}
+                    <h3 className="text-[#94A3B8] text-xs font-bold uppercase tracking-wider mb-1">{title}</h3>
+                    <p className="text-2xl font-black text-[#F8FAFC] leading-tight">{value}</p>
+                    {subtitle && <p className="text-xs text-[#94A3B8] mt-2 font-medium">{subtitle}</p>}
                 </div>
             </div>
         );
@@ -161,25 +162,25 @@ const AgentInsights = () => {
 
     return (
         <div className="max-w-7xl mx-auto space-y-8 animate-fadeIn pb-10">
-            <div className="flex justify-between items-end">
+            <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-4">
                 <div>
-                    <h1 className="text-3xl font-bold text-gray-900 mb-2 flex items-center gap-3">
-                        <Activity className="text-blue-500" /> Business Insights
+                    <h1 className="text-2xl sm:text-3xl font-black text-[#F8FAFC] tracking-tight mb-2 flex items-center gap-3">
+                        <Activity className="text-[#FF7A18]" size={28} /> Business Insights
                     </h1>
-                    <p className="text-gray-500">Live analytics and actionable recommendations based on your billing workflow.</p>
+                    <p className="text-[#94A3B8] text-xs sm:text-sm">Live analytics and actionable recommendations based on your billing workflow.</p>
                 </div>
                 <button
                     onClick={fetchDashboardData}
-                    className="flex items-center gap-2 px-4 py-2 bg-white border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors shadow-sm text-gray-700 font-medium"
+                    className="flex items-center gap-2 px-4 py-2 bg-[#111726] border border-[#1F2B45] rounded-xl hover:bg-[#172033] hover:border-[#FF7A18]/40 transition-colors shadow-sm text-[#F8FAFC] font-bold text-xs cursor-pointer"
                     title="Refresh Insights"
                 >
-                    <RefreshCw size={16} className={loading ? 'animate-spin' : ''} />
+                    <RefreshCw size={14} className={loading ? 'animate-spin text-[#FF7A18]' : 'text-[#FF7A18]'} />
                     Sync Data
                 </button>
             </div>
 
             {loading ? (
-                <div className="flex items-center justify-center py-20 text-blue-500">
+                <div className="flex items-center justify-center py-20 text-[#FF7A18]">
                     <Loader className="animate-spin w-10 h-10" />
                 </div>
             ) : (
@@ -212,50 +213,54 @@ const AgentInsights = () => {
                             value={`${metrics.lowStockCount} Products`}
                             subtitle="Inventory below reorder thresholds"
                             icon={<TrendingDown size={24} />}
-                            type="blue"
+                            type="amber"
                         />
                     </div>
 
                     <div className="grid grid-cols-1 xl:grid-cols-3 gap-6">
                         {/* Charts Area */}
                         <div className="xl:col-span-2 space-y-6">
-                            <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100">
-                                <h3 className="text-lg font-bold text-gray-800 mb-6 flex items-center gap-2">
-                                    <BarChart3 size={20} className="text-gray-400" /> Revenue vs Collected (6 Months)
+                            <div className="bg-[#111726] p-6 rounded-2xl border border-[#1F2B45] shadow-sm">
+                                <h3 className="text-base font-bold text-[#F8FAFC] mb-6 flex items-center gap-2">
+                                    <BarChart3 size={18} className="text-[#FF7A18]" /> Revenue vs Collected (6 Months)
                                 </h3>
                                 <div className="h-[300px] w-full">
                                     <ResponsiveContainer width="100%" height="100%">
                                         <BarChart data={chartData} margin={{ top: 5, right: 20, bottom: 5, left: 0 }}>
-                                            <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#E5E7EB" />
-                                            <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{ fill: '#6B7280', fontSize: 12 }} dy={10} />
-                                            <YAxis axisLine={false} tickLine={false} tick={{ fill: '#6B7280', fontSize: 12 }} tickFormatter={(val) => `₹${val / 1000}k`} />
-                                            <RechartsTooltip cursor={{ fill: '#F3F4F6' }} contentStyle={{ borderRadius: '8px', border: 'none', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)' }} formatter={(val) => `₹ ${val.toLocaleString('en-IN')}`} />
-                                            <Legend iconType="circle" wrapperStyle={{ paddingTop: '20px' }} />
-                                            <Bar dataKey="Revenue" fill="#93C5FD" radius={[4, 4, 0, 0]} name="Total Billed" />
-                                            <Bar dataKey="Collected" fill="#3B82F6" radius={[4, 4, 0, 0]} name="Actually Collected" />
+                                            <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#1F2B45" />
+                                            <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{ fill: '#94A3B8', fontSize: 11 }} dy={10} />
+                                            <YAxis axisLine={false} tickLine={false} tick={{ fill: '#94A3B8', fontSize: 11 }} tickFormatter={(val) => `₹${val / 1000}k`} />
+                                            <RechartsTooltip
+                                                cursor={{ fill: 'rgba(255, 122, 24, 0.05)' }}
+                                                contentStyle={{ backgroundColor: '#111726', border: '1px solid #1F2B45', borderRadius: '12px', color: '#F8FAFC' }}
+                                                formatter={(val) => [`₹ ${val.toLocaleString('en-IN')}`, '']}
+                                            />
+                                            <Legend iconType="circle" wrapperStyle={{ paddingTop: '20px', color: '#94A3B8', fontSize: '12px' }} />
+                                            <Bar dataKey="Revenue" fill="#FF7A18" radius={[4, 4, 0, 0]} name="Total Billed" />
+                                            <Bar dataKey="Collected" fill="#6366F1" radius={[4, 4, 0, 0]} name="Actually Collected" />
                                         </BarChart>
                                     </ResponsiveContainer>
                                 </div>
                             </div>
 
-                            <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100">
-                                <h3 className="text-lg font-bold text-gray-800 mb-6 flex items-center gap-2">
-                                    <Activity size={20} className="text-gray-400" /> Invoice Volume Trend
+                            <div className="bg-[#111726] p-6 rounded-2xl border border-[#1F2B45] shadow-sm">
+                                <h3 className="text-base font-bold text-[#F8FAFC] mb-6 flex items-center gap-2">
+                                    <Activity size={18} className="text-[#FF7A18]" /> Invoice Volume Trend
                                 </h3>
                                 <div className="h-[250px] w-full">
                                     <ResponsiveContainer width="100%" height="100%">
                                         <AreaChart data={chartData} margin={{ top: 5, right: 20, bottom: 5, left: 0 }}>
                                             <defs>
                                                 <linearGradient id="colorSales" x1="0" y1="0" x2="0" y2="1">
-                                                    <stop offset="5%" stopColor="#10B981" stopOpacity={0.3} />
-                                                    <stop offset="95%" stopColor="#10B981" stopOpacity={0} />
+                                                    <stop offset="5%" stopColor="#FF7A18" stopOpacity={0.35} />
+                                                    <stop offset="95%" stopColor="#FF7A18" stopOpacity={0} />
                                                 </linearGradient>
                                             </defs>
-                                            <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#E5E7EB" />
-                                            <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{ fill: '#6B7280', fontSize: 12 }} dy={10} />
-                                            <YAxis axisLine={false} tickLine={false} tick={{ fill: '#6B7280', fontSize: 12 }} allowDecimals={false} />
-                                            <RechartsTooltip contentStyle={{ borderRadius: '8px', border: 'none', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)' }} />
-                                            <Area type="monotone" dataKey="SalesCount" stroke="#10B981" strokeWidth={3} fillOpacity={1} fill="url(#colorSales)" name="Invoices Generated" />
+                                            <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#1F2B45" />
+                                            <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{ fill: '#94A3B8', fontSize: 11 }} dy={10} />
+                                            <YAxis axisLine={false} tickLine={false} tick={{ fill: '#94A3B8', fontSize: 11 }} allowDecimals={false} />
+                                            <RechartsTooltip contentStyle={{ backgroundColor: '#111726', border: '1px solid #1F2B45', borderRadius: '12px', color: '#F8FAFC' }} />
+                                            <Area type="monotone" dataKey="SalesCount" stroke="#FF7A18" strokeWidth={3} fillOpacity={1} fill="url(#colorSales)" name="Invoices Generated" />
                                         </AreaChart>
                                     </ResponsiveContainer>
                                 </div>
@@ -264,83 +269,83 @@ const AgentInsights = () => {
 
                         {/* Right Column: Alerts & Recommendations */}
                         <div className="space-y-6">
-                            <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100">
-                                <h3 className="text-lg font-bold text-gray-800 mb-4 flex items-center gap-2">
-                                    <AlertCircle size={20} className="text-gray-400" /> Action Required
+                            <div className="bg-[#111726] p-6 rounded-2xl border border-[#1F2B45] shadow-sm">
+                                <h3 className="text-base font-bold text-[#F8FAFC] mb-4 flex items-center gap-2">
+                                    <AlertCircle size={18} className="text-[#FF7A18]" /> Action Required
                                 </h3>
 
                                 <div className="space-y-3">
                                     {metrics.overdueCount > 0 ? (
-                                        <div className="p-3 bg-red-50 border border-red-100 rounded-lg flex gap-3 items-start">
-                                            <AlertCircle size={18} className="text-red-500 mt-0.5 shrink-0" />
+                                        <div className="p-3 bg-[#EF4444]/10 border border-[#EF4444]/30 rounded-xl flex gap-3 items-start">
+                                            <AlertCircle size={18} className="text-[#EF4444] mt-0.5 shrink-0" />
                                             <div>
-                                                <p className="text-sm font-semibold text-red-800">You have {metrics.overdueCount} overdue invoice(s)</p>
-                                                <p className="text-xs text-red-600 mt-1">Follow up with clients to maintain cash flow.</p>
+                                                <p className="text-sm font-semibold text-[#EF4444]">You have {metrics.overdueCount} overdue invoice(s)</p>
+                                                <p className="text-xs text-[#94A3B8] mt-1">Follow up with clients to maintain cash flow.</p>
                                             </div>
                                         </div>
                                     ) : (
-                                        <div className="p-3 bg-gray-50 border border-gray-100 rounded-lg flex gap-3 items-start opacity-70">
-                                            <CheckCircle2 size={18} className="text-gray-400 mt-0.5 shrink-0" />
+                                        <div className="p-3 bg-[#0B0F19] border border-[#1F2B45] rounded-xl flex gap-3 items-start opacity-70">
+                                            <CheckCircle2 size={18} className="text-[#22C55E] mt-0.5 shrink-0" />
                                             <div>
-                                                <p className="text-sm font-semibold text-gray-600">No overdue invoices</p>
+                                                <p className="text-sm font-semibold text-[#94A3B8]">No overdue invoices</p>
                                             </div>
                                         </div>
                                     )}
 
                                     {metrics.lowStockCount > 0 ? (
-                                        <div className="p-3 bg-orange-50 border border-orange-100 rounded-lg flex gap-3 items-start">
-                                            <TrendingDown size={18} className="text-orange-500 mt-0.5 shrink-0" />
+                                        <div className="p-3 bg-[#F59E0B]/10 border border-[#F59E0B]/30 rounded-xl flex gap-3 items-start">
+                                            <TrendingDown size={18} className="text-[#F59E0B] mt-0.5 shrink-0" />
                                             <div>
-                                                <p className="text-sm font-semibold text-orange-800">{metrics.lowStockCount} products are low on stock</p>
-                                                <p className="text-xs text-orange-600 mt-1">
+                                                <p className="text-sm font-semibold text-[#F59E0B]">{metrics.lowStockCount} products are low on stock</p>
+                                                <p className="text-xs text-[#94A3B8] mt-1">
                                                     Consider restocking: {metrics.lowStockProducts.map(p => p.name).join(', ')}
                                                     {metrics.lowStockCount > 3 ? '...' : ''}
                                                 </p>
                                             </div>
                                         </div>
                                     ) : (
-                                        <div className="p-3 bg-gray-50 border border-gray-100 rounded-lg flex gap-3 items-start opacity-70">
-                                            <CheckCircle2 size={18} className="text-gray-400 mt-0.5 shrink-0" />
+                                        <div className="p-3 bg-[#0B0F19] border border-[#1F2B45] rounded-xl flex gap-3 items-start opacity-70">
+                                            <CheckCircle2 size={18} className="text-[#22C55E] mt-0.5 shrink-0" />
                                             <div>
-                                                <p className="text-sm font-semibold text-gray-600">Inventory is healthy</p>
+                                                <p className="text-sm font-semibold text-[#94A3B8]">Inventory is healthy</p>
                                             </div>
                                         </div>
                                     )}
 
                                     {metrics.pendingQuotesCount > 0 ? (
-                                        <div className="p-3 bg-blue-50 border border-blue-100 rounded-lg flex gap-3 items-start">
-                                            <FileText size={18} className="text-blue-500 mt-0.5 shrink-0" />
+                                        <div className="p-3 bg-[#FF7A18]/10 border border-[#FF7A18]/30 rounded-xl flex gap-3 items-start">
+                                            <FileText size={18} className="text-[#FF7A18] mt-0.5 shrink-0" />
                                             <div>
-                                                <p className="text-sm font-semibold text-blue-800">{metrics.pendingQuotesCount} pending quotations</p>
-                                                <p className="text-xs text-blue-600 mt-1">Follow up and convert them to invoices!</p>
+                                                <p className="text-sm font-semibold text-[#FF7A18]">{metrics.pendingQuotesCount} pending quotations</p>
+                                                <p className="text-xs text-[#94A3B8] mt-1">Follow up and convert them to invoices!</p>
                                             </div>
                                         </div>
                                     ) : null}
                                 </div>
                             </div>
 
-                            <div className="bg-gradient-to-br from-blue-900 to-gray-900 rounded-2xl p-6 text-white relative overflow-hidden shadow-lg">
+                            <div className="bg-[var(--card-bg)] border border-[#FF7A18]/30 rounded-2xl p-6 text-[var(--text-primary)] relative overflow-hidden shadow-xl">
                                 <div className="relative z-10">
-                                    <div className="flex items-center gap-2 text-blue-400 mb-4">
+                                    <div className="flex items-center gap-2 text-[#FF7A18] mb-4">
                                         <Lightbulb size={20} />
                                         <span className="text-xs font-bold uppercase tracking-wider">Recommended Actions</span>
                                     </div>
-                                    <h3 className="text-lg font-bold mb-3 leading-snug">
+                                    <h3 className="text-lg font-bold mb-3 leading-snug text-[#F8FAFC]">
                                         Boost your collection speed.
                                     </h3>
-                                    <ul className="text-gray-300 text-sm space-y-2 mb-5 list-disc pl-4">
+                                    <ul className="text-[#94A3B8] text-sm space-y-2 mb-5 list-disc pl-4">
                                         {metrics.pendingQuotesCount > 0 && <li>Convert your open quotations into invoices today.</li>}
                                         {metrics.overdueCount > 0 && <li>Use the WhatsApp Share feature in Invoices to remind customers of overdue payments.</li>}
                                         {metrics.lowStockCount > 0 && <li>Use the Purchase Orders module to restock immediately.</li>}
                                         {metrics.pendingQuotesCount === 0 && metrics.overdueCount === 0 && metrics.lowStockCount === 0 && <li>Everything looks great! Keep up the good work.</li>}
                                     </ul>
                                     <div className="flex gap-4">
-                                        <div className="bg-white/10 backdrop-blur-md px-3 py-1.5 rounded text-[10px] border border-white/5 uppercase tracking-wide font-bold text-gray-400">
+                                        <div className="bg-[#0B0F19] px-3 py-1.5 rounded-lg text-[10px] border border-[#1F2B45] uppercase tracking-wide font-bold text-[#FF7A18]">
                                             More insights coming soon
                                         </div>
                                     </div>
                                 </div>
-                                <div className="absolute top-0 right-0 -mr-16 -mt-16 w-48 h-48 bg-blue-600/30 rounded-full blur-3xl" />
+                                <div className="absolute top-0 right-0 -mr-16 -mt-16 w-48 h-48 bg-[#FF7A18]/10 rounded-full blur-3xl pointer-events-none" />
                             </div>
                         </div>
                     </div>
@@ -367,7 +372,7 @@ class ErrorBoundary extends React.Component {
     render() {
         if (this.state.hasError) {
             return (
-                <div className="p-10 text-red-600 font-mono whitespace-pre-wrap">
+                <div className="p-10 text-[#EF4444] font-mono whitespace-pre-wrap">
                     <h1 className="text-2xl font-bold mb-4">React Render Crash</h1>
                     <p>{this.state.error && this.state.error.toString()}</p>
                     <pre className="text-xs mt-4">{this.state.error && this.state.error.stack}</pre>

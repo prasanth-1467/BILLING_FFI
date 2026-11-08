@@ -36,10 +36,10 @@ const IrrigationLoader = ({
         return (
             <div className={`flex flex-col items-center justify-center p-8 text-center space-y-3 ${className}`}>
                 <div className="relative flex items-center justify-center">
-                    <div className="w-10 h-10 border-3 border-indigo-100 border-t-indigo-600 rounded-full animate-spin"></div>
+                    <div className="w-10 h-10 border-3 border-[#1F2B45] border-t-[#FF7A18] rounded-full animate-spin"></div>
                 </div>
                 {message && (
-                    <p className="text-xs font-bold text-slate-500 uppercase tracking-wider font-mono">
+                    <p className="text-xs font-bold text-[#94A3B8] uppercase tracking-wider font-mono">
                         {message}
                     </p>
                 )}
@@ -169,44 +169,44 @@ const IrrigationLoader = ({
                 </div>
 
                 {/* Central Processing Glass Core */}
-                <div className="relative w-full bg-slate-900/90 backdrop-blur-xl border border-slate-800/90 rounded-2xl p-6 sm:p-8 shadow-2xl shadow-indigo-950/60 overflow-hidden">
+                <div className="relative w-full bg-[#111726] backdrop-blur-xl border border-[#1F2B45] rounded-2xl p-6 sm:p-8 shadow-2xl overflow-hidden">
                     {/* CRT Scanline overlay effect */}
                     <div className="absolute inset-0 scanline-overlay pointer-events-none"></div>
 
                     {/* Top Header & Branding */}
-                    <div className="flex items-center justify-between border-b border-slate-800/80 pb-4 mb-6">
+                    <div className="flex items-center justify-between border-b border-[#1F2B45] pb-4 mb-6">
                         <div className="flex items-center gap-2.5">
-                            <div className="w-2.5 h-2.5 rounded-full bg-emerald-500 shadow-[0_0_8px_#10B981]"></div>
+                            <div className="w-2.5 h-2.5 rounded-full bg-[#FF7A18] shadow-[0_0_8px_#FF7A18]"></div>
                             <div>
-                                <h1 className="text-xs font-black tracking-[0.2em] text-white uppercase leading-tight">
-                                    FINE FLOW <span className="text-emerald-400">IRRIGATION</span>
+                                <h1 className="text-xs font-black tracking-[0.2em] text-[#F8FAFC] uppercase leading-tight">
+                                    FINE FLOW <span className="text-[#FF7A18]">IRRIGATION</span>
                                 </h1>
-                                <p className="text-[9px] font-semibold text-slate-400 tracking-widest uppercase">
+                                <p className="text-[9px] font-semibold text-[#94A3B8] tracking-widest uppercase">
                                     BILLING SYSTEM ENGINE
                                 </p>
                             </div>
                         </div>
-                        <span className="text-[10px] font-bold text-cyan-400 bg-cyan-950/60 border border-cyan-800/40 px-2 py-0.5 rounded tracking-wider">
+                        <span className="text-[10px] font-bold text-[#FF7A18] bg-[#FF7A18]/15 border border-[#FF7A18]/30 px-2 py-0.5 rounded tracking-wider">
                             SECURE 256-BIT
                         </span>
                     </div>
 
                     {/* Central Hashing Display Box */}
-                    <div className="bg-slate-950/80 border border-slate-800 rounded-xl p-4 mb-6 relative group overflow-hidden">
-                        <div className="flex items-center justify-between text-[10px] text-slate-500 font-semibold mb-2 uppercase tracking-wider">
+                    <div className="bg-[#0B0F19] border border-[#1F2B45] rounded-xl p-4 mb-6 relative group overflow-hidden">
+                        <div className="flex items-center justify-between text-[10px] text-[#64748B] font-semibold mb-2 uppercase tracking-wider">
                             <span>DATA_HASH_VERIFY</span>
-                            <span className="text-emerald-400/90 font-mono">STATUS: {progress >= 100 ? 'READY' : 'PROCESSING'}</span>
+                            <span className="text-[#22C55E] font-mono">STATUS: {progress >= 100 ? 'READY' : 'PROCESSING'}</span>
                         </div>
 
                         {/* Hashing Character Scramble String featuring FINE FLOW branding */}
                         <div className="flex items-center justify-center py-2">
-                            <span className="text-xl sm:text-2xl font-black text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 via-emerald-400 to-indigo-300 font-mono tracking-widest drop-shadow-[0_0_12px_rgba(14,165,233,0.3)]">
+                            <span className="text-xl sm:text-2xl font-black text-transparent bg-clip-text bg-gradient-to-r from-[#FF7A18] via-[#FF923D] to-[#F59E0B] font-mono tracking-widest drop-shadow-[0_0_12px_rgba(255,122,24,0.3)]">
                                 [ {progress >= 100 ? 'SYSTEM-READY' : scrambledText} ]
                             </span>
-                            <span className="inline-block w-2 h-5 bg-cyan-400 ml-1.5 terminal-cursor"></span>
+                            <span className="inline-block w-2 h-5 bg-[#FF7A18] ml-1.5 terminal-cursor"></span>
                         </div>
 
-                        <div className="mt-2 pt-2 border-t border-slate-900 flex justify-between text-[9px] text-slate-500 font-mono">
+                        <div className="mt-2 pt-2 border-t border-[#1F2B45] flex justify-between text-[9px] text-[#64748B] font-mono">
                             <span>CORE_ID: FINE_FLOW_01</span>
                             <span>CHECKSUM: OK</span>
                         </div>
@@ -214,13 +214,13 @@ const IrrigationLoader = ({
 
                     {/* Progress Bar Track (Smooth 0% -> 100%) */}
                     <div className="space-y-2 mb-5">
-                        <div className="flex justify-between text-[10px] font-bold tracking-wider text-slate-400 uppercase">
+                        <div className="flex justify-between text-[10px] font-bold tracking-wider text-[#94A3B8] uppercase">
                             <span>PROCESSING DATA</span>
-                            <span className="text-cyan-400 font-mono">{progress}%</span>
+                            <span className="text-[#FF7A18] font-mono">{progress}%</span>
                         </div>
-                        <div className="w-full h-2 bg-slate-950 rounded-full overflow-hidden p-0.5 border border-slate-800">
+                        <div className="w-full h-2 bg-[#0B0F19] rounded-full overflow-hidden p-0.5 border border-[#1F2B45]">
                             <div
-                                className="h-full bg-gradient-to-r from-indigo-500 via-cyan-500 to-emerald-400 rounded-full transition-all duration-150 progress-bar-fill"
+                                className="h-full bg-gradient-to-r from-[#FF7A18] via-[#FF923D] to-[#F59E0B] rounded-full transition-all duration-150 progress-bar-fill"
                                 style={{ width: `${progress}%` }}
                             ></div>
                         </div>
@@ -228,15 +228,15 @@ const IrrigationLoader = ({
 
                     {/* Dynamic System Status Message */}
                     <div className="flex items-center justify-center gap-2 pt-1 text-center">
-                        <span className="w-1.5 h-1.5 rounded-full bg-cyan-400 animate-pulse"></span>
-                        <p className="text-xs font-semibold text-slate-300 tracking-wider uppercase font-mono animate-pulse">
+                        <span className="w-1.5 h-1.5 rounded-full bg-[#FF7A18] animate-pulse"></span>
+                        <p className="text-xs font-semibold text-[#F8FAFC] tracking-wider uppercase font-mono animate-pulse">
                             {activeStatusText}
                         </p>
                     </div>
                 </div>
 
                 {/* Footer Subtitle */}
-                <p className="text-[10px] font-medium text-slate-500 tracking-widest uppercase mt-4">
+                <p className="text-[10px] font-medium text-[#64748B] tracking-widest uppercase mt-4">
                     Fine Flow Irrigation • Secure Enterprise Workspace
                 </p>
             </div>

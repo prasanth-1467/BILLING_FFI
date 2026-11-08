@@ -366,7 +366,7 @@ const PurchaseOrder = () => {
             <div className="flex justify-between items-center no-print">
                 <button
                     onClick={() => navigate('/purchase-orders')}
-                    className="btn btn-outline bg-white flex items-center gap-2"
+                    className="btn btn-outline bg-[#111726] flex items-center gap-2"
                 >
                     <ArrowLeft size={16} /> Back to PO List
                 </button>
@@ -389,18 +389,18 @@ const PurchaseOrder = () => {
             </div>
 
             {/* Title Block */}
-            <div className="flex flex-col sm:flex-row justify-between sm:items-center bg-white p-5 rounded-2xl border border-gray-100 shadow-sm gap-4">
+            <div className="flex flex-col sm:flex-row justify-between sm:items-center bg-[#111726] p-5 rounded-2xl border border-[#1F2B45] shadow-sm gap-4">
                 <div>
-                    <h2 className="text-2xl font-bold text-gray-800 flex items-center gap-2">
+                    <h2 className="text-2xl font-bold text-[#F8FAFC] flex items-center gap-2">
                         <ShoppingCart className="text-green-500" /> {isEditMode ? 'Edit Purchase Order' : 'Create Purchase Order'}
                     </h2>
-                    <p className="text-sm text-gray-500">{isEditMode ? 'Update this supplier purchase order details.' : 'Generate a custom or cataloged supplier purchase order.'}</p>
+                    <p className="text-sm text-[#94A3B8]">{isEditMode ? 'Update this supplier purchase order details.' : 'Generate a custom or cataloged supplier purchase order.'}</p>
                 </div>
-                <div className="flex items-center gap-2 text-sm text-gray-500">
-                    <label className="font-semibold text-gray-700">PO Number *:</label>
+                <div className="flex items-center gap-2 text-sm text-[#94A3B8]">
+                    <label className="font-semibold text-[#F8FAFC]">PO Number *:</label>
                     <input
                         type="text"
-                        className="font-mono font-bold text-gray-900 border-b border-gray-300 focus:border-green-500 focus:outline-none w-44 text-right uppercase bg-transparent"
+                        className="font-mono font-bold text-[#F8FAFC] border-b border-[#1F2B45] focus:border-green-500 focus:outline-none w-44 text-right uppercase bg-transparent"
                         value={poNumber}
                         onChange={(e) => setPoNumber(e.target.value)}
                     />
@@ -411,23 +411,23 @@ const PurchaseOrder = () => {
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
 
                 {/* 1. SUPPLIER SECTION */}
-                <div className="card lg:col-span-1 border-t-4 border-green-500 bg-white p-5 rounded-2xl shadow-sm border border-gray-100">
+                <div className="card lg:col-span-1 border-t-4 border-green-500 bg-[#111726] p-5 rounded-2xl shadow-sm border border-[#1F2B45]">
                     <div className="flex justify-between items-center mb-4">
-                        <h3 className="text-lg font-bold text-gray-800 flex items-center gap-2">
+                        <h3 className="text-lg font-bold text-[#F8FAFC] flex items-center gap-2">
                             <User size={20} className="text-green-500" /> Supplier Details
                         </h3>
-                        <div className="flex bg-gray-100 p-0.5 rounded-lg text-xs font-semibold">
+                        <div className="flex bg-[#172033] p-0.5 rounded-lg text-xs font-semibold">
                             <button
                                 type="button"
                                 onClick={() => setSupplierMode('select')}
-                                className={`px-3 py-1 rounded-md transition-all ${supplierMode === 'select' ? 'bg-white shadow-sm text-green-600' : 'text-gray-500 hover:text-gray-900'}`}
+                                className={`px-3 py-1 rounded-md transition-all ${supplierMode === 'select' ? 'bg-[#111726] shadow-sm text-green-600' : 'text-[#94A3B8] hover:text-[#F8FAFC]'}`}
                             >
                                 Select
                             </button>
                             <button
                                 type="button"
                                 onClick={() => setSupplierMode('manual')}
-                                className={`px-3 py-1 rounded-md transition-all ${supplierMode === 'manual' ? 'bg-white shadow-sm text-green-600' : 'text-gray-500 hover:text-gray-900'}`}
+                                className={`px-3 py-1 rounded-md transition-all ${supplierMode === 'manual' ? 'bg-[#111726] shadow-sm text-green-600' : 'text-[#94A3B8] hover:text-[#F8FAFC]'}`}
                             >
                                 Manual
                             </button>
@@ -437,12 +437,12 @@ const PurchaseOrder = () => {
                     <div className="space-y-4">
                         {supplierMode === 'select' ? (
                             <div>
-                                <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1">Search Supplier Directory</label>
+                                <label className="block text-xs font-semibold text-[#94A3B8] uppercase tracking-wider mb-1">Search Supplier Directory</label>
                                 <input
                                     list="supplier-list"
                                     type="text"
                                     placeholder="Type supplier name to search..."
-                                    className="w-full h-10 border border-gray-200 rounded-lg px-3 bg-white text-sm"
+                                    className="w-full h-10 border border-[#1F2B45] rounded-lg px-3 bg-[#111726] text-sm"
                                     value={supplierSearchText}
                                     onChange={e => {
                                         const val = e.target.value;
@@ -466,7 +466,7 @@ const PurchaseOrder = () => {
                         ) : (
                             <div className="space-y-3">
                                 <div>
-                                    <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1">Supplier Name *</label>
+                                    <label className="block text-xs font-semibold text-[#94A3B8] uppercase tracking-wider mb-1">Supplier Name *</label>
                                     <input
                                         type="text"
                                         required
@@ -478,7 +478,7 @@ const PurchaseOrder = () => {
                                 </div>
                                 <div className="grid grid-cols-2 gap-2">
                                     <div>
-                                        <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1">Phone</label>
+                                        <label className="block text-xs font-semibold text-[#94A3B8] uppercase tracking-wider mb-1">Phone</label>
                                         <input
                                             type="text"
                                             className="w-full border rounded px-3 py-2 text-sm"
@@ -488,7 +488,7 @@ const PurchaseOrder = () => {
                                         />
                                     </div>
                                     <div>
-                                        <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1">GSTIN</label>
+                                        <label className="block text-xs font-semibold text-[#94A3B8] uppercase tracking-wider mb-1">GSTIN</label>
                                         <input
                                             type="text"
                                             maxLength="15"
@@ -500,7 +500,7 @@ const PurchaseOrder = () => {
                                     </div>
                                 </div>
                                 <div>
-                                    <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1">Email</label>
+                                    <label className="block text-xs font-semibold text-[#94A3B8] uppercase tracking-wider mb-1">Email</label>
                                     <input
                                         type="email"
                                         className="w-full border rounded px-3 py-2 text-sm"
@@ -510,7 +510,7 @@ const PurchaseOrder = () => {
                                     />
                                 </div>
                                 <div>
-                                    <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1">Supplier Address</label>
+                                    <label className="block text-xs font-semibold text-[#94A3B8] uppercase tracking-wider mb-1">Supplier Address</label>
                                     <textarea
                                         className="w-full border rounded px-3 py-1.5 text-sm resize-none"
                                         rows="2"
@@ -523,34 +523,34 @@ const PurchaseOrder = () => {
                         )}
 
                         {supplierMode === 'select' && activeSupplier && (
-                            <div className="bg-green-50/50 p-4 border border-green-100/50 rounded-xl text-sm space-y-1.5 mt-2">
-                                <p className="font-semibold text-green-900">{activeSupplier.name}</p>
-                                <p className="text-gray-600"><strong>Phone:</strong> {activeSupplier.phone || '-'}</p>
-                                <p className="text-gray-600"><strong>Email:</strong> {activeSupplier.email || '-'}</p>
-                                <p className="text-gray-600"><strong>GSTIN:</strong> <span className="font-mono text-xs">{activeSupplier.gstin || 'URD'}</span></p>
+                            <div className="bg-[#172033] p-4 border border-[#1F2B45] rounded-xl text-sm space-y-1.5 mt-2">
+                                <p className="font-semibold text-[#FF7A18]">{activeSupplier.name}</p>
+                                <p className="text-[#94A3B8]"><strong className="text-[#F8FAFC]">Phone:</strong> {activeSupplier.phone || '-'}</p>
+                                <p className="text-[#94A3B8]"><strong className="text-[#F8FAFC]">Email:</strong> {activeSupplier.email || '-'}</p>
+                                <p className="text-[#94A3B8]"><strong className="text-[#F8FAFC]">GSTIN:</strong> <span className="font-mono text-xs text-[#FF7A18] font-bold">{activeSupplier.gstin || 'URD'}</span></p>
                             </div>
                         )}
                     </div>
                 </div>
 
                 {/* 2. PRODUCT ADDITION SECTION */}
-                <div className="card lg:col-span-2 border-t-4 border-indigo-500 bg-white p-5 rounded-2xl shadow-sm border border-gray-100">
+                <div className="card lg:col-span-2 border-t-4 border-indigo-500 bg-[#111726] p-5 rounded-2xl shadow-sm border border-[#1F2B45]">
                     <div className="flex justify-between items-center mb-4">
-                        <h3 className="text-lg font-bold text-gray-800 flex items-center gap-2">
+                        <h3 className="text-lg font-bold text-[#F8FAFC] flex items-center gap-2">
                             <Calculator size={20} className="text-indigo-500" /> Add Items to Purchase Order
                         </h3>
-                        <div className="flex bg-gray-100 p-0.5 rounded-lg text-xs font-semibold">
+                        <div className="flex bg-[#172033] p-0.5 rounded-lg text-xs font-semibold">
                             <button
                                 type="button"
                                 onClick={() => setProductMode('select')}
-                                className={`px-3 py-1 rounded-md transition-all ${productMode === 'select' ? 'bg-white shadow-sm text-indigo-600' : 'text-gray-500 hover:text-gray-900'}`}
+                                className={`px-3 py-1 rounded-md transition-all ${productMode === 'select' ? 'bg-[#111726] shadow-sm text-[#FF7A18]' : 'text-[#94A3B8] hover:text-[#F8FAFC]'}`}
                             >
                                 Search Catalog
                             </button>
                             <button
                                 type="button"
                                 onClick={() => setProductMode('manual')}
-                                className={`px-3 py-1 rounded-md transition-all ${productMode === 'manual' ? 'bg-white shadow-sm text-indigo-600' : 'text-gray-500 hover:text-gray-900'}`}
+                                className={`px-3 py-1 rounded-md transition-all ${productMode === 'manual' ? 'bg-[#111726] shadow-sm text-[#FF7A18]' : 'text-[#94A3B8] hover:text-[#F8FAFC]'}`}
                             >
                                 Manual Custom Product
                             </button>
@@ -558,14 +558,14 @@ const PurchaseOrder = () => {
                     </div>
 
                     {productMode === 'select' ? (
-                        <div className="flex gap-4 items-end bg-gray-50 p-4 rounded-xl border border-gray-100">
+                        <div className="flex gap-4 items-end bg-[#172033] p-4 rounded-xl border border-[#1F2B45]">
                             <div className="flex-1">
-                                <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1">Search Catalog Product</label>
+                                <label className="block text-xs font-semibold text-[#94A3B8] uppercase tracking-wider mb-1">Search Catalog Product</label>
                                 <input
                                     list="product-list"
                                     type="text"
                                     placeholder="Type code or name..."
-                                    className="w-full h-10 border border-gray-200 rounded-lg px-3 bg-white"
+                                    className="w-full h-10 border border-[#1F2B45] rounded-lg px-3 bg-[#111726]"
                                     value={selectedProductCode}
                                     onChange={e => setSelectedProductCode(e.target.value)}
                                 />
@@ -586,23 +586,23 @@ const PurchaseOrder = () => {
                             </button>
                         </div>
                     ) : (
-                        <div className="space-y-4 bg-gray-50 p-4 rounded-xl border border-gray-100">
+                        <div className="space-y-4 bg-[#172033] p-4 rounded-xl border border-[#1F2B45]">
                             <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
                                 <div>
-                                    <label className="block text-[10px] font-semibold text-gray-500 uppercase mb-0.5">Product Code</label>
+                                    <label className="block text-[10px] font-semibold text-[#94A3B8] uppercase mb-0.5">Product Code</label>
                                     <input
                                         type="text"
-                                        className="w-full h-9 border rounded px-3 bg-white text-sm"
+                                        className="w-full h-9 border rounded px-3 bg-[#111726] text-sm"
                                         placeholder="e.g. FFI-VALVE"
                                         value={manualProduct.productCode}
                                         onChange={e => setManualProduct({ ...manualProduct, productCode: e.target.value })}
                                     />
                                 </div>
                                 <div className="md:col-span-2">
-                                    <label className="block text-[10px] font-semibold text-gray-500 uppercase mb-0.5">Product Name *</label>
+                                    <label className="block text-[10px] font-semibold text-[#94A3B8] uppercase mb-0.5">Product Name *</label>
                                     <input
                                         type="text"
-                                        className="w-full h-9 border rounded px-3 bg-white text-sm"
+                                        className="w-full h-9 border rounded px-3 bg-[#111726] text-sm"
                                         placeholder="Detailed item description"
                                         value={manualProduct.name}
                                         onChange={e => setManualProduct({ ...manualProduct, name: e.target.value })}
@@ -611,19 +611,19 @@ const PurchaseOrder = () => {
                             </div>
                             <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
                                 <div>
-                                    <label className="block text-[10px] font-semibold text-gray-500 uppercase mb-0.5">Model / Part No</label>
+                                    <label className="block text-[10px] font-semibold text-[#94A3B8] uppercase mb-0.5">Model / Part No</label>
                                     <input
                                         type="text"
-                                        className="w-full h-9 border rounded px-3 bg-white text-sm"
+                                        className="w-full h-9 border rounded px-3 bg-[#111726] text-sm"
                                         placeholder="Model No"
                                         value={manualProduct.modelNo}
                                         onChange={e => setManualProduct({ ...manualProduct, modelNo: e.target.value })}
                                     />
                                 </div>
                                 <div>
-                                    <label className="block text-[10px] font-semibold text-gray-500 uppercase mb-0.5">Unit</label>
+                                    <label className="block text-[10px] font-semibold text-[#94A3B8] uppercase mb-0.5">Unit</label>
                                     <select
-                                        className="w-full h-9 border rounded px-2 bg-white text-sm"
+                                        className="w-full h-9 border rounded px-2 bg-[#111726] text-sm"
                                         value={manualProduct.unit}
                                         onChange={e => setManualProduct({ ...manualProduct, unit: e.target.value })}
                                     >
@@ -633,20 +633,20 @@ const PurchaseOrder = () => {
                                     </select>
                                 </div>
                                 <div>
-                                    <label className="block text-[10px] font-semibold text-gray-500 uppercase mb-0.5">Rate (₹) *</label>
+                                    <label className="block text-[10px] font-semibold text-[#94A3B8] uppercase mb-0.5">Rate (₹) *</label>
                                     <input
                                         type="number"
                                         step="0.01"
-                                        className="w-full h-9 border rounded px-3 bg-white text-sm font-semibold text-right"
+                                        className="w-full h-9 border rounded px-3 bg-[#111726] text-sm font-semibold text-right"
                                         placeholder="Purchase Rate"
                                         value={manualProduct.purchasePrice}
                                         onChange={e => setManualProduct({ ...manualProduct, purchasePrice: e.target.value })}
                                     />
                                 </div>
                                 <div>
-                                    <label className="block text-[10px] font-semibold text-gray-500 uppercase mb-0.5">GST Rate %</label>
+                                    <label className="block text-[10px] font-semibold text-[#94A3B8] uppercase mb-0.5">GST Rate %</label>
                                     <select
-                                        className="w-full h-9 border rounded px-2 bg-white text-sm"
+                                        className="w-full h-9 border rounded px-2 bg-[#111726] text-sm"
                                         value={manualProduct.gstRate}
                                         onChange={e => setManualProduct({ ...manualProduct, gstRate: e.target.value })}
                                     >
@@ -671,14 +671,14 @@ const PurchaseOrder = () => {
             </div>
 
             {/* 3. ITEMS TABLE */}
-            <div className="card bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
-                <div className="p-4 border-b border-gray-100 bg-gray-50/50">
-                    <h3 className="text-md font-bold text-gray-800">Purchase Order Items List</h3>
+            <div className="card bg-[#111726] rounded-2xl shadow-sm border border-[#1F2B45] overflow-hidden">
+                <div className="p-4 border-b border-[#1F2B45] bg-[#172033]">
+                    <h3 className="text-md font-bold text-[#F8FAFC]">Purchase Order Items List</h3>
                 </div>
                 <div className="overflow-x-auto">
                     <table className="w-full text-left border-collapse text-sm">
                         <thead>
-                            <tr className="bg-gray-50/80 border-b border-gray-200 text-xs uppercase tracking-wider text-gray-500">
+                            <tr className="bg-[#172033] border-b border-[#1F2B45] text-xs uppercase tracking-wider text-[#94A3B8]">
                                 <th className="p-4 font-semibold">Product Description</th>
                                 <th className="p-4 font-semibold w-40">Model No</th>
                                 <th className="p-4 font-semibold w-32">Qty</th>
@@ -689,22 +689,22 @@ const PurchaseOrder = () => {
                                 <th className="p-4 font-semibold w-16 text-center">Action</th>
                             </tr>
                         </thead>
-                        <tbody className="divide-y divide-gray-100">
+                        <tbody className="divide-y divide-[#1F2B45]">
                             {items.map((item, index) => (
-                                <tr key={index} className="hover:bg-green-50/10 transition-colors">
+                                <tr key={index} className="table-record-row hover:bg-[#FFF0E5] dark:hover:bg-[#172033]/50 transition-colors">
                                     <td className="p-4">
                                         {!item.product ? (
                                             <input
                                                 type="text"
-                                                className="w-full px-2 py-1 border rounded text-sm font-semibold text-gray-900 focus:ring-green-500 focus:border-green-500 outline-none"
+                                                className="w-full px-2 py-1 border rounded text-sm font-semibold text-[#F8FAFC] focus:ring-green-500 focus:border-green-500 outline-none"
                                                 value={item.name}
                                                 onChange={e => handleUpdateItemCell(index, 'name', e.target.value)}
                                             />
                                         ) : (
                                             <>
-                                                <div className="font-bold text-gray-900">{item.name}</div>
-                                                <div className="text-xs text-gray-500 mt-0.5">
-                                                    Code: <span className="font-semibold text-slate-700">{item.productCode}</span>
+                                                <div className="font-bold text-[#F8FAFC]">{item.name}</div>
+                                                <div className="text-xs text-[#94A3B8] mt-0.5">
+                                                    Code: <span className="font-semibold text-[#F8FAFC]">{item.productCode}</span>
                                                     <span className="ml-2 bg-green-50 px-1.5 py-0.5 rounded text-[10px] text-green-700 font-bold border border-green-100">Cataloged</span>
                                                 </div>
                                             </>
@@ -713,7 +713,7 @@ const PurchaseOrder = () => {
                                     <td className="p-4">
                                         <input
                                             type="text"
-                                            className="w-32 px-2 py-1 border rounded text-sm focus:ring-green-500 focus:border-green-500 outline-none text-gray-700 bg-white"
+                                            className="w-32 px-2 py-1 border rounded text-sm focus:ring-green-500 focus:border-green-500 outline-none text-[#F8FAFC] bg-[#111726]"
                                             value={item.modelNo}
                                             placeholder="Model No"
                                             onChange={e => handleUpdateItemCell(index, 'modelNo', e.target.value)}
@@ -724,16 +724,16 @@ const PurchaseOrder = () => {
                                             type="number"
                                             min="0.01"
                                             step="0.01"
-                                            className="w-24 px-2 py-1 border rounded text-center text-sm font-semibold text-gray-900 focus:ring-green-500 focus:border-green-500 outline-none"
+                                            className="w-24 px-2 py-1 border rounded text-center text-sm font-semibold text-[#F8FAFC] focus:ring-green-500 focus:border-green-500 outline-none"
                                             value={item.qty}
                                             onChange={e => handleUpdateItemCell(index, 'qty', e.target.value)}
                                         />
                                     </td>
-                                    <td className="p-4 text-gray-500 font-medium">
+                                    <td className="p-4 text-[#94A3B8] font-medium">
                                         {!item.product ? (
                                             <input
                                                 type="text"
-                                                className="w-16 px-2 py-1 border rounded text-sm text-gray-700 focus:ring-green-500 focus:border-green-500 outline-none"
+                                                className="w-16 px-2 py-1 border rounded text-sm text-[#F8FAFC] focus:ring-green-500 focus:border-green-500 outline-none"
                                                 value={item.unit}
                                                 onChange={e => handleUpdateItemCell(index, 'unit', e.target.value)}
                                             />
@@ -745,14 +745,14 @@ const PurchaseOrder = () => {
                                         <input
                                             type="number"
                                             step="0.01"
-                                            className="w-28 px-2 py-1 border rounded text-right text-sm font-semibold text-gray-900 focus:ring-green-500 focus:border-green-500 outline-none"
+                                            className="w-28 px-2 py-1 border rounded text-right text-sm font-semibold text-[#F8FAFC] focus:ring-green-500 focus:border-green-500 outline-none"
                                             value={item.rate}
                                             onChange={e => handleUpdateItemCell(index, 'rate', e.target.value)}
                                         />
                                     </td>
                                     <td className="p-4">
                                         <select
-                                            className="w-20 px-1 py-1 border rounded text-sm bg-white focus:ring-green-500 focus:border-green-500 outline-none text-gray-900"
+                                            className="w-20 px-1 py-1 border rounded text-sm bg-[#111726] focus:ring-green-500 focus:border-green-500 outline-none text-[#F8FAFC]"
                                             value={item.gstRate}
                                             onChange={e => handleUpdateItemCell(index, 'gstRate', e.target.value)}
                                         >
@@ -761,7 +761,7 @@ const PurchaseOrder = () => {
                                             ))}
                                         </select>
                                     </td>
-                                    <td className="p-4 font-mono font-bold text-gray-900 text-right">
+                                    <td className="p-4 font-mono font-bold text-[#F8FAFC] text-right">
                                         ₹ {(item.rate * item.qty).toLocaleString('en-IN', { minimumFractionDigits: 2 })}
                                     </td>
                                     <td className="p-4 text-center">
@@ -777,10 +777,10 @@ const PurchaseOrder = () => {
                             ))}
                             {items.length === 0 && (
                                 <tr>
-                                    <td colSpan="8" className="text-center py-12 text-gray-400">
+                                    <td colSpan="8" className="text-center py-12 text-[#64748B]">
                                         <div className="flex flex-col items-center">
                                             <FileText size={48} className="mb-3 opacity-20" />
-                                            <p className="font-semibold text-gray-500">No items added to Purchase Order yet</p>
+                                            <p className="font-semibold text-[#94A3B8]">No items added to Purchase Order yet</p>
                                             <p className="text-xs">Add products from catalog search or manual entries above.</p>
                                         </div>
                                     </td>
@@ -795,33 +795,33 @@ const PurchaseOrder = () => {
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
 
                 {/* General PO Metadata Form */}
-                <div className="card md:col-span-1 bg-white p-5 rounded-2xl shadow-sm border border-gray-100 space-y-4">
-                    <h3 className="text-md font-bold text-gray-800 border-b pb-2">PO Timeline & Remarks</h3>
+                <div className="card md:col-span-1 bg-[#111726] p-5 rounded-2xl shadow-sm border border-[#1F2B45] space-y-4">
+                    <h3 className="text-md font-bold text-[#F8FAFC] border-b pb-2">PO Timeline & Remarks</h3>
 
                     <div>
-                        <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-1">PO Date</label>
+                        <label className="block text-xs font-bold text-[#94A3B8] uppercase tracking-wider mb-1">PO Date</label>
                         <input
                             type="date"
-                            className="w-full border rounded px-3 py-2 text-sm outline-none bg-gray-50 font-medium focus:ring-green-500 focus:border-green-500"
+                            className="w-full border rounded px-3 py-2 text-sm outline-none bg-[#172033] font-medium focus:ring-green-500 focus:border-green-500"
                             value={poDate}
                             onChange={e => setPoDate(e.target.value)}
                         />
                     </div>
 
                     <div>
-                        <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-1">Expected Delivery Date</label>
+                        <label className="block text-xs font-bold text-[#94A3B8] uppercase tracking-wider mb-1">Expected Delivery Date</label>
                         <input
                             type="date"
-                            className="w-full border rounded px-3 py-2 text-sm outline-none bg-gray-50 font-medium focus:ring-green-500 focus:border-green-500"
+                            className="w-full border rounded px-3 py-2 text-sm outline-none bg-[#172033] font-medium focus:ring-green-500 focus:border-green-500"
                             value={expectedDeliveryDate}
                             onChange={e => setExpectedDeliveryDate(e.target.value)}
                         />
                     </div>
 
                     <div>
-                        <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-1">Remarks / Notes</label>
+                        <label className="block text-xs font-bold text-[#94A3B8] uppercase tracking-wider mb-1">Remarks / Notes</label>
                         <textarea
-                            className="w-full border rounded px-3 py-2 text-sm outline-none bg-gray-50 font-medium focus:ring-green-500 focus:border-green-500 resize-none"
+                            className="w-full border rounded px-3 py-2 text-sm outline-none bg-[#172033] font-medium focus:ring-green-500 focus:border-green-500 resize-none"
                             rows="3"
                             placeholder="Additional requirements or terms..."
                             value={remarks}
@@ -831,13 +831,13 @@ const PurchaseOrder = () => {
                 </div>
 
                 {/* Financial Breakdown & Save Action */}
-                <div className="card md:col-span-2 bg-gray-50 p-6 rounded-2xl shadow-sm border border-gray-200/50 space-y-4">
-                    <h3 className="text-md font-bold text-gray-800 border-b pb-2">Financial Breakdown</h3>
+                <div className="card md:col-span-2 bg-[#172033] p-6 rounded-2xl shadow-sm border border-[#1F2B45]/50 space-y-4">
+                    <h3 className="text-md font-bold text-[#F8FAFC] border-b pb-2">Financial Breakdown</h3>
 
                     <div className="space-y-2.5 text-sm">
                         <div className="flex justify-between">
-                            <span className="text-slate-500">Subtotal (Gross Item Total)</span>
-                            <span className="font-mono font-bold text-slate-800">₹ {totals.subtotal.toFixed(2)}</span>
+                            <span className="text-[#94A3B8]">Subtotal (Gross Item Total)</span>
+                            <span className="font-mono font-bold text-[#F8FAFC]">₹ {totals.subtotal.toFixed(2)}</span>
                         </div>
 
                         {/* CGST & SGST Split Breakup (Standard GST representation) */}
@@ -845,11 +845,11 @@ const PurchaseOrder = () => {
                             const slab = totals.taxSlabs[rate];
                             return (
                                 <React.Fragment key={rate}>
-                                    <div className="flex justify-between text-xs text-slate-600">
+                                    <div className="flex justify-between text-xs text-[#94A3B8]">
                                         <span>CGST @ {Number(rate) / 2}% (on ₹ {slab.taxable.toFixed(2)})</span>
                                         <span className="font-mono">+ ₹ {(slab.tax / 2).toFixed(2)}</span>
                                     </div>
-                                    <div className="flex justify-between text-xs text-slate-600">
+                                    <div className="flex justify-between text-xs text-[#94A3B8]">
                                         <span>SGST @ {Number(rate) / 2}% (on ₹ {slab.taxable.toFixed(2)})</span>
                                         <span className="font-mono">+ ₹ {(slab.tax / 2).toFixed(2)}</span>
                                     </div>
@@ -859,19 +859,19 @@ const PurchaseOrder = () => {
 
                         {/* Round-Off Adjuster */}
                         {Math.abs(totals.roundOff) > 0 && (
-                            <div className="flex justify-between text-xs text-slate-500 mt-2">
+                            <div className="flex justify-between text-xs text-[#94A3B8] mt-2">
                                 <span>Round Off Adjustment (R/O)</span>
                                 <span className="font-mono">{totals.roundOff > 0 ? '+' : ''} ₹ {totals.roundOff.toFixed(2)}</span>
                             </div>
                         )}
 
-                        <div className="flex justify-between border-t pt-3 border-gray-300 mt-4">
-                            <span className="text-lg font-bold text-slate-900">Grand Total</span>
+                        <div className="flex justify-between border-t pt-3 border-[#1F2B45] mt-4">
+                            <span className="text-lg font-bold text-[#F8FAFC]">Grand Total</span>
                             <span className="text-2xl font-extrabold text-green-600 font-mono">₹ {totals.grandTotal.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</span>
                         </div>
                     </div>
 
-                    <div className="pt-6 border-t border-gray-200">
+                    <div className="pt-6 border-t border-[#1F2B45]">
                         <button
                             type="button"
                             onClick={handleSavePO}

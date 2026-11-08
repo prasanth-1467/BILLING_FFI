@@ -1,6 +1,7 @@
-import React, { useState, useEffect } from 'react';
+import React from 'react';
 import { BrowserRouter, Routes, Route, Navigate, Outlet } from 'react-router-dom';
 import MainLayout from './layout/MainLayout';
+import LandingPage from './pages/LandingPage';
 import Dashboard from './pages/Dashboard';
 import Products from './pages/Products';
 import Customers from './pages/Customers';
@@ -14,47 +15,31 @@ import AgentInsights from './pages/AgentInsights';
 import PurchaseOrder from './pages/PurchaseOrder';
 import PurchaseOrders from './pages/PurchaseOrders';
 import { isAuthenticated } from './services/authService';
-import IrrigationLoader from './components/IrrigationLoader';
-
 import EWayBillSandbox from './pages/EWayBillSandbox';
+import { ThemeProvider } from './context/ThemeContext';
+import { ToastProvider } from './context/ToastContext';
 
 const ProtectedRoute = () => {
   return isAuthenticated() ? <Outlet /> : <Navigate to="/login" replace />;
 };
 
 function App() {
-  const [isBooting, setIsBooting] = useState(true);
-  const [fadeOut, setFadeOut] = useState(false);
-
-  useEffect(() => {
-    // Run initial system boot loader to 100% completion then smoothly fade out
-    const timer = setTimeout(() => {
-      setFadeOut(true);
-      const removeTimer = setTimeout(() => {
-        setIsBooting(false);
-      }, 500);
-      return () => clearTimeout(removeTimer);
-    }, 3600);
-
-    return () => clearTimeout(timer);
-  }, []);
-
-  if (isBooting) {
-    return (
-      <div className={`fixed inset-0 z-[9999] bg-[#090D16] flex items-center justify-center overflow-hidden transition-opacity duration-500 ${fadeOut ? 'opacity-0 pointer-events-none' : 'opacity-100'}`}>
-        <IrrigationLoader isInitialBoot={true} message="INITIALIZING BILLING SYSTEM & SECURE WORKSPACE..." />
-      </div>
-    );
-  }
-
   return (
-    <BrowserRouter>
-      <Routes>
+    <ThemeProvider>
+      <ToastProvider>
+        <BrowserRouter>
+          <Routes>
         <Route path="/login" element={<Login />} />
 
         <Route element={<ProtectedRoute />}>
-          <Route path="/" element={<MainLayout />}>
-            <Route index element={<Dashboard />} />
+          {/* Executive Landing Portal with Ghost Fibers Background */}
+          <Route path="/" element={<LandingPage />} />
+          <Route path="/welcome" element={<LandingPage />} />
+          <Route path="/landing" element={<LandingPage />} />
+
+          {/* Main Application Shell */}
+          <Route element={<MainLayout />}>
+            <Route path="dashboard" element={<Dashboard />} />
             <Route path="products" element={<Products />} />
             <Route path="customers" element={<Customers />} />
             <Route path="quotation" element={<Quotation />} />
@@ -72,11 +57,13 @@ function App() {
             <Route path="insights" element={<AgentInsights />} />
             <Route path="profile" element={<Profile />} />
             {/* Redirect unknown routes to Dashboard */}
-            <Route path="*" element={<Navigate to="/" replace />} />
+            <Route path="*" element={<Navigate to="/dashboard" replace />} />
           </Route>
         </Route>
       </Routes>
     </BrowserRouter>
+    </ToastProvider>
+  </ThemeProvider>
   );
 }
 
