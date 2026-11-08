@@ -1,0 +1,11 @@
+# Verify these keys against the current CodeRabbit docs/schema before relying on them.
+language: "en-US"
+reviews:
+  profile: "chill"
+  request_changes_workflow: false
+  high_level_summary: true
+  auto_review:
+    enabled: true
+    drafts: false
+chat:
+  auto_reply: true

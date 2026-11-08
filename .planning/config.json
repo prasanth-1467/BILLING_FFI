@@ -1,0 +1,9 @@
+{
+  "mode": "interactive",
+  "workflow": {
+    "discuss_mode": "discuss",
+    "research": true,
+    "tracer_first": true
+  }
+}
+

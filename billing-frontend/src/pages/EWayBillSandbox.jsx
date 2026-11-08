@@ -122,26 +122,26 @@ const EWayBillSandbox = () => {
     };
 
     return (
-        <div className="space-y-6 pb-20 max-w-7xl mx-auto">
+        <div className="space-y-6 pb-20 max-w-7xl mx-auto animate-fadeIn">
             {/* Header */}
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-[#0f172a] text-white p-6 rounded-2xl shadow-xl border border-slate-800">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-[#111726] text-[#F8FAFC] p-6 rounded-2xl shadow-xl border border-[#1F2B45]">
                 <div>
                     <h1 className="text-2xl font-black tracking-tight flex items-center gap-3">
-                        <Truck size={28} className="text-indigo-400" />
+                        <Truck size={28} className="text-[#FF7A18]" />
                         <span>E-Way Bill Formatter Sandbox</span>
                     </h1>
-                    <p className="text-xs text-slate-400 mt-1">
+                    <p className="text-xs text-[#94A3B8] mt-1">
                         Verify NIC GST compliance formatting, threshold validation rules, and export official E-Way Bill JSON files.
                     </p>
                 </div>
                 <div className="flex items-center gap-3">
                     <button
-                        onClick={() => navigate('/')}
-                        className="btn btn-outline bg-slate-800 text-slate-200 border-slate-700 hover:bg-slate-700 text-xs rounded-xl"
+                        onClick={() => navigate('/dashboard')}
+                        className="btn btn-outline bg-[#0B0F19] text-[#F8FAFC] border-[#1F2B45] hover:bg-[#172033] text-xs rounded-xl flex items-center gap-1.5 cursor-pointer"
                     >
                         <ArrowLeft size={14} /> Back to Dashboard
                     </button>
-                    <span className="bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 px-3 py-1 rounded-full text-xs font-bold">
+                    <span className="bg-[#22C55E]/10 text-[#22C55E] border border-[#22C55E]/30 px-3 py-1 rounded-full text-xs font-bold">
                         GST Schema v1.0.0621
                     </span>
                 </div>
@@ -151,21 +151,21 @@ const EWayBillSandbox = () => {
             <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
                 {/* Left Column: Form Controls */}
                 <div className="lg:col-span-5 space-y-6">
-                    <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-200 space-y-4">
-                        <h2 className="text-base font-bold text-slate-900 border-b border-slate-100 pb-3">
+                    <div className="bg-[#111726] p-6 rounded-2xl shadow-sm border border-[#1F2B45] space-y-4">
+                        <h2 className="text-base font-bold text-[#F8FAFC] border-b border-[#1F2B45] pb-3">
                             Invoice & Transport Parameters
                         </h2>
 
                         {/* Existing Invoices Picker */}
                         <div>
-                            <label className="block text-xs font-bold text-indigo-600 uppercase tracking-wider mb-1.5 flex justify-between">
+                            <label className="block text-xs font-bold text-[#FF7A18] uppercase tracking-wider mb-1.5 flex justify-between">
                                 <span>Import from Existing Invoices</span>
-                                {loadingInvoices && <span className="text-slate-400 text-[10px]">Loading...</span>}
+                                {loadingInvoices && <span className="text-[#94A3B8] text-[10px]">Loading...</span>}
                             </label>
                             <select
                                 value={selectedInvoiceId}
                                 onChange={handleSelectInvoice}
-                                className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs font-semibold text-slate-800 focus:ring-2 focus:ring-indigo-500 outline-none cursor-pointer"
+                                className="w-full bg-[#0B0F19] border border-[#1F2B45] rounded-xl px-3 py-2 text-xs font-semibold text-[#F8FAFC] focus:border-[#FF7A18] outline-none cursor-pointer"
                             >
                                 <option value="">-- Choose an Invoice to Auto-Fill --</option>
                                 {invoices.map(inv => {
@@ -183,110 +183,110 @@ const EWayBillSandbox = () => {
                         {/* Invoice & Date */}
                         <div className="grid grid-cols-2 gap-3">
                             <div>
-                                <label className="block text-[11px] font-bold text-slate-500 uppercase mb-1">Invoice No *</label>
+                                <label className="block text-[11px] font-bold text-[#94A3B8] uppercase mb-1">Invoice No *</label>
                                 <input
                                     type="text"
                                     value={formData.invoiceNumber}
                                     onChange={e => handleInputChange('invoiceNumber', e.target.value)}
-                                    className="w-full border border-slate-200 rounded-xl px-3 py-2 text-xs font-bold text-slate-900 focus:ring-2 focus:ring-indigo-500"
+                                    className="w-full bg-[#0B0F19] border border-[#1F2B45] rounded-xl px-3 py-2 text-xs font-bold text-[#F8FAFC] focus:border-[#FF7A18] outline-none"
                                 />
                             </div>
                             <div>
-                                <label className="block text-[11px] font-bold text-slate-500 uppercase mb-1">Invoice Date *</label>
+                                <label className="block text-[11px] font-bold text-[#94A3B8] uppercase mb-1">Invoice Date *</label>
                                 <input
                                     type="date"
                                     value={formData.date}
                                     onChange={e => handleInputChange('date', e.target.value)}
-                                    className="w-full border border-slate-200 rounded-xl px-3 py-2 text-xs font-medium text-slate-800 focus:ring-2 focus:ring-indigo-500"
+                                    className="w-full bg-[#0B0F19] border border-[#1F2B45] rounded-xl px-3 py-2 text-xs font-medium text-[#F8FAFC] focus:border-[#FF7A18] outline-none"
                                 />
                             </div>
                         </div>
 
                         {/* Customer Info */}
                         <div>
-                            <label className="block text-[11px] font-bold text-slate-500 uppercase mb-1">Customer Name *</label>
+                            <label className="block text-[11px] font-bold text-[#94A3B8] uppercase mb-1">Customer Name *</label>
                             <input
                                 type="text"
                                 value={formData.customerName}
                                 onChange={e => handleInputChange('customerName', e.target.value)}
-                                className="w-full border border-slate-200 rounded-xl px-3 py-2 text-xs font-medium text-slate-800 focus:ring-2 focus:ring-indigo-500"
+                                className="w-full bg-[#0B0F19] border border-[#1F2B45] rounded-xl px-3 py-2 text-xs font-medium text-[#F8FAFC] focus:border-[#FF7A18] outline-none"
                             />
                         </div>
 
                         <div className="grid grid-cols-2 gap-3">
                             <div>
-                                <label className="block text-[11px] font-bold text-slate-500 uppercase mb-1">Customer GSTIN</label>
+                                <label className="block text-[11px] font-bold text-[#94A3B8] uppercase mb-1">Customer GSTIN</label>
                                 <input
                                     type="text"
                                     value={formData.customerGSTIN}
                                     onChange={e => handleInputChange('customerGSTIN', e.target.value)}
-                                    className="w-full border border-slate-200 rounded-xl px-3 py-2 text-xs font-mono font-bold uppercase text-slate-800 focus:ring-2 focus:ring-indigo-500"
+                                    className="w-full bg-[#0B0F19] border border-[#1F2B45] rounded-xl px-3 py-2 text-xs font-mono font-bold uppercase text-[#F8FAFC] focus:border-[#FF7A18] outline-none"
                                 />
                             </div>
                             <div>
-                                <label className="block text-[11px] font-bold text-slate-500 uppercase mb-1">Customer State</label>
+                                <label className="block text-[11px] font-bold text-[#94A3B8] uppercase mb-1">Customer State</label>
                                 <input
                                     type="text"
                                     value={formData.customerState}
                                     onChange={e => handleInputChange('customerState', e.target.value)}
-                                    className="w-full border border-slate-200 rounded-xl px-3 py-2 text-xs font-medium text-slate-800 focus:ring-2 focus:ring-indigo-500"
+                                    className="w-full bg-[#0B0F19] border border-[#1F2B45] rounded-xl px-3 py-2 text-xs font-medium text-[#F8FAFC] focus:border-[#FF7A18] outline-none"
                                 />
                             </div>
                         </div>
 
                         {/* Transport Parameters */}
-                        <div className="border-t border-slate-100 pt-4 space-y-3">
-                            <h3 className="text-xs font-extrabold uppercase tracking-wider text-slate-500">Transport & Delivery Parameters</h3>
+                        <div className="border-t border-[#1F2B45] pt-4 space-y-3">
+                            <h3 className="text-xs font-extrabold uppercase tracking-wider text-[#94A3B8]">Transport & Delivery Parameters</h3>
                             
                             <div className="grid grid-cols-2 gap-3">
                                 <div>
-                                    <label className="block text-[11px] font-bold text-slate-500 uppercase mb-1">Vehicle Registration #</label>
+                                    <label className="block text-[11px] font-bold text-[#94A3B8] uppercase mb-1">Vehicle Registration #</label>
                                     <input
                                         type="text"
                                         value={formData.vehicleNo}
                                         onChange={e => handleInputChange('vehicleNo', e.target.value)}
-                                        className="w-full border border-slate-200 rounded-xl px-3 py-2 text-xs font-mono font-bold text-indigo-600 focus:ring-2 focus:ring-indigo-500"
+                                        className="w-full bg-[#0B0F19] border border-[#1F2B45] rounded-xl px-3 py-2 text-xs font-mono font-bold text-[#FF7A18] focus:border-[#FF7A18] outline-none"
                                     />
                                 </div>
                                 <div>
-                                    <label className="block text-[11px] font-bold text-slate-500 uppercase mb-1">Delivery Pincode *</label>
+                                    <label className="block text-[11px] font-bold text-[#94A3B8] uppercase mb-1">Delivery Pincode *</label>
                                     <input
                                         type="number"
                                         value={formData.toPincode}
                                         onChange={e => handleInputChange('toPincode', e.target.value)}
-                                        className="w-full border border-slate-200 rounded-xl px-3 py-2 text-xs font-bold text-slate-900 focus:ring-2 focus:ring-indigo-500"
+                                        className="w-full bg-[#0B0F19] border border-[#1F2B45] rounded-xl px-3 py-2 text-xs font-bold text-[#F8FAFC] focus:border-[#FF7A18] outline-none"
                                     />
                                 </div>
                             </div>
 
                             <div>
-                                <label className="block text-[11px] font-bold text-slate-500 uppercase mb-1">Delivery Place / City</label>
+                                <label className="block text-[11px] font-bold text-[#94A3B8] uppercase mb-1">Delivery Place / City</label>
                                 <input
                                     type="text"
                                     value={formData.toPlace}
                                     onChange={e => handleInputChange('toPlace', e.target.value)}
-                                    className="w-full border border-slate-200 rounded-xl px-3 py-2 text-xs font-medium text-slate-800 focus:ring-2 focus:ring-indigo-500"
+                                    className="w-full bg-[#0B0F19] border border-[#1F2B45] rounded-xl px-3 py-2 text-xs font-medium text-[#F8FAFC] focus:border-[#FF7A18] outline-none"
                                 />
                             </div>
                         </div>
 
                         {/* Line Item Summary */}
-                        <div className="border-t border-slate-100 pt-4">
-                            <h3 className="text-xs font-extrabold uppercase tracking-wider text-slate-500 mb-2">Line Item Preview ({formData.items.length})</h3>
-                            <div className="bg-slate-50 p-3 rounded-xl border border-slate-200 space-y-2 text-xs">
+                        <div className="border-t border-[#1F2B45] pt-4">
+                            <h3 className="text-xs font-extrabold uppercase tracking-wider text-[#94A3B8] mb-2">Line Item Preview ({formData.items.length})</h3>
+                            <div className="bg-[#0B0F19] p-3 rounded-xl border border-[#1F2B45] space-y-2 text-xs">
                                 {formData.items.map((item, idx) => {
                                     const total = item.qty * item.rate;
                                     const gstVal = (total * item.gstRate) / 100;
                                     const gross = total + gstVal;
                                     return (
-                                        <div key={idx} className="border-b border-slate-200/60 pb-1.5 last:border-none last:pb-0">
-                                            <div className="flex justify-between font-bold text-slate-800">
+                                        <div key={idx} className="border-b border-[#1F2B45] pb-1.5 last:border-none last:pb-0">
+                                            <div className="flex justify-between font-bold text-[#F8FAFC]">
                                                 <span>{item.name} ({item.qty} {item.unit})</span>
                                                 <span>₹ {item.rate.toLocaleString('en-IN')}</span>
                                             </div>
-                                            <div className="flex justify-between text-[10px] text-slate-500 mt-0.5">
+                                            <div className="flex justify-between text-[10px] text-[#94A3B8] mt-0.5">
                                                 <span>HSN: {item.hsn} | GST: {item.gstRate}% (+₹ {gstVal.toLocaleString('en-IN')})</span>
-                                                <span className="font-bold text-indigo-600">Gross: ₹ {gross.toLocaleString('en-IN')}</span>
+                                                <span className="font-bold text-[#FF7A18]">Gross: ₹ {gross.toLocaleString('en-IN')}</span>
                                             </div>
                                         </div>
                                     );
@@ -300,34 +300,34 @@ const EWayBillSandbox = () => {
                 {/* Right Column: Live Validation State & JSON Preview */}
                 <div className="lg:col-span-7 space-y-6">
                     {/* Compliance Box */}
-                    <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-200 space-y-4">
-                        <div className="flex items-center justify-between border-b border-slate-100 pb-3">
-                            <h2 className="text-base font-bold text-slate-900">Validation Compliance Status</h2>
+                    <div className="bg-[#111726] p-6 rounded-2xl shadow-sm border border-[#1F2B45] space-y-4">
+                        <div className="flex items-center justify-between border-b border-[#1F2B45] pb-3">
+                            <h2 className="text-base font-bold text-[#F8FAFC]">Validation Compliance Status</h2>
                             <span className={`text-xs font-extrabold px-3 py-1 rounded-full border ${
                                 validationResult.passed
-                                    ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
-                                    : 'bg-rose-50 text-rose-700 border-rose-200'
+                                    ? 'bg-[#22C55E]/10 text-[#22C55E] border-[#22C55E]/30'
+                                    : 'bg-[#EF4444]/10 text-[#EF4444] border-[#EF4444]/30'
                             }`}>
                                 {validationResult.passed ? 'PASSED' : 'FAILED'}
                             </span>
                         </div>
 
                         {validationResult.passed ? (
-                            <div className="bg-emerald-50/70 border border-emerald-200/80 rounded-xl p-4 flex items-start gap-3 text-emerald-900">
-                                <CheckCircle size={20} className="text-emerald-600 shrink-0 mt-0.5" />
+                            <div className="bg-[#22C55E]/10 border border-[#22C55E]/30 rounded-xl p-4 flex items-start gap-3 text-[#22C55E]">
+                                <CheckCircle size={20} className="text-[#22C55E] shrink-0 mt-0.5" />
                                 <div>
-                                    <h4 className="font-bold text-sm text-emerald-900">Validation Successful</h4>
-                                    <p className="text-xs text-emerald-700 mt-1">
-                                        This invoice complies fully with NIC GST E-Way Bill regulations. Total Invoice Value is ₹{validationResult.json?.billLists[0]?.totInvValue?.toLocaleString('en-IN')}.
+                                    <h4 className="font-bold text-sm text-[#22C55E]">Validation Successful</h4>
+                                    <p className="text-xs text-[#94A3B8] mt-1">
+                                        This invoice complies fully with NIC GST E-Way Bill regulations. Total Invoice Value is <strong className="text-[#F8FAFC]">₹{validationResult.json?.billLists[0]?.totInvValue?.toLocaleString('en-IN')}</strong>.
                                     </p>
                                 </div>
                             </div>
                         ) : (
-                            <div className="bg-rose-50/70 border border-rose-200/80 rounded-xl p-4 flex items-start gap-3 text-rose-900">
-                                <AlertTriangle size={20} className="text-rose-600 shrink-0 mt-0.5" />
+                            <div className="bg-[#EF4444]/10 border border-[#EF4444]/30 rounded-xl p-4 flex items-start gap-3 text-[#EF4444]">
+                                <AlertTriangle size={20} className="text-[#EF4444] shrink-0 mt-0.5" />
                                 <div>
-                                    <h4 className="font-bold text-sm text-rose-900">Regulatory Threshold Validation Failed</h4>
-                                    <p className="text-xs text-rose-700 mt-1">
+                                    <h4 className="font-bold text-sm text-[#EF4444]">Regulatory Threshold Validation Failed</h4>
+                                    <p className="text-xs text-[#94A3B8] mt-1">
                                         {validationResult.error}
                                     </p>
                                 </div>
@@ -340,8 +340,8 @@ const EWayBillSandbox = () => {
                                 disabled={!validationResult.passed}
                                 className={`w-full py-3 px-4 rounded-xl font-bold text-sm shadow-md transition-all flex items-center justify-center gap-2 ${
                                     validationResult.passed
-                                        ? 'bg-indigo-600 hover:bg-indigo-700 text-white shadow-indigo-500/20 cursor-pointer'
-                                        : 'bg-slate-100 text-slate-400 cursor-not-allowed border border-slate-200'
+                                        ? 'btn btn-primary cursor-pointer'
+                                        : 'bg-[#0B0F19] text-[#94A3B8] cursor-not-allowed border border-[#1F2B45]'
                                 }`}
                             >
                                 <Download size={18} /> Download Official E-Way Bill JSON File
@@ -350,18 +350,18 @@ const EWayBillSandbox = () => {
                     </div>
 
                     {/* JSON Code View Block */}
-                    <div className="bg-[#0f172a] rounded-2xl overflow-hidden border border-slate-800 shadow-xl">
-                        <div className="flex items-center justify-between bg-slate-900/80 border-b border-slate-800 px-6 py-3">
-                            <span className="text-xs font-mono font-bold text-slate-300">NIC-SCHEMA-OUTPUT.json</span>
+                    <div className="bg-[#0B0F19] rounded-2xl overflow-hidden border border-[#1F2B45] shadow-xl">
+                        <div className="flex items-center justify-between bg-[#111726] border-b border-[#1F2B45] px-6 py-3">
+                            <span className="text-xs font-mono font-bold text-[#94A3B8]">NIC-SCHEMA-OUTPUT.json</span>
                             <button
                                 onClick={handleCopyPayload}
                                 disabled={!validationResult.passed}
-                                className="text-xs font-bold text-indigo-400 hover:text-indigo-300 transition-colors flex items-center gap-1.5 cursor-pointer disabled:opacity-40"
+                                className="text-xs font-bold text-[#FF7A18] hover:text-[#FF923D] transition-colors flex items-center gap-1.5 cursor-pointer disabled:opacity-40"
                             >
                                 <Copy size={14} /> {copySuccess ? 'Copied!' : 'Copy Payload'}
                             </button>
                         </div>
-                        <pre className="p-6 text-xs text-emerald-400 font-mono overflow-x-auto max-h-[420px] bg-[#090d16] leading-relaxed">
+                        <pre className="p-6 text-xs text-[#22C55E] font-mono overflow-x-auto max-h-[420px] bg-[#07090E] leading-relaxed custom-scrollbar">
                             <code>
                                 {validationResult.passed
                                     ? JSON.stringify(validationResult.json, null, 2)

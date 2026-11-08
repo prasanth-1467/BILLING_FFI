@@ -5,7 +5,10 @@ const Quotation = require("../models/Quotation");
 const Product = require("../models/Product");
 const Counter = require("../models/Counter"); // Added Counter import
 const { generatePDF } = require("../utils/pdfGenerator");
-const { sendEmailWithAttachment } = require("../utils/emailService");
+const { sendEmailWithAttachment, sendInvoiceEmail, isValidEmail } = require("../utils/emailService");
+
+// In-memory set to prevent duplicate email submissions while a send request is processing
+const activeEmailLocks = new Set();
 
 // CREATE DIRECT INVOICE
 router.post("/", async (req, res) => {
@@ -116,6 +119,7 @@ router.post("/", async (req, res) => {
       customerAddress: customerAddress || null,
       customerState: customerState || null,
       customerPhone: customerPhone || null,
+      customerEmail: req.body.customerEmail || null,
       
       items: enrichedItems,
       subtotal,
@@ -291,6 +295,7 @@ router.put("/:id", async (req, res) => {
     existingInvoice.customerAddress = customerAddress !== undefined ? customerAddress : existingInvoice.customerAddress;
     existingInvoice.customerState = customerState !== undefined ? customerState : existingInvoice.customerState;
     existingInvoice.customerPhone = customerPhone !== undefined ? customerPhone : existingInvoice.customerPhone;
+    existingInvoice.customerEmail = req.body.customerEmail !== undefined ? req.body.customerEmail : existingInvoice.customerEmail;
     existingInvoice.items = enrichedItems;
     existingInvoice.subtotal = subtotal;
     existingInvoice.discountPercent = discPct;
@@ -680,75 +685,237 @@ router.patch("/:id/payment", async (req, res) => {
   }
 });
 
-// Email Invoice to Admin
-router.post("/:id/email-to-me", async (req, res) => {
+// Helper to construct normalized PDF data for invoice rendering
+const prepareInvoicePdfData = async (invoice, reqQuery = {}) => {
+  const BusinessSettings = require("../models/BusinessSettings");
+  const themeConfig = require("../config/themeConfig");
+  let resolvedThemeName = reqQuery.theme || invoice.theme;
+  if (!resolvedThemeName) {
+    const settings = await BusinessSettings.findOne();
+    resolvedThemeName = settings?.defaultTheme || "indigo";
+  }
+  const theme = themeConfig[resolvedThemeName] || themeConfig.indigo;
+
+  return {
+    number: invoice.invoiceNumber,
+    date: invoice.date,
+    theme,
+    ewayBillNo: invoice.ewayBillNo,
+    paymentTerms: "Due on Receipt",
+    customer: {
+      name: invoice.customerName || invoice.customerId?.name || "-",
+      address: invoice.customerAddress || invoice.customerId?.address || "-",
+      gst: invoice.customerGSTIN || invoice.customerId?.gstNumber || "URD",
+      phone: invoice.customerPhone || invoice.customerId?.phone || "-",
+      email: invoice.customerEmail || invoice.customerId?.email || "-",
+      state: invoice.customerState || invoice.customerId?.state || "-",
+      shipTo: invoice.shipTo
+    },
+    items: invoice.items.map(item => ({
+      name: item.name || item.productId?.name || "Product",
+      qty: item.qty,
+      rate: item.rate,
+      amount: item.amount,
+      hsn: item.hsn || item.productId?.hsn || "",
+      gstRate: item.gstRate,
+      unit: item.unit || item.productId?.unit || ""
+    })),
+    subtotal: invoice.subtotal,
+    discountPercent: invoice.discountPercent,
+    discount: (invoice.subtotal * (invoice.discountPercent || 0)) / 100,
+    taxableAmount: invoice.taxableAmount,
+    gst: invoice.gstBreakup,
+    roundOff: invoice.roundOff,
+    total: invoice.total,
+    includeSignature: reqQuery.includeSignature === "true",
+    includeSeal: reqQuery.includeSeal === "true",
+    copyType: reqQuery.copyType || 'none'
+  };
+};
+
+// 1. Email Invoice PDF to Customer
+router.post("/:id/email-customer", async (req, res) => {
+  const invoiceId = req.params.id;
+  if (activeEmailLocks.has(invoiceId)) {
+    return res.status(409).json({ error: "An email dispatch is currently in progress for this invoice. Please wait." });
+  }
+
+  activeEmailLocks.add(invoiceId);
+
   try {
-    const invoice = await Invoice.findById(req.params.id)
+    const invoice = await Invoice.findById(invoiceId)
       .populate("customerId")
       .populate("items.productId");
-    if (!invoice) return res.status(404).json({ error: "Invoice not found" });
 
-    const pdfData = {
-      number: invoice.invoiceNumber,
-      date: invoice.date,
-      ewayBillNo: invoice.ewayBillNo,
-      paymentTerms: "Due on Receipt",
-      customer: {
-        name: invoice.customerName || invoice.customerId?.name || "-",
-        address: invoice.customerAddress || invoice.customerId?.address || "-",
-        gst: invoice.customerGSTIN || invoice.customerId?.gstNumber || "URD",
-        phone: invoice.customerPhone || invoice.customerId?.phone || "-",
-        state: invoice.customerState || invoice.customerId?.state || "-",
-        shipTo: invoice.shipTo
-      },
-      items: invoice.items.map(item => ({
-        name: item.name || item.productId?.name || "Product",
-        qty: item.qty,
-        rate: item.rate,
-        amount: item.amount,
-        hsn: item.hsn || item.productId?.hsn || "",
-        gstRate: item.gstRate,
-        unit: item.unit || item.productId?.unit || ""
-      })),
-      subtotal: invoice.subtotal,
-      discountPercent: invoice.discountPercent,
-      discount: (invoice.subtotal * (invoice.discountPercent || 0)) / 100,
-      taxableAmount: invoice.taxableAmount,
-      gst: invoice.gstBreakup,
-      roundOff: invoice.roundOff,
-      total: invoice.total,
-      includeSignature: req.query.includeSignature === "true",
-      includeSeal: req.query.includeSeal === "true",
-      copyType: req.query.copyType || 'none'
-    };
-
-    // Resolve theme
-    const BusinessSettings = require("../models/BusinessSettings");
-    const themeConfig = require("../config/themeConfig");
-    let resolvedThemeNameForEmail = req.query.theme || invoice.theme;
-    if (!resolvedThemeNameForEmail) {
-      const settings = await BusinessSettings.findOne();
-      resolvedThemeNameForEmail = settings?.defaultTheme || "indigo";
+    if (!invoice) {
+      return res.status(404).json({ error: "Invoice not found." });
     }
-    pdfData.theme = themeConfig[resolvedThemeNameForEmail] || themeConfig.indigo;
 
+    // Determine target recipient
+    const manualEmail = req.body?.email?.trim();
+    const customerEmail = invoice.customerId?.email?.trim() || invoice.customerEmail?.trim();
+    const targetEmail = manualEmail || customerEmail;
+
+    if (!targetEmail) {
+      return res.status(400).json({ error: "Customer email is missing. Please provide a recipient email address." });
+    }
+
+    if (!isValidEmail(targetEmail)) {
+      return res.status(400).json({ error: `"${targetEmail}" is not a valid email address.` });
+    }
+
+    // Generate exact PDFKit buffer
+    const pdfData = await prepareInvoicePdfData(invoice, req.query);
     const pdfBuffer = await generatePDF(pdfData);
 
-    await sendEmailWithAttachment({
-      to: process.env.ADMIN_EMAIL,
-      subject: `Invoice Copy: ${invoice.invoiceNumber}`,
-      text: `Please find the attached PDF copy of Invoice ${invoice.invoiceNumber}.`,
-      filename: `Invoice-${invoice.invoiceNumber}.pdf`,
-      content: pdfBuffer,
+    const custName = invoice.customerName || invoice.customerId?.name || "Valued Customer";
+    const result = await sendInvoiceEmail({
+      to: targetEmail,
+      invoiceNumber: invoice.invoiceNumber,
+      customerName: custName,
+      total: invoice.total,
+      balance: invoice.balance,
+      dueDate: invoice.dueDate,
+      pdfBuffer,
+      recipientType: "customer"
     });
 
-    res.json({ message: "Email sent successfully" });
-  } catch (err) {
-    console.error("Email failed:", err);
-    res.status(500).json({ 
-      error: err.message || "Failed to send email", 
-      details: err.code || "UNKNOWN_ERROR"
+    // Optionally save entered email to customer profile for future invoices
+    if (req.body?.saveToCustomer && invoice.customerId?._id) {
+      const Customer = require("../models/Customer");
+      await Customer.findByIdAndUpdate(invoice.customerId._id, { email: targetEmail });
+    }
+
+    // Update invoice record with email and history log
+    invoice.customerEmail = targetEmail;
+    if (!invoice.emailHistory) invoice.emailHistory = [];
+    invoice.emailHistory.push({
+      recipient: targetEmail,
+      recipientType: "customer",
+      status: "sent",
+      messageId: result?.messageId || null,
+      sentAt: new Date()
     });
+    await invoice.save();
+
+    res.json({
+      success: true,
+      message: `Tax Invoice #${invoice.invoiceNumber} sent to ${targetEmail} successfully.`,
+      recipient: targetEmail,
+      messageId: result?.messageId
+    });
+  } catch (err) {
+    console.error("[InvoiceRoutes] Customer email failed:", err);
+
+    // Record failure in history if invoice exists
+    try {
+      const failedInv = await Invoice.findById(invoiceId);
+      if (failedInv) {
+        if (!failedInv.emailHistory) failedInv.emailHistory = [];
+        failedInv.emailHistory.push({
+          recipient: req.body?.email?.trim() || "unknown",
+          recipientType: "customer",
+          status: "failed",
+          error: err.message,
+          sentAt: new Date()
+        });
+        await failedInv.save();
+      }
+    } catch (logErr) {
+      console.error("[InvoiceRoutes] Failed to log email error:", logErr);
+    }
+
+    res.status(500).json({
+      error: err.message || "Failed to send invoice email via Resend.",
+      details: err.code || "EMAIL_DELIVERY_ERROR"
+    });
+  } finally {
+    activeEmailLocks.delete(invoiceId);
+  }
+});
+
+// 2. Email Invoice PDF to Myself (Business / Admin Copy)
+router.post("/:id/email-to-me", async (req, res) => {
+  const invoiceId = req.params.id;
+  if (activeEmailLocks.has(invoiceId)) {
+    return res.status(409).json({ error: "An email dispatch is currently in progress for this invoice. Please wait." });
+  }
+
+  activeEmailLocks.add(invoiceId);
+
+  try {
+    const businessEmail = (process.env.BUSINESS_EMAIL || process.env.ADMIN_EMAIL || "").trim();
+    if (!businessEmail || !isValidEmail(businessEmail)) {
+      return res.status(500).json({
+        error: "Business email recipient is not configured in server environment (BUSINESS_EMAIL or ADMIN_EMAIL)."
+      });
+    }
+
+    const invoice = await Invoice.findById(invoiceId)
+      .populate("customerId")
+      .populate("items.productId");
+
+    if (!invoice) {
+      return res.status(404).json({ error: "Invoice not found." });
+    }
+
+    const pdfData = await prepareInvoicePdfData(invoice, req.query);
+    const pdfBuffer = await generatePDF(pdfData);
+
+    const custName = invoice.customerName || invoice.customerId?.name || "Customer";
+    const result = await sendInvoiceEmail({
+      to: businessEmail,
+      invoiceNumber: invoice.invoiceNumber,
+      customerName: custName,
+      total: invoice.total,
+      balance: invoice.balance,
+      dueDate: invoice.dueDate,
+      pdfBuffer,
+      recipientType: "myself"
+    });
+
+    if (!invoice.emailHistory) invoice.emailHistory = [];
+    invoice.emailHistory.push({
+      recipient: businessEmail,
+      recipientType: "myself",
+      status: "sent",
+      messageId: result?.messageId || null,
+      sentAt: new Date()
+    });
+    await invoice.save();
+
+    res.json({
+      success: true,
+      message: `Invoice #${invoice.invoiceNumber} copy sent to business email (${businessEmail}) successfully.`,
+      recipient: businessEmail,
+      messageId: result?.messageId
+    });
+  } catch (err) {
+    console.error("[InvoiceRoutes] Business email copy failed:", err);
+
+    try {
+      const failedInv = await Invoice.findById(invoiceId);
+      if (failedInv) {
+        if (!failedInv.emailHistory) failedInv.emailHistory = [];
+        failedInv.emailHistory.push({
+          recipient: process.env.BUSINESS_EMAIL || process.env.ADMIN_EMAIL || "admin",
+          recipientType: "myself",
+          status: "failed",
+          error: err.message,
+          sentAt: new Date()
+        });
+        await failedInv.save();
+      }
+    } catch (logErr) {
+      console.error("[InvoiceRoutes] Failed to log email error:", logErr);
+    }
+
+    res.status(500).json({
+      error: err.message || "Failed to send invoice copy email via Resend.",
+      details: err.code || "EMAIL_DELIVERY_ERROR"
+    });
+  } finally {
+    activeEmailLocks.delete(invoiceId);
   }
 });
 

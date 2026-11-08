@@ -186,7 +186,7 @@ const PurchaseOrders = () => {
     if (loading) {
         return (
             <div className="flex justify-center items-center h-64">
-                <Loader className="animate-spin text-blue-600" size={32} />
+                <Loader className="animate-spin text-[#FF7A18]" size={32} />
             </div>
         );
     }
@@ -194,21 +194,21 @@ const PurchaseOrders = () => {
     return (
         <div className="space-y-6">
             <div className="flex justify-between items-center">
-                <h2 className="text-xl font-bold text-gray-800">Purchase Orders</h2>
+                <h2 className="text-xl font-bold text-[#F8FAFC]">Purchase Orders</h2>
                 <div className="flex items-center gap-4">
-                    <label className="flex items-center gap-2 text-sm font-medium text-gray-700 bg-white px-3 py-2 rounded cursor-pointer border hover:bg-gray-50">
+                    <label className="flex items-center gap-2 text-sm font-medium text-[#F8FAFC] bg-[#111726] px-3 py-2 rounded cursor-pointer border hover:bg-[#172033]">
                         <input
                             type="checkbox"
-                            className="w-4 h-4 text-blue-600 rounded focus:ring-blue-500 border-gray-300"
+                            className="w-4 h-4 text-[#FF7A18] rounded focus:ring-[#FF7A18] border-[#1F2B45]"
                             checked={includeSignature}
                             onChange={e => setIncludeSignature(e.target.checked)}
                         />
                         Include Signature
                     </label>
-                    <label className="flex items-center gap-2 text-sm font-medium text-gray-700 bg-white px-3 py-2 rounded cursor-pointer border hover:bg-gray-50">
+                    <label className="flex items-center gap-2 text-sm font-medium text-[#F8FAFC] bg-[#111726] px-3 py-2 rounded cursor-pointer border hover:bg-[#172033]">
                         <input
                             type="checkbox"
-                            className="w-4 h-4 text-blue-600 rounded focus:ring-blue-500 border-gray-300"
+                            className="w-4 h-4 text-[#FF7A18] rounded focus:ring-[#FF7A18] border-[#1F2B45]"
                             checked={includeSeal}
                             onChange={e => setIncludeSeal(e.target.checked)}
                         />
@@ -217,7 +217,7 @@ const PurchaseOrders = () => {
                     <select
                         value={selectedTheme}
                         onChange={(e) => setSelectedTheme(e.target.value)}
-                        className="text-sm font-medium text-gray-700 bg-white px-3 py-2 rounded border hover:bg-gray-50 outline-none cursor-pointer"
+                        className="text-sm font-medium text-[#F8FAFC] bg-[#111726] px-3 py-2 rounded border hover:bg-[#172033] outline-none cursor-pointer"
                         title="Select PDF Theme"
                     >
                         <option value="indigo">Classic Indigo</option>
@@ -237,26 +237,26 @@ const PurchaseOrders = () => {
 
             <div className="card overflow-hidden">
                 <div className="table-container">
-                    <table className="min-w-full divide-y divide-gray-200">
-                        <thead className="bg-gray-50">
+                    <table className="min-w-full divide-y divide-[#1F2B45]">
+                        <thead className="bg-[#172033]">
                             <tr>
-                                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Date</th>
-                                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">PO Number</th>
-                                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Supplier</th>
-                                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Items</th>
-                                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
-                                <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
+                                <th className="px-6 py-3 text-left text-xs font-medium text-[#94A3B8] uppercase tracking-wider">Date</th>
+                                <th className="px-6 py-3 text-left text-xs font-medium text-[#94A3B8] uppercase tracking-wider">PO Number</th>
+                                <th className="px-6 py-3 text-left text-xs font-medium text-[#94A3B8] uppercase tracking-wider">Supplier</th>
+                                <th className="px-6 py-3 text-left text-xs font-medium text-[#94A3B8] uppercase tracking-wider">Items</th>
+                                <th className="px-6 py-3 text-left text-xs font-medium text-[#94A3B8] uppercase tracking-wider">Status</th>
+                                <th className="px-6 py-3 text-right text-xs font-medium text-[#94A3B8] uppercase tracking-wider">Actions</th>
                             </tr>
                         </thead>
-                        <tbody className="bg-white divide-y divide-gray-200">
+                        <tbody className="bg-[#111726] divide-y divide-[#1F2B45]">
                             {pos.map((po) => (
-                                <tr key={po._id || po.id} className="hover:bg-gray-50">
-                                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                                <tr key={po._id || po.id} className="table-record-row hover:bg-[#FFF0E5] dark:hover:bg-[#172033] transition-colors">
+                                    <td className="px-6 py-4 whitespace-nowrap text-sm text-[#94A3B8]">
                                         {editingDateId === (po._id || po.id) ? (
                                             <div className="flex items-center gap-2">
                                                 <input
                                                     type="date"
-                                                    className="border rounded px-2 py-0.5 text-xs focus:ring-blue-500 focus:border-blue-500"
+                                                    className="border border-[#1F2B45] rounded px-2 py-0.5 text-xs focus:ring-[#FF7A18] focus:border-[#FF7A18] bg-[#172033] text-[#F8FAFC]"
                                                     value={editDate}
                                                     onChange={e => setEditDate(e.target.value)}
                                                     autoFocus
@@ -264,7 +264,7 @@ const PurchaseOrders = () => {
                                                 <button onClick={savePoDate} disabled={saving} className="text-green-600 hover:text-green-800">
                                                     <Save size={14} />
                                                 </button>
-                                                <button onClick={cancelEditingDate} className="text-gray-500 hover:text-gray-700">
+                                                <button onClick={cancelEditingDate} className="text-[#94A3B8] hover:text-[#F8FAFC]">
                                                     <X size={14} />
                                                 </button>
                                             </div>
@@ -273,7 +273,7 @@ const PurchaseOrders = () => {
                                                 {new Date(po.date || po.createdAt).toLocaleDateString()}
                                                 <button
                                                     onClick={() => startEditingDate(po)}
-                                                    className="opacity-0 group-hover/date:opacity-100 text-gray-400 hover:text-blue-600 transition-opacity p-1"
+                                                    className="opacity-0 group-hover/date:opacity-100 text-[#64748B] hover:text-[#FF7A18] transition-opacity p-1"
                                                     title="Edit Date"
                                                 >
                                                     <Edit size={12} />
@@ -281,12 +281,12 @@ const PurchaseOrders = () => {
                                             </div>
                                         )}
                                     </td>
-                                    <td className="px-6 py-4 whitespace-nowrap font-medium text-gray-900">
+                                    <td className="px-6 py-4 whitespace-nowrap font-medium text-[#F8FAFC]">
                                         {editingId === (po._id || po.id) ? (
                                             <div className="flex items-center gap-2">
                                                 <input
                                                     type="text"
-                                                    className="border rounded px-2 py-1 w-32 text-sm focus:ring-blue-500 focus:border-blue-500"
+                                                    className="border rounded px-2 py-1 w-32 text-sm focus:ring-[#FF7A18] focus:border-blue-500"
                                                     value={editPoNumber}
                                                     onChange={e => setEditPoNumber(e.target.value)}
                                                     autoFocus
@@ -294,7 +294,7 @@ const PurchaseOrders = () => {
                                                 <button onClick={savePoNumber} disabled={saving} className="text-green-600 hover:text-green-800">
                                                     <Save size={16} />
                                                 </button>
-                                                <button onClick={cancelEditing} className="text-gray-500 hover:text-gray-700">
+                                                <button onClick={cancelEditing} className="text-[#94A3B8] hover:text-[#F8FAFC]">
                                                     <X size={16} />
                                                 </button>
                                             </div>
@@ -303,7 +303,7 @@ const PurchaseOrders = () => {
                                                 {po.poNumber}
                                                 <button
                                                     onClick={() => startEditing(po)}
-                                                    className="opacity-0 group-hover:opacity-100 text-gray-400 hover:text-blue-600 transition-opacity p-1"
+                                                    className="opacity-0 group-hover:opacity-100 text-[#64748B] hover:text-[#FF7A18] transition-opacity p-1"
                                                     title="Edit PO Number"
                                                 >
                                                     <Edit size={14} />
@@ -311,29 +311,29 @@ const PurchaseOrders = () => {
                                             </div>
                                         )}
                                     </td>
-                                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-700">
+                                    <td className="px-6 py-4 whitespace-nowrap text-sm text-[#F8FAFC]">
                                         {po.supplier?.name || po.supplierName || "Unknown Supplier"}
                                     </td>
-                                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                                    <td className="px-6 py-4 whitespace-nowrap text-sm text-[#94A3B8]">
                                         {po.items?.length || 0}
                                     </td>
                                     <td className="px-6 py-4 whitespace-nowrap">
-                                        <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full 
-                                            ${po.status === 'Draft' ? 'bg-yellow-100 text-yellow-800' :
-                                                po.status === 'Sent' ? 'bg-blue-100 text-blue-800' : 'bg-green-100 text-green-800'}`}>
+                                        <span className={`px-2.5 py-0.5 inline-flex text-xs leading-5 font-bold rounded-md border 
+                                            ${po.status === 'Draft' ? 'bg-[#F59E0B]/15 text-[#F59E0B] border-[#F59E0B]/30' :
+                                                po.status === 'Sent' ? 'bg-[#FF7A18]/15 text-[#FF7A18] border-[#FF7A18]/30' : 'bg-[#22C55E]/15 text-[#22C55E] border-[#22C55E]/30'}`}>
                                             {po.status || 'Draft'}
                                         </span>
                                     </td>
                                     <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
                                         <button
-                                            className="text-gray-600 hover:text-gray-900 mr-4"
+                                            className="text-[#94A3B8] hover:text-[#FF7A18] mr-4 transition-colors"
                                             title="Download PDF"
                                             onClick={() => handleDownload(po._id || po.id, po.poNumber)}
                                         >
                                             <Download size={18} />
                                         </button>
                                         <button
-                                            className="text-slate-600 hover:text-slate-900 mr-4"
+                                            className="text-[#94A3B8] hover:text-[#FF7A18] mr-4 transition-colors"
                                             title="Quick Print"
                                             onClick={() => handlePrint(po._id || po.id)}
                                             disabled={printingId === (po._id || po.id)}
@@ -341,7 +341,7 @@ const PurchaseOrders = () => {
                                             {printingId === (po._id || po.id) ? <Loader size={18} className="animate-spin" /> : <Printer size={18} />}
                                         </button>
                                         <button
-                                            className="text-blue-600 hover:text-blue-900 mr-4"
+                                            className="text-[#FF7A18] hover:text-[#FF923D] mr-4"
                                             title="View Details"
                                             onClick={() => alert(`PO Details:\nSupplier: ${po.supplier?.name || po.supplierName || 'Unknown'}\nItems: ${po.items?.length}`)}
                                         >
@@ -366,7 +366,7 @@ const PurchaseOrders = () => {
                             ))}
                             {pos.length === 0 && (
                                 <tr>
-                                    <td colSpan="6" className="px-6 py-10 text-center text-gray-500">
+                                    <td colSpan="6" className="px-6 py-10 text-center text-[#94A3B8]">
                                         No purchase orders found.
                                     </td>
                                 </tr>

@@ -16,7 +16,7 @@ import {
     Receipt
 } from 'lucide-react';
 import { useNavigate, useParams } from 'react-router-dom';
-import IrrigationLoader from '../components/IrrigationLoader';
+import { useToast } from '../context/ToastContext';
 
 const MY_STATE_NORMALIZED = 'tamilnadu';
 
@@ -52,6 +52,7 @@ const CreateInvoice = () => {
     const navigate = useNavigate();
     const { id } = useParams();
     const isEditMode = !!id;
+    const { showToast } = useToast();
     const [loading, setLoading] = useState(false);
     const [pageLoading, setPageLoading] = useState(true);
     const [customers, setCustomers] = useState([]);
@@ -68,6 +69,7 @@ const CreateInvoice = () => {
     const [manualCustomer, setManualCustomer] = useState({
         name: '',
         phone: '',
+        email: '',
         gstNumber: '',
         address: '',
         state: 'Tamil Nadu'
@@ -519,6 +521,7 @@ const CreateInvoice = () => {
             customerAddress: customerMode === 'manual' ? manualCustomer.address : null,
             customerState: customerMode === 'manual' ? manualCustomer.state : null,
             customerPhone: customerMode === 'manual' ? manualCustomer.phone : null,
+            customerEmail: customerMode === 'manual' ? manualCustomer.email : null,
 
             items: items.map((item) => ({
                 productId: item.productId,
@@ -542,15 +545,28 @@ const CreateInvoice = () => {
         try {
             if (isEditMode && id) {
                 await api.put(`/invoices/${id}`, payload);
-                alert('Invoice updated successfully!');
+                showToast({
+                    title: 'Invoice Updated',
+                    description: `Tax Invoice was updated successfully.`,
+                    type: 'invoice'
+                });
             } else {
-                await api.post('/invoices', payload);
-                alert('Invoice created successfully!');
+                const res = await api.post('/invoices', payload);
+                const invNum = res.data?.invoiceNumber || 'New';
+                showToast({
+                    title: 'Tax Invoice Generated',
+                    description: `Invoice #${invNum} created and ledger synchronized.`,
+                    type: 'invoice'
+                });
             }
             navigate('/invoices');
         } catch (error) {
             console.error('Direct Invoice Save/Update Failed', error);
-            alert(error.response?.data?.error || 'Failed to save invoice.');
+            showToast({
+                title: 'Invoice Generation Failed',
+                description: error.response?.data?.error || 'Failed to save invoice.',
+                type: 'alert'
+            });
         } finally {
             setLoading(false);
         }
@@ -558,8 +574,9 @@ const CreateInvoice = () => {
 
     if (pageLoading) {
         return (
-            <div className="flex items-center justify-center min-h-[70vh]">
-                <IrrigationLoader message="Initializing direct billing catalog..." />
+            <div className="flex flex-col items-center justify-center min-h-[50vh] gap-3">
+                <Loader className="animate-spin text-[#FF7A18]" size={28} />
+                <p className="text-xs font-semibold text-[#94A3B8]">Loading invoice builder...</p>
             </div>
         );
     }
@@ -575,12 +592,12 @@ const CreateInvoice = () => {
             <div className="flex justify-between items-center no-print">
                 <button
                     onClick={() => navigate('/invoices')}
-                    className="btn btn-outline bg-white flex items-center gap-2 text-xs font-bold rounded-xl"
+                    className="btn btn-outline bg-[#111726] flex items-center gap-2 text-xs font-bold rounded-xl"
                 >
                     <ArrowLeft size={16} /> Back to Invoices
                 </button>
                 <div className="flex items-center gap-2">
-                    <span className="text-xs font-semibold text-slate-500">Mode:</span>
+                    <span className="text-xs font-semibold text-[#94A3B8]">Mode:</span>
                     <span className="badge badge-success text-xs font-bold">
                         {isEditMode ? 'Editing Invoice' : 'Direct Billing Engine'}
                     </span>
@@ -588,26 +605,26 @@ const CreateInvoice = () => {
             </div>
 
             {/* Header / Invoice Number Bar */}
-            <div className="bg-white p-5 rounded-2xl shadow-sm border border-slate-100 flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+            <div className="bg-[#111726] p-5 rounded-2xl shadow-sm border border-[#1F2B45] flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
                 <div>
-                    <h1 className="text-xl font-black text-slate-800 tracking-tight flex items-center gap-2">
-                        <Receipt size={24} className="text-indigo-600" />
+                    <h1 className="text-xl font-black text-[#F8FAFC] tracking-tight flex items-center gap-2">
+                        <Receipt size={24} className="text-[#FF7A18]" />
                         {isEditMode ? `Edit Invoice ${invoiceNumber}` : 'Create Direct Invoice'}
                     </h1>
-                    <p className="text-xs text-slate-500 font-medium">
+                    <p className="text-xs text-[#94A3B8] font-medium">
                         Fine Flow Irrigation point-of-sale & Tax invoice generator
                     </p>
                 </div>
 
                 <div className="flex flex-wrap items-center gap-3 w-full md:w-auto">
                     <div>
-                        <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-1">
+                        <label className="block text-[10px] font-bold text-[#94A3B8] uppercase tracking-wider mb-1">
                             Invoice No *
                         </label>
                         <input
                             type="text"
                             required
-                            className="h-10 border border-slate-300 rounded-xl px-3 text-sm font-mono font-bold bg-slate-50 focus:ring-2 focus:ring-indigo-500"
+                            className="h-10 border border-[#1F2B45] rounded-xl px-3 text-sm font-mono font-bold bg-[#172033] focus:ring-2 focus:ring-[#FF7A18]"
                             value={invoiceNumber}
                             onChange={(e) => setInvoiceNumber(e.target.value)}
                             placeholder="e.g. FFI/2026/001"
@@ -615,24 +632,24 @@ const CreateInvoice = () => {
                     </div>
 
                     <div>
-                        <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-1">
+                        <label className="block text-[10px] font-bold text-[#94A3B8] uppercase tracking-wider mb-1">
                             Invoice Date
                         </label>
                         <input
                             type="date"
-                            className="h-10 border border-slate-300 rounded-xl px-3 text-sm font-semibold bg-white focus:ring-2 focus:ring-indigo-500"
+                            className="h-10 border border-[#1F2B45] rounded-xl px-3 text-sm font-semibold bg-[#111726] focus:ring-2 focus:ring-[#FF7A18]"
                             value={invoiceDate}
                             onChange={(e) => setInvoiceDate(e.target.value)}
                         />
                     </div>
 
                     <div>
-                        <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-1">
+                        <label className="block text-[10px] font-bold text-[#94A3B8] uppercase tracking-wider mb-1">
                             E-Way Bill No
                         </label>
                         <input
                             type="text"
-                            className="h-10 border border-slate-300 rounded-xl px-3 text-sm font-mono bg-white focus:ring-2 focus:ring-indigo-500"
+                            className="h-10 border border-[#1F2B45] rounded-xl px-3 text-sm font-mono bg-[#111726] focus:ring-2 focus:ring-[#FF7A18]"
                             value={ewayBillNo}
                             onChange={(e) => setEwayBillNo(e.target.value)}
                             placeholder="Optional 12-digit E-Way No"
@@ -643,19 +660,19 @@ const CreateInvoice = () => {
 
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
                 {/* 1. CUSTOMER SELECTION SECTION */}
-                <div className="card lg:col-span-1 border-t-4 border-indigo-600 bg-white p-5 rounded-2xl shadow-sm border border-slate-100 space-y-4">
-                    <div className="flex justify-between items-center pb-2 border-b border-slate-100">
-                        <h3 className="text-sm font-bold text-slate-800 flex items-center gap-2">
-                            <User size={18} className="text-indigo-600" /> Customer Information
+                <div className="card lg:col-span-1 border-t-4 border-[#FF7A18] bg-[#111726] p-5 rounded-2xl shadow-sm border border-[#1F2B45] space-y-4">
+                    <div className="flex justify-between items-center pb-2 border-b border-[#1F2B45]">
+                        <h3 className="text-sm font-bold text-[#F8FAFC] flex items-center gap-2">
+                            <User size={18} className="text-[#FF7A18]" /> Customer Information
                         </h3>
-                        <div className="flex bg-slate-100 p-0.5 rounded-lg text-[11px] font-bold">
+                        <div className="flex bg-[#172033] p-0.5 rounded-lg text-[11px] font-bold">
                             <button
                                 type="button"
                                 onClick={() => setCustomerMode('select')}
                                 className={`px-2.5 py-1 rounded-md transition-all ${
                                     customerMode === 'select'
-                                        ? 'bg-white shadow-xs text-indigo-600'
-                                        : 'text-slate-500 hover:text-slate-900'
+                                        ? 'bg-[#111726] shadow-xs text-[#FF7A18]'
+                                        : 'text-[#94A3B8] hover:text-[#F8FAFC]'
                                 }`}
                             >
                                 Registered
@@ -665,8 +682,8 @@ const CreateInvoice = () => {
                                 onClick={() => setCustomerMode('manual')}
                                 className={`px-2.5 py-1 rounded-md transition-all ${
                                     customerMode === 'manual'
-                                        ? 'bg-white shadow-xs text-indigo-600'
-                                        : 'text-slate-500 hover:text-slate-900'
+                                        ? 'bg-[#111726] shadow-xs text-[#FF7A18]'
+                                        : 'text-[#94A3B8] hover:text-[#F8FAFC]'
                                 }`}
                             >
                                 Walk-In / Manual
@@ -677,14 +694,14 @@ const CreateInvoice = () => {
                     {customerMode === 'select' ? (
                         <div className="space-y-3">
                             <div>
-                                <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-1">
+                                <label className="block text-[10px] font-bold text-[#94A3B8] uppercase tracking-wider mb-1">
                                     Search Customer Directory *
                                 </label>
                                 <input
                                     list="customer-list"
                                     type="text"
                                     placeholder="Type customer name or phone..."
-                                    className="w-full h-10 border border-slate-200 rounded-xl px-3 bg-white text-sm font-semibold focus:ring-2 focus:ring-indigo-500"
+                                    className="w-full h-10 border border-[#1F2B45] rounded-xl px-3 bg-[#111726] text-sm font-semibold focus:ring-2 focus:ring-[#FF7A18]"
                                     value={customerSearchText}
                                     onChange={(e) => {
                                         setCustomerSearchText(e.target.value);
@@ -704,7 +721,7 @@ const CreateInvoice = () => {
                             </div>
 
                             {selectedCustomerId && (
-                                <div className="p-3 bg-indigo-50/60 rounded-xl border border-indigo-100 text-xs space-y-1">
+                                <div className="p-3 bg-[#FF7A18]/15/60 rounded-xl border border-[#FF7A18]/30 text-xs space-y-1">
                                     {(() => {
                                         const c = customers.find(
                                             (cust) => cust._id === selectedCustomerId || cust.id === selectedCustomerId
@@ -712,10 +729,10 @@ const CreateInvoice = () => {
                                         if (!c) return null;
                                         return (
                                             <>
-                                                <p className="font-bold text-slate-900">{c.name}</p>
-                                                <p className="text-slate-600">GSTIN: {c.gstNumber || 'URD'}</p>
-                                                <p className="text-slate-600">Phone: {c.phone || '-'}</p>
-                                                <p className="text-slate-500 text-[11px]">{c.address}, {c.state}</p>
+                                                <p className="font-bold text-[#F8FAFC]">{c.name}</p>
+                                                <p className="text-[#94A3B8]">GSTIN: {c.gstNumber || 'URD'}</p>
+                                                <p className="text-[#94A3B8]">Phone: {c.phone || '-'}</p>
+                                                <p className="text-[#94A3B8] text-[11px]">{c.address}, {c.state}</p>
                                             </>
                                         );
                                     })()}
@@ -725,13 +742,13 @@ const CreateInvoice = () => {
                     ) : (
                         <div className="space-y-3">
                             <div>
-                                <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-1">
+                                <label className="block text-[10px] font-bold text-[#94A3B8] uppercase tracking-wider mb-1">
                                     Customer Name *
                                 </label>
                                 <input
                                     type="text"
                                     required
-                                    className="w-full h-9 border border-slate-200 rounded-xl px-3 text-sm font-semibold"
+                                    className="w-full h-9 border border-[#1F2B45] rounded-xl px-3 text-sm font-semibold"
                                     placeholder="Customer or Firm Name"
                                     value={manualCustomer.name}
                                     onChange={(e) => setManualCustomer({ ...manualCustomer, name: e.target.value })}
@@ -740,12 +757,12 @@ const CreateInvoice = () => {
 
                             <div className="grid grid-cols-2 gap-2">
                                 <div>
-                                    <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-1">
+                                    <label className="block text-[10px] font-bold text-[#94A3B8] uppercase tracking-wider mb-1">
                                         GSTIN / URD
                                     </label>
                                     <input
                                         type="text"
-                                        className="w-full h-9 border border-slate-200 rounded-xl px-3 text-xs font-mono uppercase"
+                                        className="w-full h-9 border border-[#1F2B45] rounded-xl px-3 text-xs font-mono uppercase"
                                         placeholder="GSTIN or URD"
                                         value={manualCustomer.gstNumber}
                                         onChange={(e) =>
@@ -754,12 +771,12 @@ const CreateInvoice = () => {
                                     />
                                 </div>
                                 <div>
-                                    <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-1">
+                                    <label className="block text-[10px] font-bold text-[#94A3B8] uppercase tracking-wider mb-1">
                                         Phone Number
                                     </label>
                                     <input
                                         type="text"
-                                        className="w-full h-9 border border-slate-200 rounded-xl px-3 text-xs"
+                                        className="w-full h-9 border border-[#1F2B45] rounded-xl px-3 text-xs"
                                         placeholder="Phone"
                                         value={manualCustomer.phone}
                                         onChange={(e) =>
@@ -767,14 +784,28 @@ const CreateInvoice = () => {
                                         }
                                     />
                                 </div>
+                                <div>
+                                    <label className="block text-[10px] font-bold text-[#94A3B8] uppercase tracking-wider mb-1">
+                                        Email Address
+                                    </label>
+                                    <input
+                                        type="email"
+                                        className="w-full h-9 border border-[#1F2B45] rounded-xl px-3 text-xs"
+                                        placeholder="customer@email.com"
+                                        value={manualCustomer.email || ''}
+                                        onChange={(e) =>
+                                            setManualCustomer({ ...manualCustomer, email: e.target.value })
+                                        }
+                                    />
+                                </div>
                             </div>
 
                             <div>
-                                <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-1">
+                                <label className="block text-[10px] font-bold text-[#94A3B8] uppercase tracking-wider mb-1">
                                     Billing Address
                                 </label>
                                 <textarea
-                                    className="w-full border border-slate-200 rounded-xl p-2 text-xs resize-none"
+                                    className="w-full border border-[#1F2B45] rounded-xl p-2 text-xs resize-none"
                                     rows="2"
                                     placeholder="Address details"
                                     value={manualCustomer.address}
@@ -787,59 +818,59 @@ const CreateInvoice = () => {
                     )}
 
                     {/* Shipping Address Accordion */}
-                    <div className="pt-2 border-t border-slate-100 space-y-2">
+                    <div className="pt-2 border-t border-[#1F2B45] space-y-2">
                         <div className="flex items-center justify-between">
-                            <span className="text-xs font-bold text-slate-700">Shipping Address Same as Billing?</span>
+                            <span className="text-xs font-bold text-[#F8FAFC]">Shipping Address Same as Billing?</span>
                             <input
                                 type="checkbox"
                                 checked={isShipSameAsBill}
                                 onChange={(e) => setIsShipSameAsBill(e.target.checked)}
-                                className="rounded text-indigo-600 focus:ring-indigo-500 w-4 h-4 cursor-pointer"
+                                className="rounded text-[#FF7A18] focus:ring-[#FF7A18] w-4 h-4 cursor-pointer"
                             />
                         </div>
 
                         {!isShipSameAsBill && (
-                            <div className="space-y-2 bg-slate-50 p-3 rounded-xl border border-slate-200 text-xs">
+                            <div className="space-y-2 bg-[#172033] p-3 rounded-xl border border-[#1F2B45] text-xs">
                                 <div>
-                                    <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1">
+                                    <label className="block text-[10px] font-bold text-[#94A3B8] uppercase mb-1">
                                         Receiver Name
                                     </label>
                                     <input
                                         type="text"
-                                        className="w-full h-8 border rounded-lg px-2 bg-white"
+                                        className="w-full h-8 border rounded-lg px-2 bg-[#111726]"
                                         value={shipTo.name}
                                         onChange={(e) => setShipTo({ ...shipTo, name: e.target.value })}
                                     />
                                 </div>
                                 <div>
-                                    <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1">
+                                    <label className="block text-[10px] font-bold text-[#94A3B8] uppercase mb-1">
                                         Shipping Address
                                     </label>
                                     <textarea
-                                        className="w-full h-12 border rounded-lg p-2 bg-white resize-none"
+                                        className="w-full h-12 border rounded-lg p-2 bg-[#111726] resize-none"
                                         value={shipTo.address}
                                         onChange={(e) => setShipTo({ ...shipTo, address: e.target.value })}
                                     />
                                 </div>
                                 <div className="grid grid-cols-2 gap-2">
                                     <div>
-                                        <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1">
+                                        <label className="block text-[10px] font-bold text-[#94A3B8] uppercase mb-1">
                                             City
                                         </label>
                                         <input
                                             type="text"
-                                            className="w-full h-8 border rounded-lg px-2 bg-white"
+                                            className="w-full h-8 border rounded-lg px-2 bg-[#111726]"
                                             value={shipTo.city || ''}
                                             onChange={(e) => setShipTo({ ...shipTo, city: e.target.value })}
                                         />
                                     </div>
                                     <div>
-                                        <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1">
+                                        <label className="block text-[10px] font-bold text-[#94A3B8] uppercase mb-1">
                                             State
                                         </label>
                                         <input
                                             type="text"
-                                            className="w-full h-8 border rounded-lg px-2 bg-white"
+                                            className="w-full h-8 border rounded-lg px-2 bg-[#111726]"
                                             value={shipTo.state}
                                             onChange={(e) => setShipTo({ ...shipTo, state: e.target.value })}
                                         />
@@ -851,19 +882,19 @@ const CreateInvoice = () => {
                 </div>
 
                 {/* 2. PRODUCT ADDITION SECTION */}
-                <div className="card lg:col-span-2 border-t-4 border-indigo-600 bg-white p-5 rounded-2xl shadow-sm border border-slate-100">
-                    <div className="flex justify-between items-center mb-4 pb-2 border-b border-slate-100">
-                        <h3 className="text-base font-bold text-slate-800 flex items-center gap-2">
-                            <Calculator size={20} className="text-indigo-600" /> Add Items to Invoice
+                <div className="card lg:col-span-2 border-t-4 border-[#FF7A18] bg-[#111726] p-5 rounded-2xl shadow-sm border border-[#1F2B45]">
+                    <div className="flex justify-between items-center mb-4 pb-2 border-b border-[#1F2B45]">
+                        <h3 className="text-base font-bold text-[#F8FAFC] flex items-center gap-2">
+                            <Calculator size={20} className="text-[#FF7A18]" /> Add Items to Invoice
                         </h3>
-                        <div className="flex bg-slate-100 p-0.5 rounded-lg text-xs font-bold">
+                        <div className="flex bg-[#172033] p-0.5 rounded-lg text-xs font-bold">
                             <button
                                 type="button"
                                 onClick={() => setProductMode('select')}
                                 className={`px-3 py-1 rounded-md transition-all ${
                                     productMode === 'select'
-                                        ? 'bg-white shadow-xs text-indigo-600'
-                                        : 'text-slate-500 hover:text-slate-900'
+                                        ? 'bg-[#111726] shadow-xs text-[#FF7A18]'
+                                        : 'text-[#94A3B8] hover:text-[#F8FAFC]'
                                 }`}
                             >
                                 Search Catalog
@@ -873,8 +904,8 @@ const CreateInvoice = () => {
                                 onClick={() => setProductMode('manual')}
                                 className={`px-3 py-1 rounded-md transition-all ${
                                     productMode === 'manual'
-                                        ? 'bg-white shadow-xs text-indigo-600'
-                                        : 'text-slate-500 hover:text-slate-900'
+                                        ? 'bg-[#111726] shadow-xs text-[#FF7A18]'
+                                        : 'text-[#94A3B8] hover:text-[#F8FAFC]'
                                 }`}
                             >
                                 Manual Custom Product
@@ -883,16 +914,16 @@ const CreateInvoice = () => {
                     </div>
 
                     {productMode === 'select' ? (
-                        <div className="flex gap-3 items-end bg-slate-50 p-4 rounded-2xl border border-slate-200">
+                        <div className="flex gap-3 items-end bg-[#172033] p-4 rounded-2xl border border-[#1F2B45]">
                             <div className="flex-1">
-                                <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-1">
+                                <label className="block text-xs font-bold text-[#94A3B8] uppercase tracking-wider mb-1">
                                     Search Catalogue Product
                                 </label>
                                 <input
                                     list="product-list"
                                     type="text"
                                     placeholder="Type product code or name..."
-                                    className="w-full h-10 border border-slate-300 rounded-xl px-3 bg-white text-sm font-semibold focus:ring-2 focus:ring-indigo-500"
+                                    className="w-full h-10 border border-[#1F2B45] rounded-xl px-3 bg-[#111726] text-sm font-semibold focus:ring-2 focus:ring-[#FF7A18]"
                                     value={selectedProductCode}
                                     onChange={(e) => setSelectedProductCode(e.target.value)}
                                 />
@@ -913,15 +944,15 @@ const CreateInvoice = () => {
                             </button>
                         </div>
                     ) : (
-                        <div className="space-y-4 bg-slate-50/80 p-4 rounded-2xl border border-slate-200">
+                        <div className="space-y-4 bg-[#172033] p-4 rounded-2xl border border-[#1F2B45]">
                             <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
                                 {/* Category Selection */}
                                 <div>
-                                    <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-1">
+                                    <label className="block text-[10px] font-bold text-[#94A3B8] uppercase tracking-wider mb-1">
                                         Category {manualProduct.saveToCatalog && <span className="text-rose-500">*</span>}
                                     </label>
                                     <select
-                                        className="w-full h-9 border border-slate-300 rounded-xl px-3 bg-white text-xs font-semibold focus:ring-2 focus:ring-indigo-500"
+                                        className="w-full h-9 border border-[#1F2B45] rounded-xl px-3 bg-[#111726] text-xs font-semibold focus:ring-2 focus:ring-[#FF7A18]"
                                         value={manualProduct.category || 'Drip'}
                                         onChange={(e) => handleManualCategoryChange(e.target.value)}
                                     >
@@ -936,16 +967,16 @@ const CreateInvoice = () => {
                                 {/* Product Code */}
                                 <div>
                                     <div className="flex justify-between items-center mb-1">
-                                        <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-wider">
+                                        <label className="block text-[10px] font-bold text-[#94A3B8] uppercase tracking-wider">
                                             Product Code {manualProduct.saveToCatalog && <span className="text-rose-500">*</span>}
                                         </label>
                                         {manualProduct.saveToCatalog && (
-                                            <span className="text-[9px] text-indigo-600 font-bold">Suggested</span>
+                                            <span className="text-[9px] text-[#FF7A18] font-bold">Suggested</span>
                                         )}
                                     </div>
                                     <input
                                         type="text"
-                                        className="w-full h-9 border border-slate-300 rounded-xl px-3 bg-white text-xs font-mono font-bold focus:ring-2 focus:ring-indigo-500"
+                                        className="w-full h-9 border border-[#1F2B45] rounded-xl px-3 bg-[#111726] text-xs font-mono font-bold focus:ring-2 focus:ring-[#FF7A18]"
                                         placeholder={
                                             manualProduct.saveToCatalog
                                                 ? `e.g. ${getNextSuggestedCode(manualProduct.category || 'Drip')}`
@@ -965,12 +996,12 @@ const CreateInvoice = () => {
 
                                 {/* Product Name */}
                                 <div className="md:col-span-2">
-                                    <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-1">
+                                    <label className="block text-[10px] font-bold text-[#94A3B8] uppercase tracking-wider mb-1">
                                         Product Name *
                                     </label>
                                     <input
                                         type="text"
-                                        className="w-full h-9 border border-slate-300 rounded-xl px-3 bg-white text-xs font-semibold focus:ring-2 focus:ring-indigo-500"
+                                        className="w-full h-9 border border-[#1F2B45] rounded-xl px-3 bg-[#111726] text-xs font-semibold focus:ring-2 focus:ring-[#FF7A18]"
                                         placeholder="Detailed item description"
                                         value={manualProduct.name}
                                         onChange={(e) =>
@@ -983,12 +1014,12 @@ const CreateInvoice = () => {
                             <div className="grid grid-cols-2 md:grid-cols-6 gap-3">
                                 {/* HSN Code */}
                                 <div>
-                                    <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-1">
+                                    <label className="block text-[10px] font-bold text-[#94A3B8] uppercase tracking-wider mb-1">
                                         HSN Code
                                     </label>
                                     <input
                                         type="text"
-                                        className="w-full h-9 border border-slate-300 rounded-xl px-3 bg-white text-xs font-mono focus:ring-2 focus:ring-indigo-500"
+                                        className="w-full h-9 border border-[#1F2B45] rounded-xl px-3 bg-[#111726] text-xs font-mono focus:ring-2 focus:ring-[#FF7A18]"
                                         placeholder="e.g. 8424"
                                         value={manualProduct.hsn}
                                         onChange={(e) =>
@@ -999,11 +1030,11 @@ const CreateInvoice = () => {
 
                                 {/* Unit */}
                                 <div>
-                                    <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-1">
+                                    <label className="block text-[10px] font-bold text-[#94A3B8] uppercase tracking-wider mb-1">
                                         Unit *
                                     </label>
                                     <select
-                                        className="w-full h-9 border border-slate-300 rounded-xl px-2 bg-white text-xs font-medium focus:ring-2 focus:ring-indigo-500"
+                                        className="w-full h-9 border border-[#1F2B45] rounded-xl px-2 bg-[#111726] text-xs font-medium focus:ring-2 focus:ring-[#FF7A18]"
                                         value={manualProduct.unit}
                                         onChange={(e) =>
                                             setManualProduct({ ...manualProduct, unit: e.target.value })
@@ -1021,13 +1052,13 @@ const CreateInvoice = () => {
 
                                 {/* Quantity */}
                                 <div>
-                                    <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-1">
+                                    <label className="block text-[10px] font-bold text-[#94A3B8] uppercase tracking-wider mb-1">
                                         Quantity *
                                     </label>
                                     <input
                                         type="number"
                                         step="1"
-                                        className="w-full h-9 border border-slate-300 rounded-xl px-3 bg-white text-xs font-bold text-center focus:ring-2 focus:ring-indigo-500"
+                                        className="w-full h-9 border border-[#1F2B45] rounded-xl px-3 bg-[#111726] text-xs font-bold text-center focus:ring-2 focus:ring-[#FF7A18]"
                                         value={manualProduct.quantity || 1}
                                         onChange={(e) =>
                                             setManualProduct({ ...manualProduct, quantity: e.target.value })
@@ -1037,13 +1068,13 @@ const CreateInvoice = () => {
 
                                 {/* Rate */}
                                 <div>
-                                    <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-1">
+                                    <label className="block text-[10px] font-bold text-[#94A3B8] uppercase tracking-wider mb-1">
                                         Rate (₹) *
                                     </label>
                                     <input
                                         type="number"
                                         step="0.01"
-                                        className="w-full h-9 border border-slate-300 rounded-xl px-3 bg-white text-xs font-bold text-right text-slate-900 focus:ring-2 focus:ring-indigo-500"
+                                        className="w-full h-9 border border-[#1F2B45] rounded-xl px-3 bg-[#111726] text-xs font-bold text-right text-[#F8FAFC] focus:ring-2 focus:ring-[#FF7A18]"
                                         placeholder="Selling Rate"
                                         value={manualProduct.sellingPrice}
                                         onChange={(e) =>
@@ -1054,11 +1085,11 @@ const CreateInvoice = () => {
 
                                 {/* GST % */}
                                 <div>
-                                    <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-1">
+                                    <label className="block text-[10px] font-bold text-[#94A3B8] uppercase tracking-wider mb-1">
                                         GST Rate %
                                     </label>
                                     <select
-                                        className="w-full h-9 border border-slate-300 rounded-xl px-2 bg-white text-xs font-semibold focus:ring-2 focus:ring-indigo-500"
+                                        className="w-full h-9 border border-[#1F2B45] rounded-xl px-2 bg-[#111726] text-xs font-semibold focus:ring-2 focus:ring-[#FF7A18]"
                                         value={manualProduct.gstRate}
                                         onChange={(e) =>
                                             setManualProduct({ ...manualProduct, gstRate: e.target.value })
@@ -1085,15 +1116,15 @@ const CreateInvoice = () => {
                             </div>
 
                             {/* SAVE TO CATALOGUE CHECKBOX */}
-                            <div className="pt-2 flex items-center justify-between border-t border-slate-200/60">
+                            <div className="pt-2 flex items-center justify-between border-t border-[#1F2B45]/60">
                                 <label className="flex items-center gap-2 cursor-pointer select-none">
                                     <input
                                         type="checkbox"
-                                        className="rounded text-indigo-600 focus:ring-indigo-500 w-4 h-4 cursor-pointer"
+                                        className="rounded text-[#FF7A18] focus:ring-[#FF7A18] w-4 h-4 cursor-pointer"
                                         checked={manualProduct.saveToCatalog || false}
                                         onChange={(e) => handleSaveToCatalogToggle(e.target.checked)}
                                     />
-                                    <span className="text-xs font-bold text-slate-700">
+                                    <span className="text-xs font-bold text-[#F8FAFC]">
                                         Save this product to permanent Product Catalogue
                                     </span>
                                 </label>
@@ -1112,12 +1143,12 @@ const CreateInvoice = () => {
 
                             {/* COMPACT CATEGORY REFERENCE PANEL */}
                             {manualProduct.category && (
-                                <div className="bg-white p-3 rounded-xl border border-slate-200 text-xs space-y-2">
-                                    <div className="flex justify-between items-center border-b border-slate-100 pb-1.5 font-bold text-slate-700">
-                                        <span className="flex items-center gap-1.5 text-indigo-600">
+                                <div className="bg-[#111726] p-3 rounded-xl border border-[#1F2B45] text-xs space-y-2">
+                                    <div className="flex justify-between items-center border-b border-[#1F2B45] pb-1.5 font-bold text-[#F8FAFC]">
+                                        <span className="flex items-center gap-1.5 text-[#FF7A18]">
                                             <Tag size={13} /> Existing "{manualProduct.category}" Products Reference
                                         </span>
-                                        <span className="text-[10px] text-slate-500 font-mono">
+                                        <span className="text-[10px] text-[#94A3B8] font-mono">
                                             Next Suggested Code:{' '}
                                             <strong className="text-emerald-600 font-bold">
                                                 {getNextSuggestedCode(manualProduct.category)}
@@ -1130,20 +1161,20 @@ const CreateInvoice = () => {
                                             {categoryRefProducts.slice(0, 15).map((p) => (
                                                 <div
                                                     key={p._id || p.id}
-                                                    className="flex justify-between items-center py-1 px-2 border-b border-slate-50 hover:bg-slate-50 rounded"
+                                                    className="flex justify-between items-center py-1 px-2 border-b border-[#1F2B45] hover:bg-[#172033] rounded"
                                                 >
-                                                    <span className="font-bold text-slate-800">
+                                                    <span className="font-bold text-[#F8FAFC]">
                                                         {p.productCode || p.code || '-'}
                                                     </span>
-                                                    <span className="text-slate-600 truncate max-w-[220px] font-sans">
+                                                    <span className="text-[#94A3B8] truncate max-w-[220px] font-sans">
                                                         {p.name}
                                                     </span>
-                                                    <span className="text-slate-500">₹{p.sellingPrice}</span>
+                                                    <span className="text-[#94A3B8]">₹{p.sellingPrice}</span>
                                                 </div>
                                             ))}
                                         </div>
                                     ) : (
-                                        <p className="text-[11px] text-slate-400 italic">
+                                        <p className="text-[11px] text-[#64748B] italic">
                                             No existing products in "{manualProduct.category}" yet. Starting code:{' '}
                                             {getNextSuggestedCode(manualProduct.category)}
                                         </p>
@@ -1156,27 +1187,27 @@ const CreateInvoice = () => {
             </div>
 
             {/* 3. INVOICE ITEMS TABLE */}
-            <div className="bg-white rounded-2xl shadow-sm border border-slate-100 overflow-hidden p-6 space-y-4">
-                <h3 className="text-sm font-bold uppercase tracking-wider text-slate-700 flex items-center justify-between border-b pb-3">
+            <div className="bg-[#111726] rounded-2xl shadow-sm border border-[#1F2B45] overflow-hidden p-6 space-y-4">
+                <h3 className="text-sm font-bold uppercase tracking-wider text-[#F8FAFC] flex items-center justify-between border-b border-[#1F2B45] pb-3">
                     <span>Invoice Items Billed ({items.length})</span>
                     {items.length > 0 && (
-                        <span className="text-xs text-indigo-600 font-bold">
+                        <span className="text-xs text-[#FF7A18] font-bold">
                             Subtotal: ₹{totals.subtotal.toLocaleString('en-IN')}
                         </span>
                     )}
                 </h3>
 
                 {items.length === 0 ? (
-                    <div className="py-12 text-center text-slate-400">
+                    <div className="py-12 text-center text-[#64748B]">
                         <FileText size={48} className="mx-auto mb-2 opacity-20" />
-                        <p className="font-semibold text-slate-500">No items added to invoice yet.</p>
+                        <p className="font-semibold text-[#94A3B8]">No items added to invoice yet.</p>
                         <p className="text-xs">Search catalog or enter a manual product above.</p>
                     </div>
                 ) : (
                     <div className="overflow-x-auto">
                         <table className="w-full text-left border-collapse">
                             <thead>
-                                <tr className="bg-slate-50 border-b border-slate-200 text-[11px] uppercase tracking-wider text-slate-500 font-bold">
+                                <tr className="bg-[#172033] border-b border-[#1F2B45] text-[11px] uppercase tracking-wider text-[#94A3B8] font-bold">
                                     <th className="p-3">Item Name</th>
                                     <th className="p-3">HSN</th>
                                     <th className="p-3">Qty</th>
@@ -1187,15 +1218,15 @@ const CreateInvoice = () => {
                                     <th className="p-3 text-right">Action</th>
                                 </tr>
                             </thead>
-                            <tbody className="divide-y divide-slate-100 text-xs">
+                            <tbody className="divide-y divide-[#1F2B45] text-xs">
                                 {items.map((item, idx) => {
                                     const amount = item.rate * item.quantity;
                                     return (
-                                        <tr key={idx} className="hover:bg-slate-50/50">
+                                        <tr key={idx} className="table-record-row hover:bg-[#FFF0E5] dark:hover:bg-[#172033]/50 transition-colors">
                                             <td className="p-3">
-                                                <div className="font-bold text-slate-900">{item.name}</div>
+                                                <div className="font-bold text-[#F8FAFC]">{item.name}</div>
                                                 <div className="flex items-center gap-2 mt-0.5">
-                                                    <span className="text-[10px] text-slate-400 font-mono">
+                                                    <span className="text-[10px] text-[#64748B] font-mono">
                                                         Code: {item.productCode || 'Custom'}
                                                     </span>
                                                     {item.productId ? (
@@ -1206,7 +1237,7 @@ const CreateInvoice = () => {
                                                         <button
                                                             type="button"
                                                             onClick={() => handleSaveItemToCatalog(idx)}
-                                                            className="text-[9px] font-bold text-indigo-600 bg-indigo-50 hover:bg-indigo-100 px-1.5 py-0.2 rounded border border-indigo-200 transition-colors"
+                                                            className="text-[9px] font-bold text-[#FF7A18] bg-[#FF7A18]/15 hover:bg-[#FF7A18]/25 px-1.5 py-0.2 rounded border border-[#FF7A18]/30 transition-colors"
                                                             title="Click to save product to permanent catalogue"
                                                         >
                                                             + Save to Catalogue
@@ -1214,7 +1245,7 @@ const CreateInvoice = () => {
                                                     )}
                                                 </div>
                                             </td>
-                                            <td className="p-3 font-mono text-slate-600">{item.hsn || '-'}</td>
+                                            <td className="p-3 font-mono text-[#94A3B8]">{item.hsn || '-'}</td>
                                             <td className="p-3">
                                                 <input
                                                     type="number"
@@ -1225,7 +1256,7 @@ const CreateInvoice = () => {
                                                     onChange={(e) => handleUpdateItemCell(idx, 'quantity', e.target.value)}
                                                 />
                                             </td>
-                                            <td className="p-3 text-slate-600">{item.unit || 'Nos'}</td>
+                                            <td className="p-3 text-[#94A3B8]">{item.unit || 'Nos'}</td>
                                             <td className="p-3">
                                                 <input
                                                     type="number"
@@ -1244,7 +1275,7 @@ const CreateInvoice = () => {
                                                     onChange={(e) => handleUpdateItemCell(idx, 'gstRate', e.target.value)}
                                                 />
                                             </td>
-                                            <td className="p-3 text-right font-bold text-slate-900">
+                                            <td className="p-3 text-right font-bold text-[#F8FAFC]">
                                                 ₹{amount.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
                                             </td>
                                             <td className="p-3 text-right">
@@ -1266,10 +1297,10 @@ const CreateInvoice = () => {
             </div>
 
             {/* 4. TOTALS & SAVE BAR */}
-            <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-100 flex flex-col md:flex-row justify-between items-start md:items-center gap-6">
+            <div className="bg-[#111726] p-6 rounded-2xl shadow-sm border border-[#1F2B45] flex flex-col md:flex-row justify-between items-start md:items-center gap-6">
                 <div className="space-y-2 w-full md:w-1/2">
                     <div className="flex items-center gap-3">
-                        <label className="text-xs font-bold text-slate-500 uppercase tracking-wider">
+                        <label className="text-xs font-bold text-[#94A3B8] uppercase tracking-wider">
                             Special Discount (%):
                         </label>
                         <input
@@ -1277,17 +1308,17 @@ const CreateInvoice = () => {
                             min="0"
                             max="100"
                             step="0.1"
-                            className="w-20 border border-slate-300 rounded-xl px-2 py-1 text-xs font-bold text-center"
+                            className="w-20 border border-[#1F2B45] rounded-xl px-2 py-1 text-xs font-bold text-center"
                             value={discountPercent}
                             onChange={(e) => setDiscountPercent(e.target.value)}
                         />
                     </div>
 
                     {Object.keys(totals.taxSlabs).length > 0 && (
-                        <div className="p-3 bg-slate-50 rounded-xl border border-slate-100 text-[11px] space-y-1">
-                            <p className="font-bold text-slate-700">GST Breakdown:</p>
+                        <div className="p-3 bg-[#172033] rounded-xl border border-[#1F2B45] text-[11px] space-y-1">
+                            <p className="font-bold text-[#F8FAFC]">GST Breakdown:</p>
                             {Object.entries(totals.taxSlabs).map(([slab, data]) => (
-                                <div key={slab} className="flex justify-between text-slate-600 font-mono">
+                                <div key={slab} className="flex justify-between text-[#94A3B8] font-mono">
                                     <span>
                                         GST {slab}% (Taxable: ₹{data.taxable.toFixed(2)})
                                     </span>
@@ -1299,9 +1330,9 @@ const CreateInvoice = () => {
                 </div>
 
                 <div className="w-full md:w-80 space-y-2 text-right">
-                    <div className="flex justify-between text-xs text-slate-500">
+                    <div className="flex justify-between text-xs text-[#94A3B8]">
                         <span>Subtotal:</span>
-                        <span className="font-semibold text-slate-800">₹{totals.subtotal.toFixed(2)}</span>
+                        <span className="font-semibold text-[#F8FAFC]">₹{totals.subtotal.toFixed(2)}</span>
                     </div>
                     {totals.discountAmount > 0 && (
                         <div className="flex justify-between text-xs text-emerald-600">
@@ -1309,23 +1340,23 @@ const CreateInvoice = () => {
                             <span>-₹{totals.discountAmount.toFixed(2)}</span>
                         </div>
                     )}
-                    <div className="flex justify-between text-xs text-slate-500">
+                    <div className="flex justify-between text-xs text-[#94A3B8]">
                         <span>Taxable Amount:</span>
-                        <span className="font-semibold text-slate-800">₹{totals.taxableTotal.toFixed(2)}</span>
+                        <span className="font-semibold text-[#F8FAFC]">₹{totals.taxableTotal.toFixed(2)}</span>
                     </div>
-                    <div className="flex justify-between text-xs text-slate-500">
+                    <div className="flex justify-between text-xs text-[#94A3B8]">
                         <span>Total GST:</span>
-                        <span className="font-semibold text-slate-800">₹{totals.totalGST.toFixed(2)}</span>
+                        <span className="font-semibold text-[#F8FAFC]">₹{totals.totalGST.toFixed(2)}</span>
                     </div>
                     {totals.roundOff !== 0 && (
-                        <div className="flex justify-between text-[11px] text-slate-400">
+                        <div className="flex justify-between text-[11px] text-[#64748B]">
                             <span>Round Off:</span>
                             <span>{totals.roundOff > 0 ? `+₹${totals.roundOff.toFixed(2)}` : `-₹${Math.abs(totals.roundOff).toFixed(2)}`}</span>
                         </div>
                     )}
-                    <div className="flex justify-between text-lg font-black text-slate-900 border-t pt-2">
+                    <div className="flex justify-between text-lg font-black text-[#F8FAFC] border-t pt-2">
                         <span>Grand Total:</span>
-                        <span className="text-indigo-600">₹{totals.grandTotal.toLocaleString('en-IN')}</span>
+                        <span className="text-[#FF7A18]">₹{totals.grandTotal.toLocaleString('en-IN')}</span>
                     </div>
 
                     <div className="pt-3">
@@ -1333,7 +1364,7 @@ const CreateInvoice = () => {
                             type="button"
                             onClick={handleSaveInvoice}
                             disabled={loading || items.length === 0}
-                            className="btn btn-primary w-full py-3.5 shadow-lg shadow-indigo-600/20 text-sm font-bold rounded-xl flex items-center justify-center gap-2"
+                            className="btn btn-primary w-full py-3.5 shadow-lg shadow-[#FF7A18]/25 text-sm font-bold rounded-xl flex items-center justify-center gap-2"
                         >
                             {loading ? (
                                 <Loader size={20} className="animate-spin" />

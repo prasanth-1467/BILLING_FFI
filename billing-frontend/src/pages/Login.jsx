@@ -1,11 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { login } from '../services/authService';
-import { Lock, User, ArrowRight, Loader2, Eye, EyeOff } from 'lucide-react';
-import IrrigationLoader from '../components/IrrigationLoader';
+import { Lock, ArrowRight, Loader2, Eye, EyeOff, Building2 } from 'lucide-react';
+import ThemeToggle from '../components/ThemeToggle';
 
 const Login = () => {
-    // Actually, sticking to username/password as per backend
     const [credentials, setCredentials] = useState({ username: '', password: '' });
     const [showPassword, setShowPassword] = useState(false);
     const [error, setError] = useState('');
@@ -29,7 +28,8 @@ const Login = () => {
         setLoading(true);
         try {
             await login(credentials.username, credentials.password);
-            navigate('/');
+            // Navigate to the Executive Welcome Landing Portal
+            navigate('/welcome');
         } catch (err) {
             setError(err.response?.data?.error || 'Authentication failed. Please check your credentials.');
         } finally {
@@ -38,59 +38,64 @@ const Login = () => {
     };
 
     return (
-        <div className="min-h-screen flex items-center justify-center bg-[#0f1014] relative overflow-hidden">
-            {/* Ambient Background Efects */}
-            <div className="absolute top-[-10%] left-[-10%] w-[40%] h-[40%] bg-blue-600/20 rounded-full blur-[120px]" />
-            <div className="absolute bottom-[-10%] right-[-10%] w-[40%] h-[40%] bg-purple-600/20 rounded-full blur-[120px]" />
+        <div className="min-h-screen flex items-center justify-center bg-[var(--bg-main)] relative overflow-hidden text-[var(--text-primary)]">
+            {/* Top Right Theme Toggle Switch */}
+            <div className="absolute top-6 right-6 z-20">
+                <ThemeToggle />
+            </div>
 
-            <div className="w-full max-w-md p-8 relative z-10 animate-fade-in-up">
-                <div className="text-center mb-10">
-                    <div className="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-gradient-to-tr from-blue-600 to-blue-400 shadow-lg shadow-blue-500/30 mb-6">
-                        <Lock className="text-white w-8 h-8" />
+            {/* Ambient Background Effects */}
+            <div className="absolute top-[-10%] left-[-10%] w-[45%] h-[45%] bg-[#FF7A18]/10 rounded-full blur-[140px] pointer-events-none" />
+            <div className="absolute bottom-[-10%] right-[-10%] w-[40%] h-[40%] bg-[#FF7A18]/10 rounded-full blur-[140px] pointer-events-none" />
+
+            <div className="w-full max-w-md p-6 sm:p-8 relative z-10 animate-fade-in-up">
+                <div className="text-center mb-8">
+                    <div className="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-gradient-to-tr from-[#FF7A18] to-[#EA580C] shadow-xl shadow-[#FF7A18]/25 mb-4 border border-[#FF7A18]/30">
+                        <Building2 className="text-white w-8 h-8" />
                     </div>
-                    <h1 className="text-3xl font-bold text-white tracking-tight mb-2">Welcome Back</h1>
-                    <p className="text-gray-400">Sign in to access your billing dashboard</p>
+                    <h1 className="text-2xl sm:text-3xl font-black text-[#F8FAFC] tracking-tight mb-1">
+                        Fine Flow Irrigation
+                    </h1>
+                    <p className="text-sm text-[#94A3B8]">Sign in to access your billing & CRM workspace</p>
                 </div>
 
-                <div className="bg-gray-900/50 backdrop-blur-xl border border-gray-800 rounded-3xl p-8 shadow-2xl">
-                    <form onSubmit={handleSubmit} className="space-y-6">
+                <div className="bg-[#111726]/90 backdrop-blur-xl border border-[#1F2B45] rounded-3xl p-6 sm:p-8 shadow-2xl">
+                    <form onSubmit={handleSubmit} className="space-y-5">
                         {error && (
-                            <div className="p-4 rounded-xl bg-red-500/10 border border-red-500/20 text-red-400 text-sm text-center">
+                            <div className="p-3.5 rounded-xl bg-[#EF4444]/15 border border-[#EF4444]/30 text-[#EF4444] text-xs font-semibold text-center">
                                 {error}
                             </div>
                         )}
 
-                        <div className="space-y-2">
-                            <label className="text-sm font-medium text-gray-300 ml-1">Username</label>
-                            <div className="relative group">
-                                <input
-                                    type="text"
-                                    name="username"
-                                    value={credentials.username}
-                                    onChange={handleChange}
-                                    className="w-full bg-gray-800/50 border border-gray-700 text-white rounded-xl py-3 pl-4 pr-4 outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 transition-all placeholder:text-gray-500 !bg-gray-800/50 !text-white"
-                                    placeholder="Enter your username"
-                                    required
-                                />
-                            </div>
+                        <div className="space-y-1.5">
+                            <label className="text-xs font-bold uppercase tracking-wider text-[#94A3B8] ml-1">Username</label>
+                            <input
+                                type="text"
+                                name="username"
+                                value={credentials.username}
+                                onChange={handleChange}
+                                className="w-full bg-[#172033] border border-[#1F2B45] text-[#F8FAFC] rounded-xl py-3 px-4 outline-none focus:border-[#FF7A18] focus:ring-1 focus:ring-[#FF7A18] transition-all placeholder:text-[#64748B]"
+                                placeholder="Enter your username"
+                                required
+                            />
                         </div>
 
-                        <div className="space-y-2">
-                            <label className="text-sm font-medium text-gray-300 ml-1">Password</label>
+                        <div className="space-y-1.5">
+                            <label className="text-xs font-bold uppercase tracking-wider text-[#94A3B8] ml-1">Password</label>
                             <div className="relative group">
                                 <input
                                     type={showPassword ? 'text' : 'password'}
                                     name="password"
                                     value={credentials.password}
                                     onChange={handleChange}
-                                    className="w-full bg-gray-800/50 border border-gray-700 text-white rounded-xl py-3 pl-4 pr-12 outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 transition-all placeholder:text-gray-500 !bg-gray-800/50 !text-white"
+                                    className="w-full bg-[#172033] border border-[#1F2B45] text-[#F8FAFC] rounded-xl py-3 pl-4 pr-12 outline-none focus:border-[#FF7A18] focus:ring-1 focus:ring-[#FF7A18] transition-all placeholder:text-[#64748B]"
                                     placeholder="Enter your password"
                                     required
                                 />
                                 <button
                                     type="button"
                                     onClick={() => setShowPassword(!showPassword)}
-                                    className="absolute right-3.5 top-1/2 -translate-y-1/2 text-gray-400 hover:text-white transition-colors p-1 focus:outline-none"
+                                    className="absolute right-3.5 top-1/2 -translate-y-1/2 text-[#64748B] hover:text-[#F8FAFC] transition-colors p-1 focus:outline-none cursor-pointer"
                                     title={showPassword ? "Hide password" : "Show password"}
                                 >
                                     {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
@@ -99,7 +104,11 @@ const Login = () => {
                         </div>
 
                         <div className="flex justify-end">
-                            <button type="button" onClick={() => alert("Please contact system administrator to reset password.")} className="text-sm text-blue-400 hover:text-blue-300 transition-colors">
+                            <button
+                                type="button"
+                                onClick={() => alert("Please contact the system administrator to reset credentials.")}
+                                className="text-xs font-semibold text-[#FF7A18] hover:text-[#FF923D] transition-colors cursor-pointer"
+                            >
                                 Forgot Password?
                             </button>
                         </div>
@@ -107,22 +116,22 @@ const Login = () => {
                         <button
                             type="submit"
                             disabled={loading}
-                            className="w-full bg-gradient-to-r from-blue-600 to-blue-500 hover:from-blue-500 hover:to-blue-400 text-white font-semibold py-3.5 rounded-xl transition-all transform hover:scale-[1.02] active:scale-[0.98] shadow-lg shadow-blue-500/25 disabled:opacity-70 disabled:cursor-not-allowed flex items-center justify-center gap-2 group"
+                            className="w-full bg-[#FF7A18] hover:bg-[#FF923D] text-white font-bold py-3.5 rounded-xl transition-all shadow-lg shadow-[#FF7A18]/25 hover:shadow-[#FF7A18]/35 disabled:opacity-60 disabled:cursor-not-allowed flex items-center justify-center gap-2 group cursor-pointer"
                         >
                             {loading ? (
                                 <Loader2 className="w-5 h-5 animate-spin" />
                             ) : (
                                 <>
-                                    Sign In
-                                    <ArrowRight className="w-5 h-5 group-hover:translate-x-1 transition-transform" />
+                                    <span>Enter Workspace</span>
+                                    <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
                                 </>
                             )}
                         </button>
                     </form>
                 </div>
 
-                <p className="text-center text-gray-500 text-sm mt-8">
-                    Protected by enterprise-grade security
+                <p className="text-center text-[#64748B] text-xs mt-6">
+                    Protected by enterprise-grade cryptographic security • Coimbatore
                 </p>
             </div>
         </div>

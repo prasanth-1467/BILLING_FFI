@@ -10,6 +10,7 @@ const invoiceSchema = new mongoose.Schema({
   customerAddress: String,
   customerState: String,
   customerPhone: String,
+  customerEmail: String,
   
   date: { type: Date, default: Date.now },
   items: [
@@ -47,7 +48,17 @@ const invoiceSchema = new mongoose.Schema({
     city: String,
     phone: String
   },
-  ewayBillNo: String
+  ewayBillNo: String,
+  emailHistory: [
+    {
+      recipient: String,
+      recipientType: { type: String, enum: ["customer", "myself"], default: "customer" },
+      sentAt: { type: Date, default: Date.now },
+      status: { type: String, enum: ["sent", "failed"], default: "sent" },
+      messageId: String,
+      error: String
+    }
+  ]
 });
 
 module.exports = mongoose.model("Invoice", invoiceSchema);
