@@ -78,26 +78,11 @@ const Dashboard = () => {
     const fetchDashboardTelemetry = async (isManualRefresh = false) => {
         if (isManualRefresh) setRefreshing(true);
         try {
-            const [statsRes, invoicesRes] = await Promise.all([
-                api.get('/stats'),
-                api.get('/invoices')
-            ]);
-
+            const statsRes = await api.get('/stats');
             const statsData = statsRes.data || {};
-            const allInvoices = invoicesRes.data || [];
 
-            // Filter pending/unpaid invoices for the workspace table
-            const pendingList = allInvoices
-                .filter(inv => {
-                    const bal = inv.balance != null ? inv.balance : ((inv.total || 0) - (inv.paidAmount || 0));
-                    return bal > 0;
-                })
-                .sort((a, b) => {
-                    if (!a.dueDate) return 1;
-                    if (!b.dueDate) return -1;
-                    return new Date(a.dueDate) - new Date(b.dueDate);
-                });
-
+            // Use pre-computed, sorted unpaid invoices directly from executive stats telemetry
+            const pendingList = statsData.unpaidInvoices || [];
             setUnpaidInvoices(pendingList);
 
             // Format chart data (30 days daily sales)

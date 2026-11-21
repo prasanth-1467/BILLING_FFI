@@ -8,79 +8,117 @@ const Notification = require("../models/Notification");
 
 router.get("/", async (req, res) => {
     try {
-        // 1. Total Invoices & Total Paid Sales
-        const totalInvoices = await Invoice.countDocuments();
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
 
-        const salesStats = await Invoice.aggregate([
-            {
-                $match: {
-                    $or: [
-                        { status: "Paid" },
-                        { balance: { $lte: 0 } }
-                    ]
-                }
-            },
-            {
-                $group: {
-                    _id: null,
-                    totalSales: { $sum: "$total" }
-                }
-            }
-        ]);
-        const totalSales = salesStats.length > 0 ? salesStats[0].totalSales : 0;
-
-        // 2. Total Customers & Low Stock Products
-        const totalCustomers = await Customer.countDocuments();
-        const lowStockCount = await Product.countDocuments({ stockQty: { $lt: 10 } });
-
-        // 3. Monthly Sales (Last 6 months)
         const sixMonthsAgo = new Date();
         sixMonthsAgo.setMonth(sixMonthsAgo.getMonth() - 6);
 
-        const monthlySales = await Invoice.aggregate([
-            { $match: { date: { $gte: sixMonthsAgo } } },
-            {
-                $group: {
-                    _id: { $dateToString: { format: "%Y-%m", date: "$date" } },
-                    total: { $sum: "$total" }
-                }
-            },
-            { $sort: { "_id": 1 } }
-        ]);
-
-        // 4. Daily Sales (Last 30 days) for visual cashflow area chart
         const thirtyDaysAgo = new Date();
         thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
         thirtyDaysAgo.setHours(0, 0, 0, 0);
 
-        const dailySales = await Invoice.aggregate([
-            { $match: { date: { $gte: thirtyDaysAgo } } },
-            {
-                $group: {
-                    _id: { $dateToString: { format: "%Y-%m-%d", date: "$date" } },
-                    total: { $sum: "$total" }
+        // Execute all independent database queries in parallel
+        const [
+            totalInvoices,
+            salesStats,
+            totalCustomers,
+            lowStockCount,
+            monthlySales,
+            dailySales,
+            recentInvoices,
+            unpaidInvoices,
+            quotationStats,
+            agentNotifications
+        ] = await Promise.all([
+            // 1. Total Invoices
+            Invoice.countDocuments(),
+
+            // 2. Total Paid Sales
+            Invoice.aggregate([
+                {
+                    $match: {
+                        $or: [
+                            { status: "Paid" },
+                            { balance: { $lte: 0 } }
+                        ]
+                    }
+                },
+                {
+                    $group: {
+                        _id: null,
+                        totalSales: { $sum: "$total" }
+                    }
                 }
-            },
-            { $sort: { "_id": 1 } }
+            ]),
+
+            // 3. Total Customers
+            Customer.countDocuments(),
+
+            // 4. Low Stock Products
+            Product.countDocuments({ stockQty: { $lt: 10 } }),
+
+            // 5. Monthly Sales (Last 6 months)
+            Invoice.aggregate([
+                { $match: { date: { $gte: sixMonthsAgo } } },
+                {
+                    $group: {
+                        _id: { $dateToString: { format: "%Y-%m", date: "$date" } },
+                        total: { $sum: "$total" }
+                    }
+                },
+                { $sort: { "_id": 1 } }
+            ]),
+
+            // 6. Daily Sales (Last 30 days) for visual cashflow area chart
+            Invoice.aggregate([
+                { $match: { date: { $gte: thirtyDaysAgo } } },
+                {
+                    $group: {
+                        _id: { $dateToString: { format: "%Y-%m-%d", date: "$date" } },
+                        total: { $sum: "$total" }
+                    }
+                },
+                { $sort: { "_id": 1 } }
+            ]),
+
+            // 7. Recent Invoices (Limit 5 with lightweight projection)
+            Invoice.find()
+                .sort({ date: -1 })
+                .limit(5)
+                .select("invoiceNumber total totalAmount balance status date dueDate customerId customerName customerPhone")
+                .populate("customerId", "name phone"),
+
+            // 8. Receivables: Unpaid Invoices with lightweight projection
+            Invoice.find({
+                $or: [
+                    { balance: { $gt: 0 } },
+                    { status: { $ne: "Paid" }, balance: { $exists: false } }
+                ]
+            })
+            .select("invoiceNumber total totalAmount paidAmount balance status date dueDate customerId customerName customerPhone paymentMethod notes")
+            .populate("customerId", "name phone"),
+
+            // 9. Quotation Conversion Pipeline - Aggregated on database instead of unbounded in-memory fetch
+            Quotation.aggregate([
+                {
+                    $group: {
+                        _id: "$status",
+                        count: { $sum: 1 },
+                        totalValue: { $sum: "$total" }
+                    }
+                }
+            ]),
+
+            // 10. Autonomous Agent Intelligence Feed
+            Notification.find()
+                .sort({ createdAt: -1 })
+                .limit(6)
         ]);
 
-        // 5. Recent Invoices (Limit 5)
-        const recentInvoices = await Invoice.find()
-            .sort({ date: -1 })
-            .limit(5)
-            .populate("customerId", "name phone");
+        const totalSales = salesStats.length > 0 ? salesStats[0].totalSales : 0;
 
-        // 6. Receivables Aging Engine
-        const unpaidInvoices = await Invoice.find({
-            $or: [
-                { balance: { $gt: 0 } },
-                { status: { $ne: "Paid" }, balance: { $exists: false } }
-            ]
-        }).populate("customerId", "name phone");
-
-        const today = new Date();
-        today.setHours(0, 0, 0, 0);
-
+        // Process Receivables Aging Engine
         let totalReceivables = 0;
         let overdueReceivables = 0;
         let overdueCount = 0;
@@ -95,6 +133,7 @@ router.get("/", async (req, res) => {
         };
 
         const customerBalances = {};
+        const pendingInvoicesList = [];
 
         unpaidInvoices.forEach(inv => {
             const bal = (inv.balance != null && !isNaN(inv.balance))
@@ -103,6 +142,7 @@ router.get("/", async (req, res) => {
 
             if (bal <= 0) return;
 
+            pendingInvoicesList.push(inv);
             totalReceivables += bal;
 
             const refDate = inv.dueDate ? new Date(inv.dueDate) : (inv.date ? new Date(inv.date) : today);
@@ -151,15 +191,21 @@ router.get("/", async (req, res) => {
             customerBalances[custName].invoiceCount += 1;
         });
 
+        // Sort pending invoices by due date for workspace table
+        pendingInvoicesList.sort((a, b) => {
+            if (!a.dueDate) return 1;
+            if (!b.dueDate) return -1;
+            return new Date(a.dueDate) - new Date(b.dueDate);
+        });
+
         const topReceivableCustomers = Object.values(customerBalances)
             .sort((a, b) => b.balance - a.balance)
             .slice(0, 5);
 
-        // 7. Quotation Conversion Pipeline
-        const allQuotations = await Quotation.find();
+        // Process Quotation Pipeline from database aggregation
         const quotationPipeline = {
-            totalCount: allQuotations.length,
-            totalValue: allQuotations.reduce((sum, q) => sum + (q.total || 0), 0),
+            totalCount: 0,
+            totalValue: 0,
             byStatus: {
                 Draft: { count: 0, value: 0 },
                 Sent: { count: 0, value: 0 },
@@ -170,13 +216,15 @@ router.get("/", async (req, res) => {
             conversionRate: 0
         };
 
-        allQuotations.forEach(q => {
-            const st = q.status || "Draft";
+        (quotationStats || []).forEach(item => {
+            const st = item._id || "Draft";
             if (!quotationPipeline.byStatus[st]) {
                 quotationPipeline.byStatus[st] = { count: 0, value: 0 };
             }
-            quotationPipeline.byStatus[st].count += 1;
-            quotationPipeline.byStatus[st].value += (q.total || 0);
+            quotationPipeline.byStatus[st].count = item.count;
+            quotationPipeline.byStatus[st].value = item.totalValue || 0;
+            quotationPipeline.totalCount += item.count;
+            quotationPipeline.totalValue += (item.totalValue || 0);
         });
 
         if (quotationPipeline.totalCount > 0) {
@@ -184,11 +232,6 @@ router.get("/", async (req, res) => {
                 ((quotationPipeline.byStatus.Converted?.count || 0) / quotationPipeline.totalCount) * 100
             );
         }
-
-        // 8. Autonomous Agent Intelligence Feed
-        const agentNotifications = await Notification.find()
-            .sort({ createdAt: -1 })
-            .limit(6);
 
         res.json({
             // Backward-compatible fields
@@ -208,7 +251,10 @@ router.get("/", async (req, res) => {
             dailySales,
             topReceivableCustomers,
             quotationPipeline,
-            agentNotifications
+            agentNotifications,
+
+            // Unpaid invoices for client workspace (avoids secondary /api/invoices query)
+            unpaidInvoices: pendingInvoicesList
         });
     } catch (err) {
         console.error("Server error fetching executive stats:", err);
