@@ -1,7 +1,7 @@
 import React, { useEffect, useState, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import api from '../services/api';
-import { Search, Loader, Download, FileText, CheckCircle, Clock, Eye, Trash2, Edit, Save, X, MoreVertical, IndianRupee, MessageCircle, AlertTriangle, Printer, Mail, Plus, Truck, Lock, Send, User } from 'lucide-react';
+import { Search, Loader, Download, FileText, CheckCircle, Clock, Eye, Trash2, Edit, Save, X, MoreVertical, IndianRupee, MessageCircle, AlertTriangle, Printer, Mail, Plus, Truck, Lock, Send, User, ChevronDown } from 'lucide-react';
 import { downloadEWayBillJSON } from '../utils/ewayBillFormatter';
 import { format, isPast, startOfDay } from 'date-fns';
 import PageHeader from '../components/common/PageHeader';
@@ -1036,58 +1036,88 @@ const Invoices = () => {
                 </div>
             </div>
 
-            <div className="flex flex-col lg:flex-row justify-between items-stretch lg:items-center gap-4 bg-[#111726] p-4 rounded-2xl shadow-sm border border-[#1F2B45] mt-2">
-                <div className="relative w-full lg:w-96">
-                    <input
-                        type="text"
-                        placeholder="Search invoice number or customer..."
-                        className="pl-10 w-full h-10 border border-[#1F2B45] rounded-xl focus:border-[#FF7A18] bg-[#172033] text-[#F8FAFC] outline-none"
-                        value={searchTerm}
-                        onChange={(e) => setSearchTerm(e.target.value)}
-                    />
+            {/* Invoice Management Horizontal SaaS Toolbar */}
+            <div className="bg-[#111726] [data-theme=light]:bg-white p-2.5 sm:p-3 rounded-2xl shadow-xs border border-[#1F2B45] [data-theme=light]:border-[#E4E4E7] flex flex-col xl:flex-row items-stretch xl:items-center justify-between gap-2.5 mt-2 transition-all">
+                {/* LEFT CONTROLS: Search Input + PDF Theme Selector + Document Format Badge */}
+                <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 flex-1 min-w-0">
+                    {/* Search Input with Icon */}
+                    <div className="relative flex-1 min-w-[200px] max-w-full sm:max-w-xs lg:max-w-sm">
+                        <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-[#94A3B8] pointer-events-none" />
+                        <input
+                            type="text"
+                            placeholder="Search invoice #, customer..."
+                            className="w-full h-9 pl-9 pr-7 text-xs bg-[#172033] [data-theme=light]:bg-[#F8FAFC] border border-[#1F2B45] [data-theme=light]:border-[#E4E4E7] rounded-xl text-[#F8FAFC] [data-theme=light]:text-[#18181B] placeholder-[#64748B] focus:border-[#FF7A18] focus:ring-1 focus:ring-[#FF7A18]/25 outline-none transition-all"
+                            value={searchTerm}
+                            onChange={(e) => setSearchTerm(e.target.value)}
+                        />
+                        {searchTerm && (
+                            <button
+                                onClick={() => setSearchTerm('')}
+                                className="absolute right-2 top-1/2 -translate-y-1/2 text-[#94A3B8] hover:text-[#F8FAFC] [data-theme=light]:hover:text-[#18181B] p-0.5 rounded cursor-pointer"
+                                title="Clear search"
+                            >
+                                <X size={12} />
+                            </button>
+                        )}
+                    </div>
+
+                    {/* Filter Dropdowns Group */}
+                    <div className="flex items-center gap-2 flex-wrap sm:flex-nowrap">
+                        {/* Theme / Template Selector */}
+                        <div className="relative flex-1 sm:flex-initial">
+                            <select
+                                value={selectedTheme}
+                                onChange={(e) => setSelectedTheme(e.target.value)}
+                                className="w-full sm:w-auto appearance-none pl-3 pr-8 h-9 text-xs font-semibold text-[#F8FAFC] [data-theme=light]:text-[#18181B] bg-[#172033] [data-theme=light]:bg-[#F8FAFC] border border-[#1F2B45] [data-theme=light]:border-[#E4E4E7] rounded-xl hover:border-[#94A3B8]/40 focus:border-[#FF7A18] outline-none cursor-pointer transition-colors"
+                                title="Select PDF Theme / Template"
+                            >
+                                <option value="indigo">Classic Indigo</option>
+                                <option value="emerald">Forest Emerald</option>
+                                <option value="crimson">Warm Crimson</option>
+                                <option value="charcoal">Sleek Charcoal</option>
+                                <option value="plain">Plain Black & White</option>
+                            </select>
+                            <ChevronDown size={13} className="absolute right-2.5 top-1/2 -translate-y-1/2 text-[#94A3B8] pointer-events-none" />
+                        </div>
+
+                        {/* Invoice Copy / Format Badge Selector */}
+                        <div className="relative flex-1 sm:flex-initial">
+                            <select
+                                value={copyType}
+                                onChange={(e) => setCopyType(e.target.value)}
+                                className="w-full sm:w-auto appearance-none pl-3 pr-8 h-9 text-xs font-bold text-[#FF7A18] bg-[#FF7A18]/10 border border-[#FF7A18]/30 rounded-xl hover:bg-[#FF7A18]/15 focus:border-[#FF7A18] outline-none cursor-pointer transition-colors"
+                                title="Select GST Document Copy Badge"
+                            >
+                                <option value="none">Standard Invoice (No Badge)</option>
+                                <option value="original">Original</option>
+                                <option value="duplicate">Duplicate</option>
+                                <option value="triplicate">Triplicate</option>
+                                <option value="filing">Office Copy</option>
+                            </select>
+                            <ChevronDown size={13} className="absolute right-2.5 top-1/2 -translate-y-1/2 text-[#FF7A18] pointer-events-none" />
+                        </div>
+                    </div>
                 </div>
 
-                <div className="flex items-center gap-2 flex-wrap">
-                    <button
-                        onClick={() => navigate('/invoices/new')}
-                        className="flex items-center gap-2 text-xs font-bold text-white bg-[#FF7A18] px-3.5 py-2.5 rounded-xl border border-[#FF7A18] hover:bg-[#FF923D] shadow-sm transition-all cursor-pointer"
-                        title="Create a Direct Custom Invoice"
-                    >
-                        <Plus size={16} />
-                        Create Direct Invoice
-                    </button>
+                {/* RIGHT ACTIONS: Export Excel + Create Direct Invoice */}
+                <div className="flex items-center gap-2 justify-end shrink-0">
                     <button
                         onClick={handleExportToExcel}
-                        className="flex items-center gap-2 text-xs font-bold text-[#22C55E] bg-[#22C55E]/15 px-3.5 py-2.5 rounded-xl border border-[#22C55E]/30 hover:bg-[#22C55E]/25 transition-all cursor-pointer"
+                        className="flex-1 sm:flex-initial h-9 inline-flex items-center justify-center gap-1.5 px-3 text-xs font-bold text-[#22C55E] bg-[#22C55E]/15 border border-[#22C55E]/30 rounded-xl hover:bg-[#22C55E]/25 transition-all cursor-pointer whitespace-nowrap active:scale-[0.98]"
                         title="Export Invoices to Excel Sheet"
                     >
-                        <Download size={16} />
-                        Export to Excel
+                        <Download size={14} />
+                        <span>Export Excel</span>
                     </button>
-                    <select
-                        value={selectedTheme}
-                        onChange={(e) => setSelectedTheme(e.target.value)}
-                        className="text-xs font-semibold text-[#F8FAFC] bg-[#172033] px-3 py-2.5 rounded-xl border border-[#1F2B45] outline-none cursor-pointer"
-                        title="Select PDF Theme"
+
+                    <button
+                        onClick={() => navigate('/invoices/new')}
+                        className="flex-1 sm:flex-initial h-9 inline-flex items-center justify-center gap-1.5 px-3.5 text-xs font-bold text-white bg-[#FF7A18] hover:bg-[#FF923D] border border-[#FF7A18] rounded-xl shadow-xs shadow-[#FF7A18]/25 transition-all cursor-pointer whitespace-nowrap active:scale-[0.98]"
+                        title="Create a Direct Custom Invoice"
                     >
-                        <option value="indigo">Classic Indigo</option>
-                        <option value="emerald">Forest Emerald</option>
-                        <option value="crimson">Warm Crimson</option>
-                        <option value="charcoal">Sleek Charcoal</option>
-                        <option value="plain">Plain Black & White</option>
-                    </select>
-                    <select
-                        value={copyType}
-                        onChange={(e) => setCopyType(e.target.value)}
-                        className="text-xs font-bold text-[#FF7A18] bg-[#FF7A18]/15 border border-[#FF7A18]/30 px-3 py-2.5 rounded-xl hover:bg-[#FF7A18]/25 outline-none cursor-pointer"
-                        title="Select GST Document Copy Badge"
-                    >
-                        <option value="none">Standard Invoice (No Badge)</option>
-                        <option value="original">Original</option>
-                        <option value="duplicate">Duplicate</option>
-                        <option value="triplicate">Triplicate</option>
-                        <option value="filing">Office Copy</option>
-                    </select>
+                        <Plus size={14} strokeWidth={2.5} />
+                        <span>Create Direct Invoice</span>
+                    </button>
                 </div>
             </div>
 
