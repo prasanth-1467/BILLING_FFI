@@ -2,8 +2,8 @@
 
 ## Current Status
 - **Active Milestone**: Milestone 1 — Modern CRM & UI/UX Transformation
-- **Active Phase**: Phase 3: Quotation Follow-up Workflow & Conversion Pipeline
-- **Phase Status**: Planned (3 plans ready for execution in `.planning/phases/03-quotation-followup/`)
+- **Active Phase**: Phase 5: Contextual Document Options Modal (PDF Export & Print UX)
+- **Phase Status**: Complete (3 / 3 plans executed in `.planning/phases/05-document-options-modal/`)
 
 ---
 
@@ -13,14 +13,15 @@
 | **Phase 1** | UI/UX Modernization & Navigation Baseline | Complete | 3 / 3 |
 | **Phase 2** | Executive CRM Dashboard & Receivables Aging | Complete | 3 / 3 |
 | **Phase 3** | Quotation Follow-up Workflow & Conversion Pipeline | Ready for Execution | 0 / 3 |
-| **Phase 4** | Customer 360 & Financial Ledger | Queued (Moved to End) | - |
+| **Phase 4** | Customer 360 & Financial Ledger | Queued | - |
+| **Phase 5** | Contextual Document Options Modal (PDF Export & Print UX) | Complete | 3 / 3 |
 
 ---
 
-## Active Phase Plans (Phase 3)
-- **03-01-PLAN.md**: Additive Quotation Follow-up Schema & Backend API (Wave 1)
-- **03-02-PLAN.md**: Quotation Follow-up Workflow UI, Schedule Modal & WhatsApp Actions (Wave 2)
-- **03-03-PLAN.md**: Quotation Follow-up Verification & Production Build Validation (Wave 3)
+## Active Phase Plans (Phase 5)
+- **05-01-PLAN.md**: Reusable DocumentOptionsModal Component Architecture (Wave 1)
+- **05-02-PLAN.md**: Integrate Modal into Invoices & Quotations, Clean Up Toolbars (Wave 2)
+- **05-03-PLAN.md**: Cross-Document Verification, Theme Validation & Build Stability (Wave 3)
 
 ---
 

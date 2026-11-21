@@ -101,14 +101,44 @@ const CreateInvoice = () => {
     const [ewayBillNo, setEwayBillNo] = useState('');
 
     // Shipping Address State
+    const [includeShippingAddress, setIncludeShippingAddress] = useState(true);
     const [isShipSameAsBill, setIsShipSameAsBill] = useState(true);
     const [shipTo, setShipTo] = useState({
         name: '',
         address: '',
-        state: '',
+        state: 'Tamil Nadu',
         city: '',
         phone: ''
     });
+
+    // Derived State - Active selectedCustomer for billing
+    const selectedCustomer = useMemo(() => {
+        if (customerMode === 'select') {
+            return customers.find((c) => c._id === selectedCustomerId || c.id === selectedCustomerId);
+        } else {
+            return {
+                name: manualCustomer.name,
+                phone: manualCustomer.phone,
+                gstNumber: manualCustomer.gstNumber || 'URD',
+                address: manualCustomer.address,
+                state: manualCustomer.state,
+                city: ''
+            };
+        }
+    }, [customerMode, selectedCustomerId, customers, manualCustomer]);
+
+    // Sync ShipTo with Active billing details when same as billing is enabled
+    useEffect(() => {
+        if (isShipSameAsBill && selectedCustomer) {
+            setShipTo({
+                name: selectedCustomer.name || '',
+                address: selectedCustomer.address || '',
+                state: selectedCustomer.state || 'Tamil Nadu',
+                city: selectedCustomer.city || '',
+                phone: selectedCustomer.phone || ''
+            });
+        }
+    }, [isShipSameAsBill, selectedCustomer]);
 
     // Helper: Calculate Next Suggested Product Code in Category
     const getNextSuggestedCode = (catName, productList = products) => {
@@ -208,8 +238,11 @@ const CreateInvoice = () => {
                             });
                         }
 
-                        if (inv.shipTo) {
-                            setIsShipSameAsBill(false);
+                        if (inv.includeShippingAddress !== undefined) {
+                            setIncludeShippingAddress(inv.includeShippingAddress);
+                        }
+
+                        if (inv.shipTo && (inv.shipTo.name || inv.shipTo.address)) {
                             setShipTo({
                                 name: inv.shipTo.name || '',
                                 address: inv.shipTo.address || '',
@@ -217,6 +250,10 @@ const CreateInvoice = () => {
                                 city: inv.shipTo.city || '',
                                 phone: inv.shipTo.phone || ''
                             });
+                            const billName = inv.customerName || (typeof inv.customerId === 'object' ? inv.customerId?.name : '');
+                            const billAddress = inv.customerAddress || (typeof inv.customerId === 'object' ? inv.customerId?.address : '');
+                            const isDifferent = (inv.shipTo.name && inv.shipTo.name !== billName) || (inv.shipTo.address && inv.shipTo.address !== billAddress);
+                            setIsShipSameAsBill(!isDifferent);
                         }
 
                         if (Array.isArray(inv.items)) {
@@ -538,7 +575,8 @@ const CreateInvoice = () => {
             paidAmount: 0,
             date: invoiceDate,
             dueDate: invoiceDate,
-            shipTo,
+            includeShippingAddress,
+            shipTo: includeShippingAddress ? shipTo : null,
             ewayBillNo: ewayBillNo || null
         };
 
@@ -817,19 +855,47 @@ const CreateInvoice = () => {
                         </div>
                     )}
 
-                    {/* Shipping Address Accordion */}
-                    <div className="pt-2 border-t border-[#1F2B45] space-y-2">
-                        <div className="flex items-center justify-between">
-                            <span className="text-xs font-bold text-[#F8FAFC]">Shipping Address Same as Billing?</span>
-                            <input
-                                type="checkbox"
-                                checked={isShipSameAsBill}
-                                onChange={(e) => setIsShipSameAsBill(e.target.checked)}
-                                className="rounded text-[#FF7A18] focus:ring-[#FF7A18] w-4 h-4 cursor-pointer"
-                            />
+                    {/* Shipping Address Section */}
+                    <div className="pt-2 border-t border-[#1F2B45] space-y-3">
+                        {/* Include Shipping Address Toggle Switch (Default: Enabled) */}
+                        <div className="flex items-center justify-between p-3 rounded-xl bg-[#172033] border border-[#1F2B45]">
+                            <div>
+                                <span className="text-xs font-bold text-[#F8FAFC] block">Include Shipping Address</span>
+                                <span className="text-[10px] text-[#94A3B8] block">Controls whether Ship To appears in PDF</span>
+                            </div>
+                            <button
+                                type="button"
+                                onClick={() => setIncludeShippingAddress(!includeShippingAddress)}
+                                className={`relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none ${
+                                    includeShippingAddress ? 'bg-[#FF7A18]' : 'bg-[#1F2B45]'
+                                }`}
+                                role="switch"
+                                aria-checked={includeShippingAddress}
+                            >
+                                <span
+                                    className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow-md ring-0 transition duration-200 ease-in-out ${
+                                        includeShippingAddress ? 'translate-x-5' : 'translate-x-0'
+                                    }`}
+                                />
+                            </button>
                         </div>
 
-                        {!isShipSameAsBill && (
+                        {includeShippingAddress && (
+                            <div className="flex justify-between items-center mb-1">
+                                <span className="text-xs font-bold text-[#F8FAFC]">Shipping Details</span>
+                                <label className="flex items-center gap-1.5 text-xs text-[#94A3B8] cursor-pointer select-none">
+                                    <input
+                                        type="checkbox"
+                                        checked={isShipSameAsBill}
+                                        onChange={(e) => setIsShipSameAsBill(e.target.checked)}
+                                        className="rounded text-[#FF7A18] focus:ring-[#FF7A18] w-4 h-4 cursor-pointer"
+                                    />
+                                    Same as Billing Address
+                                </label>
+                            </div>
+                        )}
+
+                        {includeShippingAddress && !isShipSameAsBill && (
                             <div className="space-y-2 bg-[#172033] p-3 rounded-xl border border-[#1F2B45] text-xs">
                                 <div>
                                     <label className="block text-[10px] font-bold text-[#94A3B8] uppercase mb-1">

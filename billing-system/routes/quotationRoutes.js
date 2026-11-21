@@ -112,7 +112,7 @@ router.post("/", async (req, res) => {
       total,
       expiryDate,
       theme: req.body.theme || null,
-      includeShippingAddress: includeShippingAddress !== undefined ? Boolean(includeShippingAddress) : true,
+      includeShippingAddress: includeShippingAddress !== undefined ? Boolean(includeShippingAddress) : false,
       shipTo
     });
 
@@ -259,11 +259,11 @@ router.get("/:id/pdf", async (req, res) => {
 
     if (!quote) return res.status(404).json({ error: "Quotation not found" });
 
-    const includeSignature = req.query.includeSignature === 'true';
+    const includeSignature = req.query.includeSignature !== undefined ? req.query.includeSignature === 'true' : true;
     const includeSeal = req.query.includeSeal === 'true';
     const includeShippingAddress = req.query.includeShippingAddress !== undefined
       ? req.query.includeShippingAddress === 'true'
-      : (quote.includeShippingAddress !== false);
+      : Boolean(quote.includeShippingAddress);
 
     // Resolve docType / heading title: 'QUOTATION' or 'PROFORMA INVOICE'
     const docType = (req.query.docType || req.query.documentTitle || 'quotation').toLowerCase();
@@ -475,11 +475,11 @@ router.post("/:id/email-to-me", async (req, res) => {
       gst: quote.gstBreakup,
       roundOff: quote.roundOff,
       total: quote.total,
-      includeSignature: req.query.includeSignature === "true",
+      includeSignature: req.query.includeSignature !== undefined ? req.query.includeSignature === "true" : true,
       includeSeal: req.query.includeSeal === "true",
       includeShippingAddress: req.query.includeShippingAddress !== undefined
         ? req.query.includeShippingAddress === "true"
-        : (quote.includeShippingAddress !== false)
+        : Boolean(quote.includeShippingAddress)
     };
 
     // Resolve theme

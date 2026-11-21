@@ -27,6 +27,7 @@ router.post("/", async (req, res) => {
       paidAmount,
       date,
       dueDate,
+      includeShippingAddress,
       shipTo 
     } = req.body;
 
@@ -136,6 +137,7 @@ router.post("/", async (req, res) => {
       balance,
       status: balance <= 0 ? "Paid" : (calculatedPaidAmount > 0 ? "Partially Paid" : "Pending"),
       theme: req.body.theme || null,
+      includeShippingAddress: includeShippingAddress !== undefined ? Boolean(includeShippingAddress) : true,
       shipTo: shipTo || null,
       ewayBillNo: req.body.ewayBillNo || null
     });
@@ -185,6 +187,7 @@ router.put("/:id", async (req, res) => {
       paidAmount,
       date,
       dueDate,
+      includeShippingAddress,
       shipTo,
       ewayBillNo,
       theme
@@ -309,6 +312,7 @@ router.put("/:id", async (req, res) => {
     existingInvoice.status = status;
     if (date) existingInvoice.date = new Date(date);
     if (dueDate) existingInvoice.dueDate = new Date(dueDate);
+    if (includeShippingAddress !== undefined) existingInvoice.includeShippingAddress = Boolean(includeShippingAddress);
     if (shipTo !== undefined) existingInvoice.shipTo = shipTo;
     if (ewayBillNo !== undefined) existingInvoice.ewayBillNo = ewayBillNo;
     if (theme !== undefined) existingInvoice.theme = theme;
@@ -489,6 +493,7 @@ router.post("/from-quotation/:quoteId", async (req, res) => {
       paymentTerms: "Due on Receipt",
       status: balance <= 0 ? "Paid" : (paidAmount > 0 ? "Partially Paid" : "Pending"),
       theme: quote.theme || null,
+      includeShippingAddress: quote.includeShippingAddress !== undefined ? quote.includeShippingAddress : true,
       shipTo: quote.shipTo ? {
         name: quote.shipTo.name,
         address: quote.shipTo.address,
@@ -604,6 +609,20 @@ router.get('/:id/pdf', async (req, res) => {
     }
     const theme = themeConfig[resolvedThemeName] || themeConfig.indigo;
 
+    const includeShippingAddress = req.query.includeShippingAddress !== undefined
+      ? req.query.includeShippingAddress === 'true'
+      : (invoice.includeShippingAddress !== false);
+
+    const resolvedShipTo = (invoice.shipTo && (invoice.shipTo.name || invoice.shipTo.address || invoice.shipTo.city || invoice.shipTo.state))
+      ? invoice.shipTo
+      : (includeShippingAddress ? {
+          name: invoice.customerName || invoice.customerId?.name || "-",
+          address: invoice.customerAddress || invoice.customerId?.address || "-",
+          state: invoice.customerState || invoice.customerId?.state || "-",
+          city: invoice.customerId?.city || "",
+          phone: invoice.customerPhone || invoice.customerId?.phone || ""
+        } : null);
+
     // Construct Data Object for PDF
     const pdfData = {
       number: invoice.invoiceNumber,
@@ -611,13 +630,14 @@ router.get('/:id/pdf', async (req, res) => {
       date: invoice.date,
       ewayBillNo: invoice.ewayBillNo,
       paymentTerms: "Immediate", // You can make this dynamic if added to model
+      includeShippingAddress,
       customer: {
         name: invoice.customerName || invoice.customerId?.name || "-",
         address: invoice.customerAddress || invoice.customerId?.address || "-",
         gst: invoice.customerGSTIN || invoice.customerId?.gstNumber || "URD",
         phone: invoice.customerPhone || invoice.customerId?.phone || "-",
         state: invoice.customerState || invoice.customerId?.state || "-", // Pass State
-        shipTo: invoice.shipTo // Pass shipTo
+        shipTo: resolvedShipTo // Pass resolved shipTo (defaults to customer billing details if not customized)
       },
       items: invoice.items.map(item => ({
         name: item.name || item.productId?.name || "Unknown Product",
@@ -696,12 +716,27 @@ const prepareInvoicePdfData = async (invoice, reqQuery = {}) => {
   }
   const theme = themeConfig[resolvedThemeName] || themeConfig.indigo;
 
+  const shouldIncludeShipping = reqQuery.includeShippingAddress !== undefined
+    ? reqQuery.includeShippingAddress === "true"
+    : (invoice.includeShippingAddress !== false);
+
+  const resolvedShipTo = (invoice.shipTo && (invoice.shipTo.name || invoice.shipTo.address || invoice.shipTo.city || invoice.shipTo.state))
+    ? invoice.shipTo
+    : (shouldIncludeShipping ? {
+        name: invoice.customerName || invoice.customerId?.name || "-",
+        address: invoice.customerAddress || invoice.customerId?.address || "-",
+        state: invoice.customerState || invoice.customerId?.state || "-",
+        city: invoice.customerId?.city || "",
+        phone: invoice.customerPhone || invoice.customerId?.phone || ""
+      } : null);
+
   return {
     number: invoice.invoiceNumber,
     date: invoice.date,
     theme,
     ewayBillNo: invoice.ewayBillNo,
     paymentTerms: "Due on Receipt",
+    includeShippingAddress: shouldIncludeShipping,
     customer: {
       name: invoice.customerName || invoice.customerId?.name || "-",
       address: invoice.customerAddress || invoice.customerId?.address || "-",
@@ -709,7 +744,7 @@ const prepareInvoicePdfData = async (invoice, reqQuery = {}) => {
       phone: invoice.customerPhone || invoice.customerId?.phone || "-",
       email: invoice.customerEmail || invoice.customerId?.email || "-",
       state: invoice.customerState || invoice.customerId?.state || "-",
-      shipTo: invoice.shipTo
+      shipTo: resolvedShipTo
     },
     items: invoice.items.map(item => ({
       name: item.name || item.productId?.name || "Product",

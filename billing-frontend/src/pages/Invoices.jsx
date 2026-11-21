@@ -8,6 +8,7 @@ import PageHeader from '../components/common/PageHeader';
 import TableSkeleton from '../components/common/TableSkeleton';
 import EmptyState from '../components/common/EmptyState';
 import StatusBadge from '../components/common/StatusBadge';
+import DocumentOptionsModal from '../components/common/DocumentOptionsModal';
 import { useToast } from '../context/ToastContext';
 
 const Invoices = () => {
@@ -18,10 +19,19 @@ const Invoices = () => {
     const [searchTerm, setSearchTerm] = useState('');
     const [downloadingId, setDownloadingId] = useState(null);
     const [printingId, setPrintingId] = useState(null);
-    const [includeSignature, setIncludeSignature] = useState(false);
-    const [includeSeal, setIncludeSeal] = useState(false);
+    const [includeSignature, setIncludeSignature] = useState(true);
+    const [includeSeal, setIncludeSeal] = useState(true);
+    const [includeShippingAddress, setIncludeShippingAddress] = useState(true);
     const [selectedTheme, setSelectedTheme] = useState('indigo');
     const [copyType, setCopyType] = useState('none');
+
+    // Document Options Modal State
+    const [docOptionsModal, setDocOptionsModal] = useState({
+        isOpen: false,
+        actionType: 'download', // 'download' | 'print'
+        invoice: null
+    });
+    const [modalActionLoading, setModalActionLoading] = useState(false);
 
     // Email Dispatch States
     const [sendingEmailId, setSendingEmailId] = useState(null);
@@ -121,11 +131,20 @@ const Invoices = () => {
         }
     };
 
-    const handleDownload = async (id, invoiceNumber) => {
+    const handleDownload = async (id, invoiceNumber, customOptions = null) => {
         try {
             setDownloadingId(id);
+            const sig = customOptions?.includeSignature ?? includeSignature;
+            const seal = customOptions?.includeSeal ?? includeSeal;
+            const ship = customOptions?.includeShippingAddress ?? includeShippingAddress;
             const response = await api.get(`/invoices/${id}/pdf`, {
-                params: { includeSignature, includeSeal, theme: selectedTheme, copyType },
+                params: {
+                    includeSignature: sig,
+                    includeSeal: seal,
+                    includeShippingAddress: ship,
+                    theme: selectedTheme,
+                    copyType
+                },
                 responseType: 'blob',
             });
 
@@ -233,7 +252,7 @@ const Invoices = () => {
         setSendingEmailId(invId);
 
         try {
-            const res = await api.post(`/invoices/${invId}/email-customer?includeSignature=${includeSignature}&includeSeal=${includeSeal}&theme=${selectedTheme}&copyType=${copyType}`, {
+            const res = await api.post(`/invoices/${invId}/email-customer?includeSignature=${includeSignature}&includeSeal=${includeSeal}&includeShippingAddress=${includeShippingAddress}&theme=${selectedTheme}&copyType=${copyType}`, {
                 email: cleanEmail,
                 saveToCustomer
             });
@@ -277,7 +296,7 @@ const Invoices = () => {
 
         setSendingEmailId(invId);
         try {
-            const res = await api.post(`/invoices/${invId}/email-to-me?includeSignature=${includeSignature}&includeSeal=${includeSeal}&theme=${selectedTheme}&copyType=${copyType}`);
+            const res = await api.post(`/invoices/${invId}/email-to-me?includeSignature=${includeSignature}&includeSeal=${includeSeal}&includeShippingAddress=${includeShippingAddress}&theme=${selectedTheme}&copyType=${copyType}`);
             showToast({
                 title: 'Business Copy Emailed',
                 description: res.data?.message || `Invoice #${invoice.invoiceNumber} PDF copy sent to your business email.`,
@@ -829,14 +848,23 @@ const Invoices = () => {
     };
 
     const handleViewPdf = (id) => {
-        window.open(`${import.meta.env.VITE_API_URL}/invoices/${id}/pdf?includeSignature=${includeSignature}&includeSeal=${includeSeal}&theme=${selectedTheme}&copyType=${copyType}`, '_blank', 'noopener,noreferrer');
+        window.open(`${import.meta.env.VITE_API_URL}/invoices/${id}/pdf?includeSignature=${includeSignature}&includeSeal=${includeSeal}&includeShippingAddress=${includeShippingAddress}&theme=${selectedTheme}&copyType=${copyType}`, '_blank', 'noopener,noreferrer');
     };
 
-    const handlePrint = async (id) => {
+    const handlePrint = async (id, customOptions = null) => {
         try {
             setPrintingId(id);
+            const sig = customOptions?.includeSignature ?? includeSignature;
+            const seal = customOptions?.includeSeal ?? includeSeal;
+            const ship = customOptions?.includeShippingAddress ?? includeShippingAddress;
             const response = await api.get(`/invoices/${id}/pdf`, {
-                params: { includeSignature, includeSeal, theme: selectedTheme, copyType },
+                params: {
+                    includeSignature: sig,
+                    includeSeal: seal,
+                    includeShippingAddress: ship,
+                    theme: selectedTheme,
+                    copyType
+                },
                 responseType: 'blob',
             });
 
@@ -880,6 +908,31 @@ const Invoices = () => {
             console.error('Failed to print PDF', error);
             alert('Failed to prepare print dialog');
             setPrintingId(null);
+        }
+    };
+
+    // Confirm handler triggered from DocumentOptionsModal
+    const handleConfirmDocOptions = async ({ includeSignature, includeSeal, includeShippingAddress }) => {
+        if (!docOptionsModal.invoice) return;
+        const inv = docOptionsModal.invoice;
+        const options = {
+            includeSignature,
+            includeSeal,
+            includeShippingAddress
+        };
+
+        setModalActionLoading(true);
+        try {
+            if (docOptionsModal.actionType === 'download') {
+                await handleDownload(inv.id || inv._id, inv.invoiceNumber, options);
+            } else {
+                await handlePrint(inv.id || inv._id, options);
+            }
+            setDocOptionsModal({ isOpen: false, actionType: 'download', invoice: null });
+        } catch (err) {
+            console.error('Failed to generate document with options:', err);
+        } finally {
+            setModalActionLoading(false);
         }
     };
 
@@ -1011,24 +1064,6 @@ const Invoices = () => {
                         <Download size={16} />
                         Export to Excel
                     </button>
-                    <label className="flex items-center gap-2 text-xs font-semibold text-[#94A3B8] bg-[#172033] px-3 py-2.5 rounded-xl cursor-pointer border border-[#1F2B45] hover:text-[#FF7A18] hover:border-[#FF7A18]/40 transition-colors">
-                        <input
-                            type="checkbox"
-                            className="w-4 h-4 rounded border-[#1F2B45] accent-[#FF7A18]"
-                            checked={includeSignature}
-                            onChange={e => setIncludeSignature(e.target.checked)}
-                        />
-                        Include Signature
-                    </label>
-                    <label className="flex items-center gap-2 text-xs font-semibold text-[#94A3B8] bg-[#172033] px-3 py-2.5 rounded-xl cursor-pointer border border-[#1F2B45] hover:text-[#FF7A18] hover:border-[#FF7A18]/40 transition-colors">
-                        <input
-                            type="checkbox"
-                            className="w-4 h-4 rounded border-[#1F2B45] accent-[#FF7A18]"
-                            checked={includeSeal}
-                            onChange={e => setIncludeSeal(e.target.checked)}
-                        />
-                        Include Seal
-                    </label>
                     <select
                         value={selectedTheme}
                         onChange={(e) => setSelectedTheme(e.target.value)}
@@ -1209,7 +1244,7 @@ const Invoices = () => {
                                                 </button>
 
                                                 <button
-                                                    onClick={() => handleDownload(invoice.id, invoice.invoiceNumber)}
+                                                    onClick={() => setDocOptionsModal({ isOpen: true, actionType: 'download', invoice })}
                                                     disabled={downloadingId === invoice.id}
                                                     className="p-1.5 text-[#FF7A18] hover:bg-[#FF7A18]/15 rounded-lg transition-colors border border-[#1F2B45] cursor-pointer"
                                                     title="Download PDF"
@@ -1218,7 +1253,7 @@ const Invoices = () => {
                                                 </button>
 
                                                 <button
-                                                    onClick={() => handlePrint(invoice.id)}
+                                                    onClick={() => setDocOptionsModal({ isOpen: true, actionType: 'print', invoice })}
                                                     disabled={printingId === invoice.id}
                                                     className="p-1.5 text-[#94A3B8] hover:text-[#FF7A18] hover:bg-[#FF7A18]/15 hover:border-[#FF7A18]/30 rounded-lg transition-colors border border-[#1F2B45] cursor-pointer"
                                                     title="Quick Print"
@@ -1493,6 +1528,16 @@ const Invoices = () => {
                     </div>
                 </div>
             )}
+            {/* Contextual Document Options Modal for PDF Download and Print */}
+            <DocumentOptionsModal
+                isOpen={docOptionsModal.isOpen}
+                onClose={() => setDocOptionsModal({ isOpen: false, actionType: 'download', invoice: null })}
+                actionType={docOptionsModal.actionType}
+                documentType="invoice"
+                documentNumber={docOptionsModal.invoice ? `Invoice #${docOptionsModal.invoice.invoiceNumber}` : ''}
+                onConfirm={handleConfirmDocOptions}
+                loading={modalActionLoading}
+            />
         </div>
     );
 };

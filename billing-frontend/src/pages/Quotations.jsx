@@ -7,6 +7,7 @@ import PageHeader from '../components/common/PageHeader';
 import TableSkeleton from '../components/common/TableSkeleton';
 import EmptyState from '../components/common/EmptyState';
 import StatusBadge from '../components/common/StatusBadge';
+import DocumentOptionsModal from '../components/common/DocumentOptionsModal';
 import { useToast } from '../context/ToastContext';
 
 const Quotations = () => {
@@ -16,12 +17,20 @@ const Quotations = () => {
   const [loading, setLoading] = useState(true);
   const [convertingId, setConvertingId] = useState(null);
   const [printingId, setPrintingId] = useState(null);
-  const [includeSignature, setIncludeSignature] = useState(false);
+  const [includeSignature, setIncludeSignature] = useState(true);
   const [includeSeal, setIncludeSeal] = useState(false);
-  const [includeShippingAddress, setIncludeShippingAddress] = useState(true);
+  const [includeShippingAddress, setIncludeShippingAddress] = useState(false);
   const [expandedId, setExpandedId] = useState(null);
   const [selectedTheme, setSelectedTheme] = useState('indigo');
   const [pdfDocType, setPdfDocType] = useState('quotation'); // 'quotation' | 'proforma'
+
+  // Document Options Modal State
+  const [docOptionsModal, setDocOptionsModal] = useState({
+    isOpen: false,
+    actionType: 'download', // 'download' | 'print'
+    quotation: null
+  });
+  const [modalActionLoading, setModalActionLoading] = useState(false);
 
   const [editingId, setEditingId] = useState(null);
   const [editingDateId, setEditingDateId] = useState(null);
@@ -98,10 +107,19 @@ const Quotations = () => {
     }
   };
 
-  const handleDownload = async (id, quoteNumber) => {
+  const handleDownload = async (id, quoteNumber, customOptions = null) => {
     try {
+      const sig = customOptions?.includeSignature ?? includeSignature;
+      const seal = customOptions?.includeSeal ?? includeSeal;
+      const ship = customOptions?.includeShippingAddress ?? includeShippingAddress;
       const response = await api.get(`/quotations/${id}/pdf`, {
-        params: { includeSignature, includeSeal, includeShippingAddress, theme: selectedTheme, docType: pdfDocType },
+        params: {
+          includeSignature: sig,
+          includeSeal: seal,
+          includeShippingAddress: ship,
+          theme: selectedTheme,
+          docType: pdfDocType
+        },
         responseType: 'blob',
       });
       const prefix = pdfDocType === 'proforma' ? 'Proforma' : 'Quotation';
@@ -118,11 +136,20 @@ const Quotations = () => {
     }
   };
 
-  const handlePrint = async (id) => {
+  const handlePrint = async (id, customOptions = null) => {
     try {
       setPrintingId(id);
+      const sig = customOptions?.includeSignature ?? includeSignature;
+      const seal = customOptions?.includeSeal ?? includeSeal;
+      const ship = customOptions?.includeShippingAddress ?? includeShippingAddress;
       const response = await api.get(`/quotations/${id}/pdf`, {
-        params: { includeSignature, includeSeal, includeShippingAddress, theme: selectedTheme, docType: pdfDocType },
+        params: {
+          includeSignature: sig,
+          includeSeal: seal,
+          includeShippingAddress: ship,
+          theme: selectedTheme,
+          docType: pdfDocType
+        },
         responseType: 'blob',
       });
 
@@ -165,6 +192,31 @@ const Quotations = () => {
       console.error('Failed to print PDF', error);
       alert('Failed to prepare print dialog');
       setPrintingId(null);
+    }
+  };
+
+  // Confirm handler triggered from DocumentOptionsModal
+  const handleConfirmDocOptions = async ({ includeSignature, includeSeal, includeShippingAddress }) => {
+    if (!docOptionsModal.quotation) return;
+    const q = docOptionsModal.quotation;
+    const options = {
+      includeSignature,
+      includeSeal,
+      includeShippingAddress
+    };
+
+    setModalActionLoading(true);
+    try {
+      if (docOptionsModal.actionType === 'download') {
+        await handleDownload(q.id || q._id, q.quoteNumber, options);
+      } else {
+        await handlePrint(q.id || q._id, options);
+      }
+      setDocOptionsModal({ isOpen: false, actionType: 'download', quotation: null });
+    } catch (err) {
+      console.error('Failed to generate document with options:', err);
+    } finally {
+      setModalActionLoading(false);
     }
   };
 
@@ -396,33 +448,6 @@ const Quotations = () => {
             </button>
           </div>
 
-          <label className="flex items-center gap-2 text-sm font-medium text-[#F8FAFC] bg-[#172033] px-3 py-2.5 rounded-lg cursor-pointer border hover:bg-[#172033]">
-            <input
-              type="checkbox"
-              className="w-4 h-4 text-[#FF7A18] rounded focus:ring-[#FF7A18] border-[#1F2B45]"
-              checked={includeShippingAddress}
-              onChange={e => setIncludeShippingAddress(e.target.checked)}
-            />
-            Include Shipping Address
-          </label>
-          <label className="flex items-center gap-2 text-sm font-medium text-[#F8FAFC] bg-[#172033] px-3 py-2.5 rounded-lg cursor-pointer border hover:bg-[#172033]">
-            <input
-              type="checkbox"
-              className="w-4 h-4 text-[#FF7A18] rounded focus:ring-[#FF7A18] border-[#1F2B45]"
-              checked={includeSignature}
-              onChange={e => setIncludeSignature(e.target.checked)}
-            />
-            Include Signature on PDFs
-          </label>
-          <label className="flex items-center gap-2 text-sm font-medium text-[#F8FAFC] bg-[#172033] px-3 py-2.5 rounded-lg cursor-pointer border hover:bg-[#172033]">
-            <input
-              type="checkbox"
-              className="w-4 h-4 text-[#FF7A18] rounded focus:ring-[#FF7A18] border-[#1F2B45]"
-              checked={includeSeal}
-              onChange={e => setIncludeSeal(e.target.checked)}
-            />
-            Include Seal on PDFs
-          </label>
           <select
             value={selectedTheme}
             onChange={(e) => setSelectedTheme(e.target.value)}
@@ -558,17 +583,17 @@ const Quotations = () => {
                           </button>
 
                           <button
-                            className="p-1.5 text-[#FF7A18] hover:bg-[#FF7A18]/15 rounded-md transition-colors"
-                            onClick={() => handleDownload(q.id, q.quoteNumber)}
+                            className="p-1.5 text-[#FF7A18] hover:bg-[#FF7A18]/15 rounded-md transition-colors cursor-pointer"
+                            onClick={() => setDocOptionsModal({ isOpen: true, actionType: 'download', quotation: q })}
                             title="Download PDF"
                           >
                             <Download size={18} />
                           </button>
 
                           <button
-                            onClick={() => handlePrint(q.id)}
+                            onClick={() => setDocOptionsModal({ isOpen: true, actionType: 'print', quotation: q })}
                             disabled={printingId === q.id}
-                            className="p-1.5 text-[#94A3B8] hover:text-[#F8FAFC] hover:bg-[#172033] rounded-md transition-colors border border-transparent"
+                            className="p-1.5 text-[#94A3B8] hover:text-[#FF7A18] hover:bg-[#FF7A18]/15 hover:border-[#FF7A18]/30 rounded-md transition-colors border border-transparent cursor-pointer"
                             title="Quick Print"
                           >
                             {printingId === q.id ? <Loader size={18} className="animate-spin" /> : <Printer size={18} />}
@@ -684,6 +709,17 @@ const Quotations = () => {
           </table>
         </div>
       </div>
+
+      {/* Contextual Document Options Modal for PDF Download and Print */}
+      <DocumentOptionsModal
+        isOpen={docOptionsModal.isOpen}
+        onClose={() => setDocOptionsModal({ isOpen: false, actionType: 'download', quotation: null })}
+        actionType={docOptionsModal.actionType}
+        documentType="quotation"
+        documentNumber={docOptionsModal.quotation ? `Quotation #${docOptionsModal.quotation.quoteNumber}` : ''}
+        onConfirm={handleConfirmDocOptions}
+        loading={modalActionLoading}
+      />
     </div>
   );
 };
