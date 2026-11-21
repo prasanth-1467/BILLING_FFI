@@ -11,24 +11,35 @@ const DocumentOptionsModal = ({
     isOpen,
     onClose,
     actionType = 'download', // 'download' | 'print'
-    documentType = 'invoice', // 'invoice' | 'quotation'
+    documentType = 'invoice', // 'invoice' | 'quotation' | 'purchase_order' | 'po'
     documentNumber = '',
     onConfirm,
     loading = false
 }) => {
     const isQuotation = documentType === 'quotation';
+    const isPurchaseOrder = documentType === 'purchase_order' || documentType === 'po';
+    const showShippingDetails = documentType === 'invoice';
+
+    const getDocLabel = () => {
+        if (isQuotation) return 'Quotation';
+        if (isPurchaseOrder) return 'Purchase Order';
+        return 'Invoice';
+    };
+
+    const docLabel = getDocLabel();
 
     // Independent options state with sensible defaults based on document type
     // Quotations: Signature=true, Seal=false, Shipping=false
+    // Purchase Orders: Signature=true, Seal=false, Shipping=false
     // Invoices: Signature=true, Seal=true, Shipping=true
     const [includeSignature, setIncludeSignature] = useState(true);
-    const [includeSeal, setIncludeSeal] = useState(!isQuotation);
-    const [includeShippingDetails, setIncludeShippingDetails] = useState(!isQuotation);
+    const [includeSeal, setIncludeSeal] = useState(documentType === 'invoice');
+    const [includeShippingDetails, setIncludeShippingDetails] = useState(documentType === 'invoice');
 
     // Reset options to default every time modal opens based on document type
     useEffect(() => {
         if (isOpen) {
-            if (documentType === 'quotation') {
+            if (documentType === 'quotation' || documentType === 'purchase_order' || documentType === 'po') {
                 setIncludeSignature(true);
                 setIncludeSeal(false);
                 setIncludeShippingDetails(false);
@@ -71,7 +82,6 @@ const DocumentOptionsModal = ({
     };
 
     const isDownload = actionType === 'download';
-    const docLabel = documentType === 'quotation' ? 'Quotation' : 'Invoice';
 
     return (
         <div
@@ -182,37 +192,39 @@ const DocumentOptionsModal = ({
                         </div>
                     </div>
 
-                    {/* Option 3: Shipping Details */}
-                    <div
-                        onClick={() => !loading && setIncludeShippingDetails(!includeShippingDetails)}
-                        className={`flex items-start gap-3.5 p-3 rounded-xl border transition-all cursor-pointer select-none ${
-                            includeShippingDetails
-                                ? 'bg-[#FF7A18]/10 border-[#FF7A18]/50 shadow-xs'
-                                : 'bg-[#172033]/50 [data-theme=light]:bg-[#F8F8FA] border-[#1F2B45] [data-theme=light]:border-[#E4E4E7] hover:border-[#94A3B8]/40'
-                        }`}
-                    >
-                        <div className="pt-0.5">
-                            <div
-                                className={`w-5 h-5 rounded-md flex items-center justify-center transition-colors ${
-                                    includeShippingDetails
-                                        ? 'bg-[#FF7A18] text-white shadow-xs'
-                                        : 'border border-[#1F2B45] [data-theme=light]:border-[#D4D4D8] bg-[#111726] [data-theme=light]:bg-white'
-                                }`}
-                            >
-                                {includeShippingDetails && <Check size={14} strokeWidth={3} />}
+                    {/* Option 3: Shipping Details (Invoice only) */}
+                    {showShippingDetails && (
+                        <div
+                            onClick={() => !loading && setIncludeShippingDetails(!includeShippingDetails)}
+                            className={`flex items-start gap-3.5 p-3 rounded-xl border transition-all cursor-pointer select-none ${
+                                includeShippingDetails
+                                    ? 'bg-[#FF7A18]/10 border-[#FF7A18]/50 shadow-xs'
+                                    : 'bg-[#172033]/50 [data-theme=light]:bg-[#F8F8FA] border-[#1F2B45] [data-theme=light]:border-[#E4E4E7] hover:border-[#94A3B8]/40'
+                            }`}
+                        >
+                            <div className="pt-0.5">
+                                <div
+                                    className={`w-5 h-5 rounded-md flex items-center justify-center transition-colors ${
+                                        includeShippingDetails
+                                            ? 'bg-[#FF7A18] text-white shadow-xs'
+                                            : 'border border-[#1F2B45] [data-theme=light]:border-[#D4D4D8] bg-[#111726] [data-theme=light]:bg-white'
+                                    }`}
+                                >
+                                    {includeShippingDetails && <Check size={14} strokeWidth={3} />}
+                                </div>
                             </div>
-                        </div>
 
-                        <div className="flex-1">
-                            <div className="flex items-center gap-1.5 font-bold text-xs text-[#F8FAFC] [data-theme=light]:text-[#18181B]">
-                                <Truck size={13} className="text-[#FF7A18]" />
-                                <span>Include Shipping Details</span>
+                            <div className="flex-1">
+                                <div className="flex items-center gap-1.5 font-bold text-xs text-[#F8FAFC] [data-theme=light]:text-[#18181B]">
+                                    <Truck size={13} className="text-[#FF7A18]" />
+                                    <span>Include Shipping Details</span>
+                                </div>
+                                <p className="text-[11px] text-[#94A3B8] [data-theme=light]:text-[#71717A] mt-0.5 leading-relaxed">
+                                    Include the shipping address and delivery information.
+                                </p>
                             </div>
-                            <p className="text-[11px] text-[#94A3B8] [data-theme=light]:text-[#71717A] mt-0.5 leading-relaxed">
-                                Include the shipping address and delivery information.
-                            </p>
                         </div>
-                    </div>
+                    )}
                 </div>
 
                 {/* Modal Footer Actions */}

@@ -2,15 +2,22 @@ import React, { useEffect, useState } from 'react';
 import api from '../services/api';
 import { Plus, Eye, Trash2, FileText, Loader, Download, Edit, Save, X, Printer } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
+import DocumentOptionsModal from '../components/common/DocumentOptionsModal';
 
 const PurchaseOrders = () => {
     const navigate = useNavigate();
     const [pos, setPos] = useState([]);
-    const [includeSignature, setIncludeSignature] = useState(false);
-    const [includeSeal, setIncludeSeal] = useState(false);
     const [loading, setLoading] = useState(true);
     const [printingId, setPrintingId] = useState(null);
     const [selectedTheme, setSelectedTheme] = useState('indigo');
+
+    // Document Options Modal State
+    const [docOptionsModal, setDocOptionsModal] = useState({
+        isOpen: false,
+        actionType: 'download',
+        po: null
+    });
+    const [modalActionLoading, setModalActionLoading] = useState(false);
 
     // Editing State
     const [editingId, setEditingId] = useState(null);
@@ -55,10 +62,14 @@ const PurchaseOrders = () => {
         }
     };
 
-    const handleDownload = async (id, poNumber) => {
+    const handleDownload = async (id, poNumber, options = {}) => {
         try {
             const response = await api.get(`/purchase-orders/${id}/pdf`, {
-                params: { includeSignature, includeSeal, theme: selectedTheme },
+                params: {
+                    includeSignature: options.includeSignature ?? true,
+                    includeSeal: options.includeSeal ?? false,
+                    theme: selectedTheme
+                },
                 responseType: 'blob', // Important for file download
             });
             const url = window.URL.createObjectURL(new Blob([response.data]));
@@ -75,11 +86,15 @@ const PurchaseOrders = () => {
         }
     };
 
-    const handlePrint = async (id) => {
+    const handlePrint = async (id, options = {}) => {
         try {
             setPrintingId(id);
             const response = await api.get(`/purchase-orders/${id}/pdf`, {
-                params: { includeSignature, includeSeal, theme: selectedTheme },
+                params: {
+                    includeSignature: options.includeSignature ?? true,
+                    includeSeal: options.includeSeal ?? false,
+                    theme: selectedTheme
+                },
                 responseType: 'blob',
             });
 
@@ -122,6 +137,27 @@ const PurchaseOrders = () => {
             console.error('Failed to print PDF', error);
             alert('Failed to prepare print dialog');
             setPrintingId(null);
+        }
+    };
+
+    // Confirm handler triggered from DocumentOptionsModal
+    const handleConfirmDocOptions = async ({ includeSignature, includeSeal }) => {
+        if (!docOptionsModal.po) return;
+        const po = docOptionsModal.po;
+        const options = { includeSignature, includeSeal };
+
+        setModalActionLoading(true);
+        try {
+            if (docOptionsModal.actionType === 'download') {
+                await handleDownload(po._id || po.id, po.poNumber, options);
+            } else {
+                await handlePrint(po._id || po.id, options);
+            }
+            setDocOptionsModal({ isOpen: false, actionType: 'download', po: null });
+        } catch (err) {
+            console.error('Failed to generate PO with options:', err);
+        } finally {
+            setModalActionLoading(false);
         }
     };
 
@@ -196,24 +232,6 @@ const PurchaseOrders = () => {
             <div className="flex justify-between items-center">
                 <h2 className="text-xl font-bold text-[#F8FAFC]">Purchase Orders</h2>
                 <div className="flex items-center gap-4">
-                    <label className="flex items-center gap-2 text-sm font-medium text-[#F8FAFC] bg-[#111726] px-3 py-2 rounded cursor-pointer border hover:bg-[#172033]">
-                        <input
-                            type="checkbox"
-                            className="w-4 h-4 text-[#FF7A18] rounded focus:ring-[#FF7A18] border-[#1F2B45]"
-                            checked={includeSignature}
-                            onChange={e => setIncludeSignature(e.target.checked)}
-                        />
-                        Include Signature
-                    </label>
-                    <label className="flex items-center gap-2 text-sm font-medium text-[#F8FAFC] bg-[#111726] px-3 py-2 rounded cursor-pointer border hover:bg-[#172033]">
-                        <input
-                            type="checkbox"
-                            className="w-4 h-4 text-[#FF7A18] rounded focus:ring-[#FF7A18] border-[#1F2B45]"
-                            checked={includeSeal}
-                            onChange={e => setIncludeSeal(e.target.checked)}
-                        />
-                        Include Seal
-                    </label>
                     <select
                         value={selectedTheme}
                         onChange={(e) => setSelectedTheme(e.target.value)}
@@ -326,16 +344,16 @@ const PurchaseOrders = () => {
                                     </td>
                                     <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
                                         <button
-                                            className="text-[#94A3B8] hover:text-[#FF7A18] mr-4 transition-colors"
+                                            className="text-[#94A3B8] hover:text-[#FF7A18] mr-4 transition-colors cursor-pointer"
                                             title="Download PDF"
-                                            onClick={() => handleDownload(po._id || po.id, po.poNumber)}
+                                            onClick={() => setDocOptionsModal({ isOpen: true, actionType: 'download', po })}
                                         >
                                             <Download size={18} />
                                         </button>
                                         <button
-                                            className="text-[#94A3B8] hover:text-[#FF7A18] mr-4 transition-colors"
+                                            className="text-[#94A3B8] hover:text-[#FF7A18] mr-4 transition-colors cursor-pointer disabled:opacity-50"
                                             title="Quick Print"
-                                            onClick={() => handlePrint(po._id || po.id)}
+                                            onClick={() => setDocOptionsModal({ isOpen: true, actionType: 'print', po })}
                                             disabled={printingId === (po._id || po.id)}
                                         >
                                             {printingId === (po._id || po.id) ? <Loader size={18} className="animate-spin" /> : <Printer size={18} />}
@@ -375,6 +393,17 @@ const PurchaseOrders = () => {
                     </table>
                 </div>
             </div>
+
+            {/* Contextual Document Options Modal for Purchase Order PDF Download and Print */}
+            <DocumentOptionsModal
+                isOpen={docOptionsModal.isOpen}
+                onClose={() => setDocOptionsModal({ isOpen: false, actionType: 'download', po: null })}
+                actionType={docOptionsModal.actionType}
+                documentType="purchase_order"
+                documentNumber={docOptionsModal.po ? `PO #${docOptionsModal.po.poNumber}` : ''}
+                onConfirm={handleConfirmDocOptions}
+                loading={modalActionLoading}
+            />
         </div>
     );
 };
