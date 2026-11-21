@@ -166,14 +166,29 @@ function generatePDF(resOrData, dataOrNone, type = "TAX INVOICE") {
         + 10;
 
     let shipToHeight = 0;
-    const shouldIncludeShipping = data?.includeShippingAddress !== false && data?.includeShippingAddress !== 'false' && Boolean(data.customer?.shipTo && (data.customer.shipTo.name || data.customer.shipTo.address || data.customer.shipTo.city || data.customer.shipTo.state));
+    const rawShipTo = data.customer?.shipTo;
+    const hasExplicitShipTo = Boolean(rawShipTo && (rawShipTo.name || rawShipTo.address || rawShipTo.city || rawShipTo.state));
+    const isShippingExplicitlyDisabled = data?.includeShippingAddress === false || data?.includeShippingAddress === 'false';
+
+    // Ship To is enabled by default unless explicitly disabled, falling back to billing details if shipTo is not customized
+    const resolvedShipTo = !isShippingExplicitlyDisabled
+        ? (hasExplicitShipTo ? rawShipTo : (data.customer ? {
+            name: data.customer.name,
+            address: data.customer.address,
+            state: data.customer.state,
+            city: data.customer.city || '',
+            phone: data.customer.phone
+        } : null))
+        : null;
+
+    const shouldIncludeShipping = Boolean(resolvedShipTo);
 
     if (shouldIncludeShipping) {
         shipToHeight = 15
-            + doc.heightOfString(data.customer.shipTo.name || data.customer.name || "-", { width: colWidth })
-            + doc.heightOfString(data.customer.shipTo.address || data.customer.address || "-", { width: colWidth })
+            + doc.heightOfString(resolvedShipTo.name || data.customer.name || "-", { width: colWidth })
+            + doc.heightOfString(resolvedShipTo.address || data.customer.address || "-", { width: colWidth })
             + 12
-            + (data.customer.shipTo.phone ? 12 : 0)
+            + (resolvedShipTo.phone ? 12 : 0)
             + 10;
     }
     const blockHeight = Math.max(billToHeight, shipToHeight) + 10;
@@ -199,11 +214,11 @@ function generatePDF(resOrData, dataOrNone, type = "TAX INVOICE") {
     // Ship To (Right)
     if (shouldIncludeShipping) {
         doc.fillColor(theme.primary).fontSize(10).font("Helvetica-Bold").text("Ship To:", 305, addressY);
-        doc.font("Helvetica-Bold").text(data.customer.shipTo.name || data.customer.name, 305, doc.y, { width: colWidth - 10 });
-        doc.font("Helvetica").fillColor(theme.secondaryText).text(data.customer.shipTo.address || data.customer.address, { width: colWidth - 10 });
-        const cityState = [data.customer.shipTo.city, data.customer.shipTo.state].filter(Boolean).join(", ");
+        doc.font("Helvetica-Bold").text(resolvedShipTo.name || data.customer.name, 305, doc.y, { width: colWidth - 10 });
+        doc.font("Helvetica").fillColor(theme.secondaryText).text(resolvedShipTo.address || data.customer.address, { width: colWidth - 10 });
+        const cityState = [resolvedShipTo.city, resolvedShipTo.state].filter(Boolean).join(", ");
         if (cityState) doc.text(cityState, { width: colWidth - 10 });
-        if (data.customer.shipTo.phone) doc.text(`Phone: ${data.customer.shipTo.phone}`, { width: colWidth - 10 });
+        if (resolvedShipTo.phone) doc.text(`Phone: ${resolvedShipTo.phone}`, { width: colWidth - 10 });
         shipToEndY = doc.y;
     }
 

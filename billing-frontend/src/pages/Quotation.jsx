@@ -87,7 +87,7 @@ const Quotation = () => {
 
     // Ship To State
     const [isShipSameAsBill, setIsShipSameAsBill] = usePersistentState('quotation_v3.isShipSameAsBill', true);
-    const [includeShippingAddress, setIncludeShippingAddress] = usePersistentState('quotation_v3.includeShippingAddress', true);
+    const [includeShippingAddress, setIncludeShippingAddress] = usePersistentState('quotation_v3.includeShippingAddress', false);
     const [shipTo, setShipTo] = usePersistentState('quotation_v3.shipTo', {
         name: '',
         address: '',

@@ -41,6 +41,7 @@ const invoiceSchema = new mongoose.Schema({
   balance: Number,
   status: { type: String, default: "Pending" },
   theme: String,
+  includeShippingAddress: { type: Boolean, default: true },
   shipTo: {
     name: String,
     address: String,

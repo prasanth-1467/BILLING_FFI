@@ -43,3 +43,12 @@ Transform Fine Flow Irrigation's GST billing platform into an integrated Billing
   - Modern Customer 360 drawer/view with tabbed ledger (Invoices, Quotations, Profile).
   - Quick WhatsApp and Phone communication triggers.
 - **Success Criteria**: Customer profile instantly displays full financial status and transaction history with 100% preservation of existing customer create/edit flows.
+
+### Phase 5: Contextual Document Options Modal (PDF Export & Print UX) [COMPLETE]
+- **Goal**: Eliminate always-visible toolbar toggle clutter by introducing a contextual Document Options modal shown upon initiating Download or Print actions.
+- **Scope**:
+  - Reusable, theme-aware `DocumentOptionsModal` component with checkbox cards for Signature & Seal and Shipping Details.
+  - Contextual action buttons (`Download PDF` / `Print Document` / `Cancel`).
+  - Integration with `Invoices.jsx` and `Quotations.jsx` row actions with isolated per-document state.
+  - Removal of cluttered checkboxes from page toolbars.
+- **Success Criteria**: Clean document interfaces where users configure signature, seal, and shipping options only when initiating an export or print action, without altering document data or existing PDF engine logic.

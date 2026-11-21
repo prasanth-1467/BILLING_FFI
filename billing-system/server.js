@@ -40,10 +40,19 @@ app.use("/api/notifications", require("./routes/notificationRoutes"));
 app.use("/api/settings", require("./routes/settingsRoutes"));
 
 
-app.get("/health", (req, res) => {
+app.get("/health", async (req, res) => {
+  const isDbConnected = mongoose.connection.readyState === 1;
+  if (isDbConnected && mongoose.connection.db) {
+    try {
+      await mongoose.connection.db.admin().ping();
+    } catch (e) {
+      // Ignore ping errors so health check still succeeds
+    }
+  }
   res.status(200).json({
     status: "OK",
     uptime: process.uptime(),
+    dbConnected: isDbConnected,
     timestamp: new Date()
   });
 });
