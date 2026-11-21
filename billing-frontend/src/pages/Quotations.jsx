@@ -1,6 +1,6 @@
 import React, { useEffect, useState, useRef } from 'react';
 import api from '../services/api';
-import { Loader, FileText, CheckCircle, Clock, Eye, Download, Trash2, Edit, Save, X, MoreVertical, FilePlus, Send, RefreshCcw, Copy, Printer, MessageCircle, Mail } from 'lucide-react';
+import { Loader, FileText, CheckCircle, Clock, Eye, Download, Trash2, Edit, Save, X, MoreVertical, FilePlus, Send, RefreshCcw, Copy, Printer, MessageCircle, Mail, Search, ChevronDown, Plus } from 'lucide-react';
 import { format } from 'date-fns';
 import { useNavigate } from 'react-router-dom';
 import PageHeader from '../components/common/PageHeader';
@@ -22,6 +22,7 @@ const Quotations = () => {
   const [includeShippingAddress, setIncludeShippingAddress] = useState(false);
   const [expandedId, setExpandedId] = useState(null);
   const [selectedTheme, setSelectedTheme] = useState('indigo');
+  const [searchTerm, setSearchTerm] = useState('');
   const [pdfDocType, setPdfDocType] = useState('quotation'); // 'quotation' | 'proforma'
 
   // Document Options Modal State
@@ -357,6 +358,14 @@ const Quotations = () => {
     return (a.quoteNumber || '').localeCompare(b.quoteNumber || '', undefined, { numeric: true, sensitivity: 'base' });
   });
 
+  const filteredQuotes = normalized.filter((q) => {
+    if (!searchTerm) return true;
+    const term = searchTerm.toLowerCase();
+    const quoteNum = (q.quoteNumber || '').toLowerCase();
+    const custName = (q.customerName || '').toLowerCase();
+    return quoteNum.includes(term) || custName.includes(term);
+  });
+
   // Metrics
   const totalQuotes = normalized.length;
   const convertedCount = normalized.filter(q => q.status === 'Converted').length;
@@ -421,58 +430,96 @@ const Quotations = () => {
         </div>
       </div>
 
-      <div className="flex flex-col md:flex-row justify-between items-start md:items-center bg-[#111726] p-4 rounded-xl shadow-sm border border-[#1F2B45] mt-2 gap-4">
-        <div className="flex flex-1 flex-wrap gap-3 items-center w-full">
-          {/* Document Type Toggle Switch */}
-          <div className="flex items-center bg-[#172033] p-1 rounded-xl border border-[#1F2B45]">
-            <span className="text-[11px] font-bold text-[#94A3B8] uppercase tracking-wider pl-2 pr-1 select-none">PDF Type:</span>
-            <button
-              type="button"
-              onClick={() => setPdfDocType('quotation')}
-              className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${pdfDocType === 'quotation'
-                ? 'bg-[#FF7A18] text-white shadow-sm'
-                : 'text-[#94A3B8] hover:text-[#F8FAFC] hover:bg-[#111726]'
-                }`}
-            >
-              Quotation
-            </button>
-            <button
-              type="button"
-              onClick={() => setPdfDocType('proforma')}
-              className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${pdfDocType === 'proforma'
-                ? 'bg-[#FF7A18] text-white shadow-sm'
-                : 'text-[#94A3B8] hover:text-[#F8FAFC] hover:bg-[#111726]'
-                }`}
-            >
-              Proforma Invoice
-            </button>
+      {/* Quotation Management Horizontal SaaS Toolbar */}
+      <div className="bg-[#111726] [data-theme=light]:bg-white p-2.5 sm:p-3 rounded-2xl shadow-xs border border-[#1F2B45] [data-theme=light]:border-[#E4E4E7] flex flex-col xl:flex-row items-stretch xl:items-center justify-between gap-2.5 mt-2 transition-all">
+        {/* LEFT CONTROLS: Search Input + PDF Document Type Toggle + PDF Theme Selector */}
+        <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 flex-1 min-w-0">
+          {/* Search Input with Icon */}
+          <div className="relative flex-1 min-w-[200px] max-w-full sm:max-w-xs lg:max-w-sm">
+            <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-[#94A3B8] pointer-events-none" />
+            <input
+              type="text"
+              placeholder="Search quote #, customer..."
+              className="w-full h-9 pl-9 pr-7 text-xs bg-[#172033] [data-theme=light]:bg-[#F8FAFC] border border-[#1F2B45] [data-theme=light]:border-[#E4E4E7] rounded-xl text-[#F8FAFC] [data-theme=light]:text-[#18181B] placeholder-[#64748B] focus:border-[#FF7A18] focus:ring-1 focus:ring-[#FF7A18]/25 outline-none transition-all"
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+            />
+            {searchTerm && (
+              <button
+                onClick={() => setSearchTerm('')}
+                className="absolute right-2 top-1/2 -translate-y-1/2 text-[#94A3B8] hover:text-[#F8FAFC] [data-theme=light]:hover:text-[#18181B] p-0.5 rounded cursor-pointer"
+                title="Clear search"
+              >
+                <X size={12} />
+              </button>
+            )}
           </div>
 
-          <select
-            value={selectedTheme}
-            onChange={(e) => setSelectedTheme(e.target.value)}
-            className="text-sm font-medium text-[#F8FAFC] bg-[#172033] px-3 py-2.5 rounded-lg border hover:bg-[#172033] outline-none cursor-pointer"
-            title="Select PDF Theme"
-          >
-            <option value="indigo">Classic Indigo</option>
-            <option value="emerald">Forest Emerald</option>
-            <option value="crimson">Warm Crimson</option>
-            <option value="charcoal">Sleek Charcoal</option>
-            <option value="plain">Plain Black & White</option>
-          </select>
+          {/* Document Type Segmented Control + Theme Selector */}
+          <div className="flex items-center gap-2 flex-wrap sm:flex-nowrap">
+            {/* PDF Type Pill Switch */}
+            <div className="h-9 inline-flex items-center bg-[#172033] [data-theme=light]:bg-[#F8FAFC] p-0.5 rounded-xl border border-[#1F2B45] [data-theme=light]:border-[#E4E4E7]">
+              <button
+                type="button"
+                onClick={() => setPdfDocType('quotation')}
+                className={`h-7.5 px-3 rounded-lg text-xs font-bold transition-all cursor-pointer whitespace-nowrap ${
+                  pdfDocType === 'quotation'
+                    ? 'bg-[#FF7A18] text-white shadow-xs'
+                    : 'text-[#94A3B8] [data-theme=light]:text-[#71717A] hover:text-[#F8FAFC] [data-theme=light]:hover:text-[#18181B]'
+                }`}
+              >
+                Quotation
+              </button>
+              <button
+                type="button"
+                onClick={() => setPdfDocType('proforma')}
+                className={`h-7.5 px-3 rounded-lg text-xs font-bold transition-all cursor-pointer whitespace-nowrap ${
+                  pdfDocType === 'proforma'
+                    ? 'bg-[#FF7A18] text-white shadow-xs'
+                    : 'text-[#94A3B8] [data-theme=light]:text-[#71717A] hover:text-[#F8FAFC] [data-theme=light]:hover:text-[#18181B]'
+                }`}
+              >
+                Proforma Invoice
+              </button>
+            </div>
+
+            {/* Theme Selector */}
+            <div className="relative flex-1 sm:flex-initial">
+              <select
+                value={selectedTheme}
+                onChange={(e) => setSelectedTheme(e.target.value)}
+                className="w-full sm:w-auto appearance-none pl-3 pr-8 h-9 text-xs font-semibold text-[#F8FAFC] [data-theme=light]:text-[#18181B] bg-[#172033] [data-theme=light]:bg-[#F8FAFC] border border-[#1F2B45] [data-theme=light]:border-[#E4E4E7] rounded-xl hover:border-[#94A3B8]/40 focus:border-[#FF7A18] outline-none cursor-pointer transition-colors"
+                title="Select PDF Theme"
+              >
+                <option value="indigo">Classic Indigo</option>
+                <option value="emerald">Forest Emerald</option>
+                <option value="crimson">Warm Crimson</option>
+                <option value="charcoal">Sleek Charcoal</option>
+                <option value="plain">Plain Black & White</option>
+              </select>
+              <ChevronDown size={13} className="absolute right-2.5 top-1/2 -translate-y-1/2 text-[#94A3B8] pointer-events-none" />
+            </div>
+          </div>
         </div>
 
-        <div className="flex items-center gap-2 flex-shrink-0">
+        {/* RIGHT ACTIONS: Sync + Create Quotation */}
+        <div className="flex items-center gap-2 justify-end shrink-0">
+          <button
+            onClick={fetchQuotes}
+            className="flex-1 sm:flex-initial h-9 inline-flex items-center justify-center gap-1.5 px-3 text-xs font-bold text-[#94A3B8] [data-theme=light]:text-[#71717A] bg-[#172033] [data-theme=light]:bg-[#F8FAFC] border border-[#1F2B45] [data-theme=light]:border-[#E4E4E7] hover:text-[#F8FAFC] [data-theme=light]:hover:text-[#18181B] rounded-xl transition-all cursor-pointer whitespace-nowrap active:scale-[0.98]"
+            title="Sync Quotations"
+          >
+            <RefreshCcw size={14} className={loading ? "animate-spin" : ""} />
+            <span>Sync</span>
+          </button>
+
           <button
             onClick={() => navigate('/quotation')}
-            className="inline-flex items-center gap-2 text-sm font-bold text-white bg-[#FF7A18] px-4 py-2 rounded-lg hover:bg-[#FF923D] shadow-sm transition-all cursor-pointer"
+            className="flex-1 sm:flex-initial h-9 inline-flex items-center justify-center gap-1.5 px-3.5 text-xs font-bold text-white bg-[#FF7A18] hover:bg-[#FF923D] border border-[#FF7A18] rounded-xl shadow-xs shadow-[#FF7A18]/25 transition-all cursor-pointer whitespace-nowrap active:scale-[0.98]"
             title="Create a New Quotation"
           >
-            <FilePlus size={16} />
-            Create Quotation
-          </button>
-          <button className="btn btn-outline flex items-center gap-2 flex-shrink-0" onClick={fetchQuotes}>
-            <RefreshCcw size={16} /> Sync
+            <Plus size={14} strokeWidth={2.5} />
+            <span>Create Quotation</span>
           </button>
         </div>
       </div>
@@ -491,8 +538,8 @@ const Quotations = () => {
               </tr>
             </thead>
             <tbody className="divide-y divide-[#1F2B45]">
-              {normalized.length > 0 ? (
-                normalized.map((q) => (
+              {filteredQuotes.length > 0 ? (
+                filteredQuotes.map((q) => (
                   <React.Fragment key={q.id}>
                     <tr className="hover:bg-[#FF7A18]/15/20 transition-colors group">
                       <td className="p-4 font-medium text-[#FF7A18]">
@@ -694,16 +741,17 @@ const Quotations = () => {
                 ))
               ) : (
                 <tr>
-    <td colSpan="6" className="py-6">
-      <EmptyState
-        icon={FileText}
-        title="No quotations found"
-        description="Start by converting an enquiry or adding a new quotation."
-        actionText="New Quotation"
-        actionLink="/quotation"
-      />
-    </td>
-  </tr>
+                  <td colSpan="6" className="py-6">
+                    <EmptyState
+                      icon={FileText}
+                      title={searchTerm ? `No quotations matching "${searchTerm}"` : "No quotations found"}
+                      description={searchTerm ? "Try searching by another quote number or customer name." : "Start by converting an enquiry or adding a new quotation."}
+                      actionText={searchTerm ? "Clear Search" : "New Quotation"}
+                      actionLink={searchTerm ? undefined : "/quotation"}
+                      onAction={searchTerm ? () => setSearchTerm('') : undefined}
+                    />
+                  </td>
+                </tr>
               )}
             </tbody>
           </table>
